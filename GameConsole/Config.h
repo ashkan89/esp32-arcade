@@ -9,7 +9,8 @@
 #define BTN_FIRE 25
 #define BTN_WEAPON 14
 #define BUZZER_PIN 27
-#define SIGNAL_LED 16  // LED PIN
+#define SIGNAL_LED 16   // LED PIN
+#define AMBIENT_LED 12  // LED PIN
 
 // ================= SCREEN =================
 #define SCREEN_W 176

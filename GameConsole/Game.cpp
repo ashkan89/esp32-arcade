@@ -8,6 +8,7 @@ void Game::begin() {
   pinMode(BTN_FIRE, INPUT_PULLUP);
   pinMode(BTN_WEAPON, INPUT_PULLUP);
   pinMode(SIGNAL_LED, OUTPUT);
+  pinMode(AMBIENT_LED, OUTPUT);
 
   tft.init();
   tft.setRotation(2);
@@ -23,6 +24,8 @@ void Game::begin() {
   audio.begin(BUZZER_PIN);
   audio.setEnabled(soundEnabled);
   audio.startMusic();
+
+  ambientEnabled();
 
   randomSeed(analogRead(34));
 
@@ -60,13 +63,17 @@ void Game::loadSettings() {
   highScore = prefs.getInt("hiscore", 0);
   attractEnabled = prefs.getBool("attract", true);
   soundEnabled = prefs.getBool("sound", true);
+  dificaulty = prefs.getInt("dificaulty", 1);
   crtEnabled = prefs.getBool("crt", true);
+  ambientLightingEnabled = prefs.getBool("ambient", true);
 }
 
 void Game::saveSettings() {
   prefs.putBool("attract", attractEnabled);
   prefs.putBool("sound", soundEnabled);
+  prefs.putInt("dificaulty", dificaulty);
   prefs.putBool("crt", crtEnabled);
+  prefs.putBool("ambient", ambientLightingEnabled);
 }
 
 void Game::saveHighScore() {
@@ -306,8 +313,8 @@ void Game::updateInput() {
         if (soundEnabled) audio.menuMove();
       } else if (state == GS_SETTINGS) {
         settingsIndex += rightNow ? 1 : -1;
-        if (settingsIndex < 0) settingsIndex = 2;
-        if (settingsIndex > 2) settingsIndex = 0;
+        if (settingsIndex < 0) settingsIndex = 4;
+        if (settingsIndex > 4) settingsIndex = 0;
         if (soundEnabled) audio.menuMove();
       }
     }
@@ -331,9 +338,13 @@ void Game::updateInput() {
 
   if (state == GS_SETTINGS && fireNow && !firePrev) {
     if (settingsIndex == 0) soundEnabled = !soundEnabled;
-    else if (settingsIndex == 1) attractEnabled = !attractEnabled;
-    else if (settingsIndex == 2) crtEnabled = !crtEnabled;
+    else if (settingsIndex == 1) {
+      dificaulty >= 3 ? dificaulty = 1 : ++dificaulty;
+    } else if (settingsIndex == 2) attractEnabled = !attractEnabled;
+    else if (settingsIndex == 3) crtEnabled = !crtEnabled;
+    else if (settingsIndex == 4) ambientLightingEnabled = !ambientLightingEnabled;
     audio.setEnabled(soundEnabled);
+    ambientEnabled();
     saveSettings();
     if (soundEnabled) audio.menuSelect();
   }
@@ -1114,15 +1125,18 @@ void Game::drawSettings() {
   spr.drawString("SETTINGS", SCREEN_W / 2, 42);
 
   spr.setTextSize(1);
-  String items[3] = {
+  String items[5] = {
     String("SOUND: ") + (soundEnabled ? "ON" : "OFF"),
+    String("DIFICAULTY: ") + (dificaulty == 1 ? "EASY" : dificaulty == 2 ? "NORMAL"
+                                                                         : "HARD"),
     String("ATTRACT: ") + (attractEnabled ? "ON" : "OFF"),
-    String("CRT FX: ") + (crtEnabled ? "ON" : "OFF")
+    String("CRT FX: ") + (crtEnabled ? "ON" : "OFF"),
+    String("AMBIENT LIGHT: ") + (ambientLightingEnabled ? "ON" : "OFF")
   };
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 5; i++) {
     spr.setTextColor(i == settingsIndex ? TFT_YELLOW : TFT_WHITE, BG_COLOR);
-    spr.drawString(items[i], SCREEN_W / 2, 92 + i * 20);
+    spr.drawString(items[i], SCREEN_W / 2, 72 + i * 20);
   }
 
   spr.setTextColor(TFT_LIGHTGREY, BG_COLOR);
@@ -1204,6 +1218,14 @@ void Game::drawCRT() {
   if (!crtEnabled) return;
   for (int y = PLAYFIELD_Y; y < SCREEN_H; y += 2) {
     spr.drawFastHLine(0, y, SCREEN_W, CRT_LINE);
+  }
+}
+
+void Game::ambientEnabled() {
+  if (ambientLightingEnabled) {
+    digitalWrite(AMBIENT_LED, HIGH);
+  } else {
+    digitalWrite(AMBIENT_LED, LOW);
   }
 }
 

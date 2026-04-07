@@ -1,3 +1,4 @@
+#include <stdint.h>
 #pragma once
 #include "Config.h"
 #include "Sprites.h"
@@ -163,7 +164,9 @@ private:
 
   bool attractEnabled = true;
   bool soundEnabled = true;
+  uint8_t dificaulty = 1;
   bool crtEnabled = true;
+  bool ambientLightingEnabled = true;
 
   int menuIndex = 0;
   int settingsIndex = 0;
@@ -237,5 +240,6 @@ private:
   void drawGameOver();
   void drawBoot();
   void drawCRT();
+  void ambientEnabled();
   void drawHearts(int x, int y, int count);
 };
