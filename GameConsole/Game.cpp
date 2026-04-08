@@ -282,6 +282,7 @@ void Game::initShields() {
 // ========================= INPUT =========================
 void Game::updateInput() {
   static bool firePrev = false, leftPrev = false, rightPrev = false, weaponPrev = false;
+  static GameState statePrev = state;
 
   bool fireNow = digitalRead(BTN_FIRE) == LOW;
   bool leftNow = digitalRead(BTN_LEFT) == LOW;
@@ -320,6 +321,30 @@ void Game::updateInput() {
     }
   }
 
+  if (state == GS_SETTINGS && fireNow && !firePrev && statePrev == GS_SETTINGS) {
+    if (settingsIndex == 0) soundEnabled = !soundEnabled;
+    else if (settingsIndex == 1) dificaulty >= 3 ? dificaulty = 1 : ++dificaulty;
+    else if (settingsIndex == 2) attractEnabled = !attractEnabled;
+    else if (settingsIndex == 3) crtEnabled = !crtEnabled;
+    else if (settingsIndex == 4) ambientLightingEnabled = !ambientLightingEnabled;
+
+    audio.setEnabled(soundEnabled);
+    ambientEnabled();
+    saveSettings();
+
+    if (soundEnabled) audio.menuSelect();
+  }
+
+  if (state == GS_WAVE_CLEAR && fireNow && !firePrev) {
+    nextWave();
+  }
+
+  if (state == GS_PLAYING && weaponNow && !weaponPrev && millis() - lastWeapon > 180) {
+    lastWeapon = millis();
+    weapon = (WeaponType)((weapon + 1) % 3);
+    if (soundEnabled) audio.menuMove();
+  }
+
   if (state == GS_MENU && fireNow && !firePrev) {
     if (menuIndex == 0) {
       resetGame();
@@ -336,20 +361,10 @@ void Game::updateInput() {
     if (soundEnabled) audio.menuSelect();
   }
 
-  if (state == GS_SETTINGS && fireNow && !firePrev) {
-    if (settingsIndex == 0) soundEnabled = !soundEnabled;
-    else if (settingsIndex == 1) {
-      dificaulty >= 3 ? dificaulty = 1 : ++dificaulty;
-    } else if (settingsIndex == 2) attractEnabled = !attractEnabled;
-    else if (settingsIndex == 3) crtEnabled = !crtEnabled;
-    else if (settingsIndex == 4) ambientLightingEnabled = !ambientLightingEnabled;
-    audio.setEnabled(soundEnabled);
-    ambientEnabled();
-    saveSettings();
-    if (soundEnabled) audio.menuSelect();
-  }
-
   if ((state == GS_SETTINGS || state == GS_LEADERBOARD || state == GS_ATTRACT) && leftNow && rightNow && !fireNow) {
+    if (state = GS_SETTINGS)
+      settingsIndex = 0;
+
     state = GS_MENU;
   }
 
@@ -357,24 +372,15 @@ void Game::updateInput() {
     state = GS_MENU;
   }
 
-  if (state == GS_WAVE_CLEAR && fireNow && !firePrev) {
-    nextWave();
-  }
-
   if (state == GS_PAUSED && fireNow && !firePrev) {
     state = GS_PLAYING;
-  }
-
-  if (state == GS_PLAYING && weaponNow && !weaponPrev && millis() - lastWeapon > 180) {
-    lastWeapon = millis();
-    weapon = (WeaponType)((weapon + 1) % 3);
-    if (soundEnabled) audio.menuMove();
   }
 
   firePrev = fireNow;
   leftPrev = leftNow;
   rightPrev = rightNow;
   weaponPrev = weaponNow;
+  statePrev = state;
 }
 
 // ========================= STATES =========================
