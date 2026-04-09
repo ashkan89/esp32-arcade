@@ -1,7 +1,15 @@
 #pragma once
 #include <Arduino.h>
-#include <TFT_eSPI.h>
 #include <Preferences.h>
+#include <TFT_eSPI.h>
+
+// #include <WiFi.h>
+// #include <SPI.h>
+// #include <SD.h>
+
+// #if defined(ESP8266)
+// #elif defined(ESP32)
+// #endif
 
 // ================= PINS =================
 #define BTN_LEFT 32
@@ -11,6 +19,7 @@
 #define BUZZER_PIN 27
 #define SIGNAL_LED 16   // LED PIN
 #define AMBIENT_LED 12  // LED PIN
+#define SD_CS 13        // SD CS PIN
 
 // ================= SCREEN =================
 #define SCREEN_W 176

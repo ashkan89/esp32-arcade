@@ -3,6 +3,11 @@
 
 // ========================= BEGIN =========================
 void Game::begin() {
+  Serial.begin(921600);
+
+  while (!Serial)
+    ;
+
   pinMode(BTN_LEFT, INPUT_PULLUP);
   pinMode(BTN_RIGHT, INPUT_PULLUP);
   pinMode(BTN_FIRE, INPUT_PULLUP);
@@ -24,6 +29,10 @@ void Game::begin() {
   audio.begin(BUZZER_PIN);
   audio.setEnabled(soundEnabled);
   audio.startMusic();
+
+  Serial.print("beginning...");
+  gameController.begin();
+  Serial.print("begined...");
 
   ambientEnabled();
 
@@ -93,6 +102,7 @@ void Game::saveLeaderboard() {
 }
 
 void Game::insertLeaderboard(int s) {
+  saveToSdCard();
   for (int i = 0; i < MAX_LEADERS; i++) {
     if (s > leaders[i].score) {
       for (int j = MAX_LEADERS - 1; j > i; j--) leaders[j] = leaders[j - 1];
@@ -101,6 +111,19 @@ void Game::insertLeaderboard(int s) {
       break;
     }
   }
+}
+
+void Game::saveToSdCard() {
+  // if (SD.begin(SD_CS)) {
+  //   file = SD.open("/pref.txt", FILE_APPEND);
+  //   if (file) {
+  //     file.printf("Hi, this is sdcard sample!\n");
+  //     // file.printf("%02d:%02d:%02d,%.1f,%.1f\n", hour, minute, sec, temperature, humidity);
+  //     file.close();
+  //   }
+  // } else {
+  //   Serial.println("SD init failed! - write");
+  // }
 }
 
 // ========================= RESET / WAVES =========================
@@ -281,20 +304,30 @@ void Game::initShields() {
 
 // ========================= INPUT =========================
 void Game::updateInput() {
-  static bool firePrev = false, leftPrev = false, rightPrev = false, weaponPrev = false;
+  static bool firePrev = false, leftPrev = false, rightPrev = false, upPrev = false, downPrev = false, backPrev = false, weaponPrev = false;
   static GameState statePrev = state;
 
-  bool fireNow = digitalRead(BTN_FIRE) == LOW;
-  bool leftNow = digitalRead(BTN_LEFT) == LOW;
-  bool rightNow = digitalRead(BTN_RIGHT) == LOW;
-  bool weaponNow = digitalRead(BTN_WEAPON) == LOW;
+  // bool fireNow = digitalRead(BTN_FIRE) == LOW;
+  // bool leftNow = digitalRead(BTN_LEFT) == LOW;
+  // bool rightNow = digitalRead(BTN_RIGHT) == LOW;
+  // bool weaponNow = digitalRead(BTN_WEAPON) == LOW;
+
+  XboxControllerNotificationParser response = gameController.getButtons();
+
+  bool rightNow = response.btnDirRight == 1;
+  bool leftNow = response.btnDirLeft == 1;
+  bool upNow = response.btnDirUp == 1;
+  bool downNow = response.btnDirDown == 1;
+  bool fireNow = response.btnA == 1;
+  bool backNow = response.btnB == 1;
+  bool weaponNow = response.btnX == 1;
 
   if (fireNow) digitalWrite(SIGNAL_LED, HIGH);
   if (millis() - lastInputTime > 25) digitalWrite(SIGNAL_LED, LOW);
 
-  if (fireNow || leftNow || rightNow || weaponNow) lastInputTime = millis();
+  if (fireNow || leftNow || rightNow || upNow || downNow || weaponNow || backNow) lastInputTime = millis();
 
-  if (leftNow && rightNow && fireNow) {
+  if ((leftNow && rightNow && fireNow) || backNow) {
     if (pauseHold == 0) pauseHold = millis();
     if (millis() - pauseHold > 700) {
       if (state == GS_PLAYING) state = GS_PAUSED;
@@ -303,17 +336,17 @@ void Game::updateInput() {
     }
   } else pauseHold = 0;
 
-  if ((leftNow && !leftPrev) || (rightNow && !rightPrev)) {
+  if ((upNow && !upPrev) || (downNow && !downPrev)) {
     if (millis() - lastMenuMove > 140) {
       lastMenuMove = millis();
 
       if (state == GS_MENU) {
-        menuIndex += rightNow ? 1 : -1;
+        menuIndex += downNow ? 1 : -1;
         if (menuIndex < 0) menuIndex = 3;
         if (menuIndex > 3) menuIndex = 0;
         if (soundEnabled) audio.menuMove();
       } else if (state == GS_SETTINGS) {
-        settingsIndex += rightNow ? 1 : -1;
+        settingsIndex += downNow ? 1 : -1;
         if (settingsIndex < 0) settingsIndex = 4;
         if (settingsIndex > 4) settingsIndex = 0;
         if (soundEnabled) audio.menuMove();
@@ -333,6 +366,7 @@ void Game::updateInput() {
     saveSettings();
 
     if (soundEnabled) audio.menuSelect();
+    gameController.vibrate();
   }
 
   if (state == GS_WAVE_CLEAR && fireNow && !firePrev) {
@@ -361,7 +395,7 @@ void Game::updateInput() {
     if (soundEnabled) audio.menuSelect();
   }
 
-  if ((state == GS_SETTINGS || state == GS_LEADERBOARD || state == GS_ATTRACT) && leftNow && rightNow && !fireNow) {
+  if ((state == GS_SETTINGS || state == GS_LEADERBOARD || state == GS_ATTRACT) && ((leftNow && rightNow && !fireNow) || backNow)) {
     if (state = GS_SETTINGS)
       settingsIndex = 0;
 
@@ -379,6 +413,9 @@ void Game::updateInput() {
   firePrev = fireNow;
   leftPrev = leftNow;
   rightPrev = rightNow;
+  upPrev = upNow;
+  downPrev = downNow;
+  backPrev = backNow;
   weaponPrev = weaponNow;
   statePrev = state;
 }
@@ -459,9 +496,16 @@ void Game::updateAttract() {
 }
 
 void Game::updateGame() {
-  bool left = digitalRead(BTN_LEFT) == LOW;
-  bool right = digitalRead(BTN_RIGHT) == LOW;
-  bool fire = digitalRead(BTN_FIRE) == LOW;
+  // bool left = digitalRead(BTN_LEFT) == LOW;
+  // bool right = digitalRead(BTN_RIGHT) == LOW;
+  // bool fire = digitalRead(BTN_FIRE) == LOW;
+
+  XboxControllerNotificationParser response = gameController.getButtons();
+
+  bool right = response.btnDirRight == 1;
+  bool left = response.btnDirLeft == 1;
+  bool fire = response.btnA == 1;
+
 
   if (left) playerX -= 3;
   if (right) playerX += 3;
@@ -883,6 +927,8 @@ bool Game::damageShieldAt(int x, int y, uint8_t amount) {
 void Game::loseLife() {
   spawnExplosion(playerX + 8, playerY + 5, TFT_RED, 16);
   if (soundEnabled) audio.gameOver();
+  gameController.vibrate();
+
   lives--;
   playerX = 80;
 
@@ -999,6 +1045,7 @@ void Game::drawHUD() {
   spr.setTextColor(TFT_WHITE, HUD_BG);
   spr.setTextSize(1);
   spr.setCursor(2, 3);
+
   spr.printf("S:%d H:%d W:%d", score, highScore, wave);
 
   const char *wpn = (weapon == WPN_LASER) ? "LAS" : (weapon == WPN_SPREAD ? "SPR" : "PLA");
@@ -1104,8 +1151,13 @@ void Game::drawUFO() {
 
 void Game::drawMenu() {
   spr.setTextDatum(MC_DATUM);
+
+  spr.setTextColor(TFT_WHITE, BG_COLOR);
+  spr.drawString("Battery: " + String(gameController.getBattery()) + "%", SCREEN_W / 2, 20);
+
   spr.setTextColor(TFT_GREEN, BG_COLOR);
   spr.setTextSize(2);
+
   spr.drawString("SPACE", SCREEN_W / 2, 44);
   spr.drawString("INVADERS", SCREEN_W / 2, 68);
 

@@ -3,6 +3,7 @@
 #include "Config.h"
 #include "Sprites.h"
 #include "AudioEngine.h"
+#include "MyXboxController.h"
 
 enum GameState {
   GS_BOOT,
@@ -97,6 +98,7 @@ private:
   TFT_eSprite spr = TFT_eSprite(&tft);
   Preferences prefs;
   AudioEngine audio;
+  MyXboxController gameController;
 
   GameState state = GS_BOOT;
 
@@ -171,6 +173,8 @@ private:
   int menuIndex = 0;
   int settingsIndex = 0;
 
+  // File file;
+
 private:
   void loadSettings();
   void saveSettings();
@@ -178,6 +182,7 @@ private:
   void loadLeaderboard();
   void saveLeaderboard();
   void insertLeaderboard(int s);
+  void saveToSdCard();
 
   void resetGame();
   void nextWave();
