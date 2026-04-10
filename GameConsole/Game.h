@@ -115,6 +115,7 @@ private:
   unsigned long lastBossMove = 0;
   unsigned long lastBossPattern = 0;
   unsigned long pauseHold = 0;
+  unsigned long xboxHold = 0;
   unsigned long lastMenuMove = 0;
 
   int score = 0;

@@ -11,12 +11,15 @@ void Game::begin() {
   pinMode(BTN_LEFT, INPUT_PULLUP);
   pinMode(BTN_RIGHT, INPUT_PULLUP);
   pinMode(BTN_FIRE, INPUT_PULLUP);
+  pinMode(BTN_BACK, INPUT_PULLUP);
   pinMode(BTN_WEAPON, INPUT_PULLUP);
   pinMode(SIGNAL_LED, OUTPUT);
   pinMode(AMBIENT_LED, OUTPUT);
 
+  gameController.begin();
+
   tft.init();
-  tft.setRotation(2);
+  tft.setRotation(0);
   tft.fillScreen(TFT_BLACK);
 
   spr.setColorDepth(16);
@@ -29,10 +32,6 @@ void Game::begin() {
   audio.begin(BUZZER_PIN);
   audio.setEnabled(soundEnabled);
   audio.startMusic();
-
-  Serial.print("beginning...");
-  gameController.begin();
-  Serial.print("begined...");
 
   ambientEnabled();
 
@@ -307,27 +306,61 @@ void Game::updateInput() {
   static bool firePrev = false, leftPrev = false, rightPrev = false, upPrev = false, downPrev = false, backPrev = false, weaponPrev = false;
   static GameState statePrev = state;
 
-  // bool fireNow = digitalRead(BTN_FIRE) == LOW;
-  // bool leftNow = digitalRead(BTN_LEFT) == LOW;
-  // bool rightNow = digitalRead(BTN_RIGHT) == LOW;
-  // bool weaponNow = digitalRead(BTN_WEAPON) == LOW;
+  bool rightNow = false;
+  bool leftNow = false;
+  bool upNow = false;
+  bool downNow = false;
+  bool fireNow = false;
+  bool backNow = false;
+  bool xboxBtn = false;
+  bool weaponNow = false;
 
-  XboxControllerNotificationParser response = gameController.getButtons();
+  if (gameController.isConnected()) {
+    XboxControllerNotificationParser response = gameController.getButtons();
 
-  bool rightNow = response.btnDirRight == 1;
-  bool leftNow = response.btnDirLeft == 1;
-  bool upNow = response.btnDirUp == 1;
-  bool downNow = response.btnDirDown == 1;
-  bool fireNow = response.btnA == 1;
-  bool backNow = response.btnB == 1;
-  bool weaponNow = response.btnX == 1;
+    rightNow = response.btnDirRight == 1;
+    leftNow = response.btnDirLeft == 1;
+    upNow = response.btnDirUp == 1;
+    downNow = response.btnDirDown == 1;
+    fireNow = response.btnA == 1;
+    backNow = response.btnB == 1;
+    xboxBtn = response.btnXbox == 1;
+    weaponNow = response.btnX == 1;
+  } else {
+
+    fireNow = digitalRead(BTN_FIRE) == LOW;
+    leftNow = digitalRead(BTN_LEFT) == LOW;
+    rightNow = digitalRead(BTN_RIGHT) == LOW;
+    backNow = digitalRead(BTN_BACK) == LOW;
+    weaponNow = digitalRead(BTN_WEAPON) == LOW;
+  }
 
   if (fireNow) digitalWrite(SIGNAL_LED, HIGH);
   if (millis() - lastInputTime > 25) digitalWrite(SIGNAL_LED, LOW);
 
-  if (fireNow || leftNow || rightNow || upNow || downNow || weaponNow || backNow) lastInputTime = millis();
+  if (fireNow || leftNow || rightNow || upNow || downNow || weaponNow || backNow || xboxBtn) lastInputTime = millis();
 
-  if ((leftNow && rightNow && fireNow) || backNow) {
+  if (xboxBtn) {
+    if (xboxHold == 0) xboxHold = millis();
+    if (millis() - xboxHold > 700) {
+      if (gameController.isConnected()) {
+        gameController.disconnect();
+      }
+
+      xboxHold = 0;
+    }
+  } else xboxHold = 0;
+
+  // if ((leftNow && rightNow && fireNow) || backNow) {
+  //   if (pauseHold == 0) pauseHold = millis();
+  //   if (millis() - pauseHold > 700) {
+  //     if (state == GS_PLAYING) state = GS_PAUSED;
+  //     else if (state == GS_PAUSED) state = GS_PLAYING;
+  //     pauseHold = 0;
+  //   }
+  // } else pauseHold = 0;
+
+  if (backNow) {
     if (pauseHold == 0) pauseHold = millis();
     if (millis() - pauseHold > 700) {
       if (state == GS_PLAYING) state = GS_PAUSED;
@@ -336,20 +369,40 @@ void Game::updateInput() {
     }
   } else pauseHold = 0;
 
-  if ((upNow && !upPrev) || (downNow && !downPrev)) {
-    if (millis() - lastMenuMove > 140) {
-      lastMenuMove = millis();
+  if (gameController.isConnected()) {
+    if ((upNow && !upPrev) || (downNow && !downPrev)) {
+      if (millis() - lastMenuMove > 140) {
+        lastMenuMove = millis();
 
-      if (state == GS_MENU) {
-        menuIndex += downNow ? 1 : -1;
-        if (menuIndex < 0) menuIndex = 3;
-        if (menuIndex > 3) menuIndex = 0;
-        if (soundEnabled) audio.menuMove();
-      } else if (state == GS_SETTINGS) {
-        settingsIndex += downNow ? 1 : -1;
-        if (settingsIndex < 0) settingsIndex = 4;
-        if (settingsIndex > 4) settingsIndex = 0;
-        if (soundEnabled) audio.menuMove();
+        if (state == GS_MENU) {
+          menuIndex += downNow ? 1 : -1;
+          if (menuIndex < 0) menuIndex = 3;
+          if (menuIndex > 3) menuIndex = 0;
+          if (soundEnabled) audio.menuMove();
+        } else if (state == GS_SETTINGS) {
+          settingsIndex += downNow ? 1 : -1;
+          if (settingsIndex < 0) settingsIndex = 4;
+          if (settingsIndex > 4) settingsIndex = 0;
+          if (soundEnabled) audio.menuMove();
+        }
+      }
+    }
+  } else {
+    if ((rightNow && !rightPrev) || (leftNow && !leftPrev)) {
+      if (millis() - lastMenuMove > 140) {
+        lastMenuMove = millis();
+
+        if (state == GS_MENU) {
+          menuIndex += rightNow ? 1 : -1;
+          if (menuIndex < 0) menuIndex = 3;
+          if (menuIndex > 3) menuIndex = 0;
+          if (soundEnabled) audio.menuMove();
+        } else if (state == GS_SETTINGS) {
+          settingsIndex += rightNow ? 1 : -1;
+          if (settingsIndex < 0) settingsIndex = 4;
+          if (settingsIndex > 4) settingsIndex = 0;
+          if (soundEnabled) audio.menuMove();
+        }
       }
     }
   }
@@ -408,6 +461,10 @@ void Game::updateInput() {
 
   if (state == GS_PAUSED && fireNow && !firePrev) {
     state = GS_PLAYING;
+  }
+
+  if (state == GS_PAUSED && xboxBtn) {
+    state = GS_MENU;
   }
 
   firePrev = fireNow;
@@ -496,16 +553,22 @@ void Game::updateAttract() {
 }
 
 void Game::updateGame() {
-  // bool left = digitalRead(BTN_LEFT) == LOW;
-  // bool right = digitalRead(BTN_RIGHT) == LOW;
-  // bool fire = digitalRead(BTN_FIRE) == LOW;
+  bool right = false;
+  bool left = false;
+  bool fire = false;
 
-  XboxControllerNotificationParser response = gameController.getButtons();
+  if (gameController.isConnected()) {
+    XboxControllerNotificationParser response = gameController.getButtons();
 
-  bool right = response.btnDirRight == 1;
-  bool left = response.btnDirLeft == 1;
-  bool fire = response.btnA == 1;
+    right = response.btnDirRight == 1;
+    left = response.btnDirLeft == 1;
+    fire = response.btnA == 1;
+  } else {
 
+    left = digitalRead(BTN_LEFT) == LOW;
+    right = digitalRead(BTN_RIGHT) == LOW;
+    fire = digitalRead(BTN_FIRE) == LOW;
+  }
 
   if (left) playerX -= 3;
   if (right) playerX += 3;
@@ -1152,8 +1215,10 @@ void Game::drawUFO() {
 void Game::drawMenu() {
   spr.setTextDatum(MC_DATUM);
 
-  spr.setTextColor(TFT_WHITE, BG_COLOR);
-  spr.drawString("Battery: " + String(gameController.getBattery()) + "%", SCREEN_W / 2, 20);
+  if (gameController.isConnected()) {
+    spr.setTextColor(TFT_WHITE, BG_COLOR);
+    spr.drawString("Battery: " + String(gameController.getBattery()) + "%", SCREEN_W / 2, 20);
+  }
 
   spr.setTextColor(TFT_GREEN, BG_COLOR);
   spr.setTextSize(2);

@@ -15,6 +15,7 @@
 #define BTN_LEFT 32
 #define BTN_RIGHT 33
 #define BTN_FIRE 25
+#define BTN_BACK 26
 #define BTN_WEAPON 14
 #define BUZZER_PIN 27
 #define SIGNAL_LED 16   // LED PIN

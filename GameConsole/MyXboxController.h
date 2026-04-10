@@ -8,6 +8,7 @@ public:
   bool isConnected();
   XboxControllerNotificationParser getButtons();
   void vibrate();
+  void disconnect();
   uint8_t getBattery();
 
 private:
