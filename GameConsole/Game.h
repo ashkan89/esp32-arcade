@@ -14,7 +14,8 @@ enum GameState {
   GS_PLAYING,
   GS_PAUSED,
   GS_WAVE_CLEAR,
-  GS_GAME_OVER
+  GS_GAME_OVER,
+  GS_OTA
 };
 
 enum WeaponType {
@@ -200,6 +201,7 @@ private:
   void updateBoot();
   void updateMenu();
   void updateSettings();
+  void updateOta();
   void updateLeaderboard();
   void updateAttract();
   void updateGame();
@@ -240,6 +242,7 @@ private:
   void drawUFO();
   void drawMenu();
   void drawSettings();
+  void drawOta();
   void drawLeaderboard();
   void drawPause();
   void drawWaveClear();

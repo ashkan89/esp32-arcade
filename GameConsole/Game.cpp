@@ -54,6 +54,7 @@ void Game::update() {
   switch (state) {
     case GS_BOOT: updateBoot(); break;
     case GS_MENU: updateMenu(); break;
+    case GS_OTA: updateOta(); break;
     case GS_SETTINGS: updateSettings(); break;
     case GS_LEADERBOARD: updateLeaderboard(); break;
     case GS_ATTRACT: updateAttract(); break;
@@ -365,6 +366,8 @@ void Game::updateInput() {
     if (millis() - pauseHold > 700) {
       if (state == GS_PLAYING) state = GS_PAUSED;
       else if (state == GS_PAUSED) state = GS_PLAYING;
+      else if (state == GS_MENU) state = GS_OTA;
+      else if (state == GS_OTA) state = GS_MENU;  //ESP.restart();
       pauseHold = 0;
     }
   } else pauseHold = 0;
@@ -490,11 +493,21 @@ void Game::updateMenu() {
     state = GS_ATTRACT;
     attractStart = millis();
   }
+
+  // if (!attractEnabled && millis() - lastInputTime > ATTRACT_TIMEOUT) {
+  //   ESP.deepSleep(5000);
+  //   attractStart = millis();
+  // }
 }
 
 void Game::updateSettings() {
   updateStars();
 }
+
+void Game::updateOta() {
+  updateStars();
+}
+
 
 void Game::updateLeaderboard() {
   updateStars();
@@ -1283,6 +1296,18 @@ void Game::drawLeaderboard() {
   spr.drawString("LEFT+RIGHT = back", SCREEN_W / 2, 190);
 }
 
+void Game::drawOta() {
+  spr.setTextDatum(MC_DATUM);
+  spr.setTextColor(TFT_ORANGE, BG_COLOR);
+  spr.setTextSize(2);
+  spr.drawString("Download Mode", SCREEN_W / 2, 40);
+
+  spr.setTextSize(1);
+  spr.setTextColor(TFT_YELLOW, BG_COLOR);
+  spr.drawString("OTA Enabled, waiting...", SCREEN_W / 2, 100);
+  // spr.drawString(ESP.getChipModel(), SCREEN_W / 2, 120);
+}
+
 void Game::drawPause() {
   spr.fillRect(40, 84, 96, 38, TFT_DARKGREY);
   spr.drawRect(40, 84, 96, 38, TFT_WHITE);
@@ -1367,6 +1392,10 @@ void Game::render() {
 
     case GS_SETTINGS:
       drawSettings();
+      break;
+
+    case GS_OTA:
+      drawOta();
       break;
 
     case GS_LEADERBOARD:
