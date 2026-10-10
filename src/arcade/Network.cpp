@@ -382,7 +382,7 @@ bool Network::install() {
   bool ok = buffer != nullptr, identityFound = false;
   uint32_t received = 0, start = millis();
   int matched = 0;
-  String identity = "SLY_ARCADE_N16R8|" + releaseVersion;
+  String identity = "SKY_ARCADE_N16R8|" + releaseVersion;
   if (ok)
     ok = esp_ota_begin(slot, expectedSize, &handle) == ESP_OK;
   while (ok && received < expectedSize) {

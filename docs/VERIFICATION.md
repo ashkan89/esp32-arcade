@@ -27,7 +27,8 @@ that all difficulty settings have been tuned on physical hardware.
 Host compilation uses real pure C++ modules, not Arduino mocks. Logs are retained in
 `test-results/host-build.log`, `host-tests.log` and `firmware-builds.log`.
 
-Release packaging checks the compiled board/version marker, classic-ESP32 image header,
+Release packaging checks both the Sky board/version marker and historical OTA compatibility
+marker, classic-ESP32 image header,
 16 MB flash header, 3 MB size limit, and actual A/B/otadata partition table before producing
 the manifest. The pinned SDK's configuration enables rollback and PSRAM bankswitching;
 the firmware links the application's `verifyRollbackLater` override, the SDK certificate
@@ -40,7 +41,7 @@ the host script supports `--sanitize` when a suitable GCC/Clang/MSVC runtime is 
 The release workflow runs address and undefined-behavior sanitizers on Ubuntu before publishing.
 
 A code-only Graphify structural audit was kept in ignored `.cache/architecture`; its graph
-contained 1,334 nodes and 1,558 edges without dangling or collapsed edges. Its parser cannot
+contained 1,350 nodes and 1,631 edges without dangling or collapsed edges. Its parser cannot
 fully extract the macro-driven registry, which is instead checked by both real firmware builds
 and native catalog tests. Generated graphs are development caches, not shipped firmware sources.
 

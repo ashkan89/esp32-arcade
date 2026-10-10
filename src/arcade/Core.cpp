@@ -90,12 +90,12 @@ bool Settings::record(unsigned g, uint32_t s) {
     best[g] = s;
     changed = true;
   }
-  if (g == 0 && s > slyLeaders[4]) {
+  if (g == 0 && s > skyLeaders[4]) {
     for (unsigned i = 0; i < 5; i++)
-      if (s > slyLeaders[i]) {
+      if (s > skyLeaders[i]) {
         for (unsigned j = 4; j > i; j--)
-          slyLeaders[j] = slyLeaders[j - 1];
-        slyLeaders[i] = s;
+          skyLeaders[j] = skyLeaders[j - 1];
+        skyLeaders[i] = s;
         changed = true;
         break;
       }
@@ -136,7 +136,7 @@ SaveBytes encode(const Settings &s) {
   for (unsigned i = 0; i < 64; i++)
     put(b, 16 + 4 * i, s.best[i]);
   for (unsigned i = 0; i < 5; i++)
-    put(b, 272 + 4 * i, s.slyLeaders[i]);
+    put(b, 272 + 4 * i, s.skyLeaders[i]);
   put(b, 292, uint32_t(s.favorites));
   put(b, 296, uint32_t(s.favorites >> 32));
   put(b, 300, checksum(b.data(), 300));
@@ -157,12 +157,12 @@ bool decode(const SaveBytes &b, Settings &out) {
   for (unsigned i = 0; i < 64; i++)
     s.best[i] = get(b, 16 + 4 * i);
   for (unsigned i = 0; i < 5; i++)
-    s.slyLeaders[i] = get(b, 272 + 4 * i);
+    s.skyLeaders[i] = get(b, 272 + 4 * i);
   s.favorites = uint64_t(get(b, 292)) | (uint64_t(get(b, 296)) << 32);
   if (!s.valid())
     return false;
   for (unsigned i = 1; i < 5; i++)
-    if (s.slyLeaders[i] > s.slyLeaders[i - 1])
+    if (s.skyLeaders[i] > s.skyLeaders[i - 1])
       return false;
   out = s;
   return true;
@@ -190,7 +190,7 @@ bool decodeStored(const uint8_t *data, size_t length, Settings &out) {
   for (unsigned i = 0; i < 8; i++)
     migrated.best[i] = get(bytes, 16 + i * 4);
   for (unsigned i = 0; i < 5; i++)
-    migrated.slyLeaders[i] = get(bytes, 48 + i * 4);
+    migrated.skyLeaders[i] = get(bytes, 48 + i * 4);
   auto encoded = encode(migrated);
   return decode(encoded, out);
 }

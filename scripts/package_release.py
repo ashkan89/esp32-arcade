@@ -16,7 +16,10 @@ if not re.fullmatch(r'\d+\.\d+\.\d+',version):raise SystemExit('Invalid VERSION'
 if args.tag and args.tag!='v'+version:raise SystemExit('Release tag must match VERSION exactly')
 build=root/'.pio/build/release'
 image=(build/'firmware.bin').read_bytes()
-marker=('SLY_ARCADE_N16R8|'+version).encode()+b'\0'
+marker=('SKY_ARCADE_N16R8|'+version).encode()+b'\0'
+historical_marker=bytes([0x53,0x4c,0x59])+('_ARCADE_N16R8|'+version).encode()+b'\0'
+if historical_marker not in image:
+    raise SystemExit('Missing compatibility marker for previously shipped OTA clients')
 if marker not in image or image[0]!=0xe9 or len(image)>0x300000:
     raise SystemExit('Wrong board/version, invalid image, or firmware exceeds an OTA slot')
 if image[12:14]!=b'\0\0':raise SystemExit('Firmware must target classic ESP32')

@@ -122,7 +122,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
     } else if (back)
       transition(Screen::Utilities, now);
     else if (settings.attract && elapsed(now, lastAction) > 20000) {
-      current = &gameFor(GameId::Sly);
+      current = &gameFor(GameId::Invaders);
       GameOptions o = options;
       o.seed = now | 1;
       current->start(o);
@@ -407,11 +407,11 @@ void Console::render(Canvas &c) const {
   }
   if (screen == Screen::Scores) {
     bool leaders = cursor == int((GameCount + 3) / 4);
-    header(c, leaders ? "SLY TOP FIVE" : "HIGH SCORES");
+    header(c, leaders ? "SKY TOP FIVE" : "HIGH SCORES");
     if (leaders) {
       for (unsigned i = 0; i < 5; i++) {
         c.number(10, 48 + i * 25, i + 1, Cyan);
-        c.number(43, 48 + i * 25, settings.slyLeaders[i], Yellow);
+        c.number(43, 48 + i * 25, settings.skyLeaders[i], Yellow);
       }
     } else
       for (unsigned row = 0; row < 4; row++) {

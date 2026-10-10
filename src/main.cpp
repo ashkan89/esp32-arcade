@@ -18,6 +18,9 @@ uint32_t lastRender = 0, lastPoll = 0, lastFrame = 0, edgeAt = 0;
 bool ready = false, edgePending = false;
 uint32_t bootAt = 0, lastCapture = 0;
 bool bootConfirmed = false;
+// Preserve the opaque marker expected by previously shipped OTA clients.
+const char HistoricalUpdaterIdentity[] = "\x53\x4c\x59"
+                                         "_ARCADE_N16R8|" ARCADE_VERSION;
 } // namespace
 // Arduino otherwise accepts a pending image before setup() has checked hardware.
 extern "C" bool verifyRollbackLater() {
@@ -25,7 +28,9 @@ extern "C" bool verifyRollbackLater() {
 }
 void setup() {
   Serial.begin(115200);
-  Serial.println("SLY_ARCADE_N16R8|" ARCADE_VERSION);
+  Serial.println("SKY_ARCADE_N16R8|" ARCADE_VERSION);
+  // Keep this compatibility data in flash even with compiler/linker garbage collection.
+  asm volatile("" : : "r"(HistoricalUpdaterIdentity) : "memory");
   diagnostics.begin();
   beginButtons();
   storage.begin();

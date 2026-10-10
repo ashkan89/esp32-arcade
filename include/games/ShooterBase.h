@@ -1,7 +1,7 @@
 #pragma once
 #include "arcade/Game.h"
 namespace arcade {
-enum class ShooterMode : uint8_t { Sly, Sky, Star, Meteor };
+enum class ShooterMode : uint8_t { Invaders, Sky, Star, Meteor };
 class Shooter : public Game {
   friend struct RuleTests;
 

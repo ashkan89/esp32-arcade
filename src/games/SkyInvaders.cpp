@@ -1,6 +1,6 @@
-#include "games/SlyInvaders.h"
+#include "games/SkyInvaders.h"
 namespace arcade {
-void SlyInvaders::updateEnemies() {
+void SkyInvaders::updateEnemies() {
   bool step = ++moveTimer >= std::max(5, 19 - int(level));
   if (step)
     moveTimer = 0;
@@ -51,9 +51,9 @@ void SlyInvaders::updateEnemies() {
 
 #include "games/Registration.h"
 namespace arcade {
-GameEntry describeSlyInvaders() {
-  return gameEntry<SlyInvaders>(
-      {"SLY INVADERS",
+GameEntry describeSkyInvaders() {
+  return gameEntry<SkyInvaders>(
+      {"SKY INVADERS",
        "DEFEND THE LAST CITY",
        {"L/R MOVE - A SHOOTS", "B CYCLES 3 GUNS", "R RAPID / L EXTRA LIFE", "S SHIELD / D DOUBLE",
         "BREAKABLE COVER BELOW", "FIFTH WAVES + FINAL BOSS"},

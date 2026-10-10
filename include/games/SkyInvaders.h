@@ -1,10 +1,10 @@
 #pragma once
 #include "ShooterBase.h"
 namespace arcade {
-class SlyInvaders final : public Shooter {
+class SkyInvaders final : public Shooter {
   void updateEnemies() override;
 
 public:
-  SlyInvaders() : Shooter(ShooterMode::Sly) {}
+  SkyInvaders() : Shooter(ShooterMode::Invaders) {}
 };
 } // namespace arcade

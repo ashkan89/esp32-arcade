@@ -1,4 +1,8 @@
-Game Arcade 3.0.0 for classic ESP32-WROVER N16R8 and SPI ILI9225.
+Game Arcade 3.0.1 for classic ESP32-WROVER N16R8 and SPI ILI9225.
+
+- Correct Sky Invaders names, source files, symbols and score-page labels throughout the project.
+- Preserve game IDs and save layout; migrate historical settings into the skyarcade namespace.
+- Use the Sky firmware identity while retaining opaque compatibility data for older OTA clients.
 
 - Rename console, Wi-Fi setup, portal and release branding to Game Arcade.
 - 50 separate native game modules, including 25 original interpretations of researched classics.

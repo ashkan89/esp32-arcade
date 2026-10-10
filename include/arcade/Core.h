@@ -133,7 +133,7 @@ struct Settings {
           fps = 30;
   std::array<uint32_t, 64> best{}; // Stable catalog IDs; spare slots allow expansion.
   uint64_t favorites = 0;
-  std::array<uint32_t, 5> slyLeaders{};
+  std::array<uint32_t, 5> skyLeaders{};
   bool valid() const;
   bool record(unsigned game, uint32_t score);
 };

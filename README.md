@@ -43,7 +43,7 @@ It is a visual history, not a replay of game inputs.
 
 | Shooters / combat | Action / reflex | Puzzles / strategy |
 | --- | --- | --- |
-| Sly Invaders | Neon Breaker | Block Cascade |
+| Sky Invaders | Neon Breaker | Block Cascade |
 | Sky Fighters | Snake Rush | Mine Grid |
 | Star Assault | Turbo Dodge | Grid Merge |
 | Meteor Patrol | Flap Escape | Memory Match |

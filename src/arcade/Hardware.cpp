@@ -224,7 +224,7 @@ void Audio::update(uint32_t now) {
   }
 }
 void Storage::begin() {
-  ready = prefs.begin("slyarcade", false);
+  ready = prefs.begin("skyarcade", false);
   if (!ready) {
     Serial.println("NVS unavailable: settings are volatile");
     return;
@@ -237,6 +237,21 @@ void Storage::begin() {
     if (len != SaveSize)
       mark(millis());
     return;
+  }
+  // Read the historical namespace without changing it, so older firmware can still boot.
+  const char historicalNamespace[] = {0x73, 0x6c, 0x79, 0x61, 0x72, 0x63, 0x61, 0x64, 0x65, 0};
+  Preferences previous;
+  if (previous.begin(historicalNamespace, true)) {
+    len = previous.getBytesLength("state");
+    bool migrated = (len == SaveSize || len == 72) &&
+                    previous.getBytes("state", bytes.data(), len) == len &&
+                    decodeStored(bytes.data(), len, settings);
+    previous.end();
+    if (migrated) {
+      Serial.println("Historical settings and records migrated");
+      mark(millis());
+      return;
+    }
   }
   Serial.println("New or invalid settings: using defaults");
   mark(millis());

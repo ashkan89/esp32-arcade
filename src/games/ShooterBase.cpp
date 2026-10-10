@@ -48,7 +48,7 @@ void Shooter::wave() {
     e->vx = 1.0f;
     return;
   }
-  if (mode == ShooterMode::Sly || mode == ShooterMode::Star) {
+  if (mode == ShooterMode::Invaders || mode == ShooterMode::Star) {
     for (int r = 0; r < 4; r++)
       for (int c = 0; c < 6; c++) {
         auto *e = enemies.acquire();
@@ -135,7 +135,7 @@ void Shooter::power(uint8_t k) {
   sound(Sound::Power);
 }
 bool Shooter::barrier(float x, float y, int damage) {
-  if (mode != ShooterMode::Sly)
+  if (mode != ShooterMode::Invaders)
     return false;
   for (unsigned s = 0; s < 3; s++) {
     int lx = int(x) - (22 + 52 * int(s)), ly = int(y) - 168;
@@ -391,7 +391,7 @@ void Shooter::update() {
       if (p.y > H)
         p.active = false;
     }
-  if (mode == ShooterMode::Sly) {
+  if (mode == ShooterMode::Invaders) {
     ufoTimer++;
     if (!ufoActive && ufoTimer >= 900) {
       ufoTimer = 0;
@@ -453,7 +453,7 @@ void Shooter::render(Canvas &c) const {
     for (int i = 0; i < 30; i++)
       c.pixel((i * 47 + 13) % W, Top + int((i * 31 + tick / (1 + i % 3)) % (H - Top)),
               i % 3 == 0 ? White : Grey);
-  if (mode == ShooterMode::Sly)
+  if (mode == ShooterMode::Invaders)
     for (unsigned s = 0; s < 3; s++)
       for (int y = 0; y < 12; y++)
         for (int x = 0; x < 20; x++)

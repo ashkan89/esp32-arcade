@@ -58,12 +58,14 @@ Host-only named friend checks exercise private rules and compile out of firmware
 Cargo Shift constructs later warehouses by reversing legal pushes from solved boards;
 host tests replay those constructive solution witnesses. Reset recreates the same warehouse.
 
-The identity `SLY_ARCADE_N16R8|<version>`, OTA board ID and firmware asset names remain
-stable so installed v2 consoles can install v3. These are compatibility identifiers,
-separate from the Game Arcade UI, setup SSID, portal and release branding.
+The firmware identity is `SKY_ARCADE_N16R8|<version>`. Opaque historical marker data is
+also retained in the image so installed v2/v3 consoles can update. The OTA board ID and
+firmware asset names remain stable. Game Arcade remains the console and release brand.
 
 Settings schema 2 is a 304-byte CRC-protected NVS blob containing 64 high scores, favorites,
-options and the Sly top five. Schema 1 console saves migrate in memory and are rewritten later.
+options and the Sky top five. Schema 1 console saves migrate in memory and are rewritten later.
+Settings use the `skyarcade` namespace. If its state is absent or invalid, a valid historical
+namespace state is imported and saved later; the historical state remains untouched for rollback.
 Writes are deferred outside gameplay and retried after failure. Invalid data never partially
 overwrites settings. Network credentials use a separate atomic JSON string in their own namespace.
 

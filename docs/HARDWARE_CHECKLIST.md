@@ -10,13 +10,15 @@ No physical ESP32 was available for these checks. Record results on the actual N
   actual frame-time buckets, update time, input gap, and minimum internal heap.
 - Exercise all eight buttons independently, menu repeats, held-button transitions and pause/resume.
 - Play all 50 games at easy/normal/hard; complete campaigns and each boss at stages 4/8/12
-  (5/10/12 for Sly Invaders, Star Assault and Meteor Patrol). Record stage clear, loss, pause,
+  (5/10/12 for Sky Invaders, Star Assault and Meteor Patrol). Record stage clear, loss, pause,
   restart, exit and victory. Test held and rapidly tapped actions, edges and resource exhaustion.
 - Measure every game's worst-case render/update costs, especially full tubes/swarms, bombs,
   explosions, moving brick sentinel and full block/puzzle boards. Record achieved FPS and latency.
 - Confirm bosses remain defeatable when limited consumables are exhausted: regenerated City
   Shield ammunition and Burger Works pepper, non-consumable gun/pump/bubble/snow attacks.
 - Save scores/settings/favorites, reboot, and confirm persistence. Check the last-run history scrubber.
+- Update from older firmware with existing records; confirm Sky Invaders scores, settings and
+  favorites survive the namespace migration, and that the prior firmware still boots on rollback.
 - Open Wi-Fi setup, enter credentials, save and verify timeout/exit closes the AP. Check that
   the display stays responsive during a GitHub check and that gameplay starts with Wi-Fi off.
 - Install a newer test release to the inactive slot. Record active slot before/after and wait

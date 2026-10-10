@@ -1,5 +1,5 @@
 // Stable IDs: append entries; never renumber a shipped ID.
-ARCADE_GAME(Sly, SlyInvaders, 0)
+ARCADE_GAME(Invaders, SkyInvaders, 0)
 ARCADE_GAME(Sky, SkyFighters, 1)
 ARCADE_GAME(Star, StarAssault, 2)
 ARCADE_GAME(Meteor, MeteorPatrol, 3)

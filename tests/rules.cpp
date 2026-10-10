@@ -5,7 +5,7 @@
 #include "games/NeonBreaker.h"
 #include "games/PuzzleRules.h"
 #include "games/SkyFighters.h"
-#include "games/SlyInvaders.h"
+#include "games/SkyInvaders.h"
 #include "games/SnakeRush.h"
 #include "games/TurboDodge.h"
 #include <cstdio>
@@ -149,7 +149,7 @@ struct RuleTests {
     CHECK(f.campaignComplete());
   }
   static void shooter() {
-    SlyInvaders g;
+    SkyInvaders g;
     g.start({});
     CHECK(g.enemies.count() == 24);
     g.shots.clear();
@@ -448,7 +448,7 @@ static void saves() {
   CHECK(decode(b, out));
   CHECK(out.best == s.best);
   CHECK(out.favorites == s.favorites);
-  CHECK(out.slyLeaders[0] == 120);
+  CHECK(out.skyLeaders[0] == 120);
   for (size_t k = 0; k < b.size(); k++) {
     auto bad = b;
     bad[k] ^= 0x80;
@@ -464,7 +464,7 @@ static void saves() {
   s.fps = 45;
   CHECK(!decode(encode(s), out));
   s = Settings{};
-  s.slyLeaders = {0, 10, 0, 0, 0};
+  s.skyLeaders = {0, 10, 0, 0, 0};
   CHECK(!decode(encode(s), out));
 }
 static void newGameRules() {
@@ -537,7 +537,7 @@ static void newGameRules() {
   CHECK(decodeStored(legacy.data(), legacy.size(), migrated));
   CHECK(migrated.best[0] == 1234);
   CHECK(migrated.best[24] == 0);
-  CHECK(migrated.slyLeaders[0] == 1234);
+  CHECK(migrated.skyLeaders[0] == 1234);
   legacy[18] ^= 1;
   CHECK(!decodeStored(legacy.data(), legacy.size(), migrated));
 }

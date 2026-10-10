@@ -11,7 +11,7 @@ of individually authored narrative levels. The controls screen explains each gam
 
 | ID | Game | Stage objective | Boss / challenge |
 | --- | --- | --- | --- |
-| 0 | Sly Invaders | Clear formations, divers and destructible cover | Commander at 5, 10, 12; three firing patterns |
+| 0 | Sky Invaders | Clear formations, divers and destructible cover | Commander at 5, 10, 12; three firing patterns |
 | 1 | Sky Fighters | Clear 24-plane sorties; one smart bomb per stage | Bomber at 4, 8, 12 |
 | 2 | Star Assault | Clear diving squadrons; chain and clean-wave bonuses | Commander at 5, 10, 12 |
 | 3 | Meteor Patrol | Survive 15 seconds; splitting rocks | Armed station at 5, 10, 12 |
