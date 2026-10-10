@@ -1,0 +1,9 @@
+# Update VERSION and docs/RELEASE_NOTES.md first; use a version without an existing tag.
+# Run these PowerShell commands in order and stop if any command fails.
+$version = (Get-Content VERSION -Raw).Trim()
+python scripts/verify.py
+git add -A
+git commit -m "Release Game Arcade v$version"
+git push origin main
+git tag -a "v$version" -m "Game Arcade v$version"
+git push origin "v$version"

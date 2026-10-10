@@ -1,30 +1,18 @@
-Game Arcade 3.0.1 for classic ESP32-WROVER N16R8 and SPI ILI9225.
+Game Arcade 3.1.1 for classic ESP32-WROVER N16R8 and SPI ILI9225.
 
-- Correct Sky Invaders names, source files, symbols and score-page labels throughout the project.
-- Preserve game IDs and save layout; migrate historical settings into the skyarcade namespace.
-- Use the Sky firmware identity while retaining opaque compatibility data for older OTA clients.
+- Fix the startup boot loop by initializing banked frame history after Arduino initializes PSRAM.
+- Link a project-local SDK object with premature himem initialization disabled; leave the installed SDK unchanged.
+- Verify the linked constructor table in both release and debug builds to prevent this regression.
+- Avoid error logs when optional settings or historical NVS namespaces are absent.
+- Add a 64 KB coredump partition after the existing A/B firmware slots.
+- Preserve all 50 games, game IDs, saved records, Sky naming and compatibility with older OTA clients.
+- Align firmware VERSION and release tag. The previous v3.1.0 attempt failed packaging because they differed.
 
-- Rename console, Wi-Fi setup, portal and release branding to Game Arcade.
-- 50 separate native game modules, including 25 original interpretations of researched classics.
-- Twelve-stage campaigns, victory screen and completion bonuses across the catalog.
-- Game-specific combat bosses: exposed cores, attack telegraphs, armor and repeated captures.
-- Final shooter bosses, sentinel, reactor, bombing-grid, tank and reaction bosses.
-- Escalating Grid Merge boards and nine reproducible, constructively solvable Cargo Shift warehouses.
-- Fix dropped movement, repeated falling damage, skippable kitchen boss and post-victory generation.
-- Preserve stable save IDs, settings schema and v2-compatible OTA identity.
-- Focused campaign/objective/boss tests, warehouse solution replays and 1.5 million simulation ticks.
-- Linux address/undefined sanitizer CI.
-- Eight-button wiring, favorites, score pages, settings, audio and instant restart.
-- Removed obsolete controller, sensor, LED, migration and alternate hardware configurations.
-- Only release/debug builds; required PSRAM framebuffer and banked last-run frame history.
-- Browser Wi-Fi/repository setup and verified GitHub A/B OTA with boot-health rollback.
-- Host gameplay/rule tests and both firmware builds are verified. Physical hardware acceptance
-  remains required; this release has not been exercised on an attached ESP32.
+The startup fix was previously exercised on an attached ESP32: boot health passed, physical
+16 MB flash / 8 MB PSRAM were detected, 40 banked-history slots were allocated, and a
+35-second serial capture showed no errors, aborts or repeated resets. Full hardware
+acceptance, gameplay tuning, Wi-Fi/HTTPS and OTA power-loss/rollback checks remain pending.
+See docs/VERIFICATION.md and docs/HARDWARE_CHECKLIST.md.
 
-Rewire according to docs/HARDWARE.md. First installation requires USB/serial bootloader and
-partition-table upload. Use arcade-esp32-n16r8.bin for OTA; the factory image is for initial flash.
-
-Classic inspirations are linked in docs/GAME_REFERENCES.md. New games use original code and
-procedural graphics; commercial ROMs, downloaded sprites and soundtracks are not included.
-Stages vary arcade objectives and difficulty; these are not complete commercial game ports.
-This release is software-verified and has not been hardware-certified for production.
+Use arcade-esp32-n16r8.bin for OTA. The factory image is for initial USB/serial installation;
+it replaces saved settings. Wiring is documented in docs/HARDWARE.md.
