@@ -1,0 +1,2 @@
+Lifecycle soak: 160000 simulation ticks, 708 game-over/restart cycles
+PASS 172177 assertions across core, inputs, saves, menus, game rules and lifecycle soak

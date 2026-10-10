@@ -1,0 +1,144 @@
+#pragma once
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+namespace arcade {
+constexpr int W = 176, H = 220, Top = 20;
+constexpr uint16_t Black = 0x0000, Navy = 0x0843, Cyan = 0x07ff, Pink = 0xf81f, Green = 0x07e0,
+                   Yellow = 0xffe0, Red = 0xf800, White = 0xffff, Grey = 0x8410, Orange = 0xfd20;
+inline uint32_t elapsed(uint32_t now, uint32_t then) {
+  return now - then;
+}
+inline bool reached(uint32_t now, uint32_t deadline) {
+  return int32_t(now - deadline) >= 0;
+}
+template <class T> T clamp(T v, T lo, T hi) {
+  return std::min(hi, std::max(lo, v));
+}
+struct Rect {
+  float x, y, w, h;
+};
+inline bool overlaps(Rect a, Rect b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+// Swept segment against an expanded box prevents fast projectiles tunneling.
+bool swept(float x0, float y0, float x1, float y1, Rect target, float radius = 0);
+bool segmentCircle(float x0, float y0, float x1, float y1, float cx, float cy, float radius);
+bool circleRect(float cx, float cy, float radius, Rect box);
+struct Random {
+  uint32_t state = 1;
+  uint32_t next() {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+  }
+  int range(int lo, int hi) {
+    return lo + int(next() % uint32_t(hi - lo));
+  }
+};
+template <class T, size_t N> struct Pool {
+  std::array<T, N> items{};
+  T *acquire() {
+    for (auto &v : items)
+      if (!v.active) {
+        v = T{};
+        v.active = true;
+        return &v;
+      }
+    return nullptr;
+  }
+  void clear() {
+    for (auto &v : items)
+      v = T{};
+  }
+  size_t count() const {
+    size_t n = 0;
+    for (auto &v : items)
+      n += v.active;
+    return n;
+  }
+};
+enum Button : uint16_t {
+  Left = 1,
+  Right = 2,
+  Fire = 4,
+  Special = 8,
+  Back = 16,
+  Up = 32,
+  Down = 64,
+  Pause = 128
+};
+struct InputFrame {
+  uint16_t held = 0, pressed = 0, released = 0, repeated = 0, longPress = 0;
+  bool down(Button b) const {
+    return held & b;
+  }
+  bool hit(Button b) const {
+    return pressed & b;
+  }
+  bool nav(Button b) const {
+    return (pressed | repeated) & b;
+  }
+};
+class Input {
+  struct Key {
+    bool raw = false, stable = false, blocked = false, longSent = false;
+    uint32_t changed = 0, start = 0, repeat = 0;
+  };
+  std::array<Key, 8> keys{};
+
+public:
+  InputFrame poll(uint16_t raw, uint32_t now);
+  void suppress();
+};
+class StepClock {
+  uint32_t previous = 0, accumulator = 0;
+  bool initialized = false;
+
+public:
+  static constexpr uint32_t StepUs = 16667;
+  uint32_t dropped = 0;
+  void reset(uint32_t now) {
+    previous = now;
+    accumulator = 0;
+    initialized = true;
+  }
+  unsigned advance(uint32_t now) {
+    if (!initialized) {
+      reset(now);
+      return 0;
+    }
+    uint32_t dt = elapsed(now, previous);
+    previous = now;
+    if (dt > StepUs * 6) {
+      dropped += dt - StepUs * 6;
+      dt = StepUs * 6;
+    }
+    accumulator += dt;
+    unsigned n = std::min(4u, accumulator / StepUs);
+    accumulator -= n * StepUs;
+    if (accumulator >= StepUs) {
+      dropped += accumulator - accumulator % StepUs;
+      accumulator %= StepUs;
+    }
+    return n;
+  }
+};
+enum class Sound : uint8_t { None, Move, Shot, Hit, Explosion, Power, Wave, Over, Select };
+struct Settings {
+  uint8_t difficulty = 1, sound = 1, effects = 1, lastGame = 0, invert = 0, layout = 0, attract = 1,
+          fps = 30;
+  std::array<uint32_t, 8> best{};
+  std::array<uint32_t, 5> slyLeaders{};
+  bool valid() const;
+  bool record(unsigned game, uint32_t score);
+};
+constexpr size_t SaveSize = 72;
+using SaveBytes = std::array<uint8_t, SaveSize>;
+SaveBytes encode(const Settings &s);
+bool decode(const SaveBytes &bytes, Settings &out);
+uint32_t checksum(const uint8_t *bytes, size_t size);
+} // namespace arcade

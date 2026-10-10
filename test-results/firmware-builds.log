@@ -1,0 +1,266 @@
+Processing migration (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp-wrover-kit.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP-WROVER-KIT
+HARDWARE: ESP32 240MHz, 320KB RAM, 3MB Flash
+DEBUG: Current (ftdi) On-board (ftdi) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- Preferences @ 2.0.0
+Building in release mode
+Retrieving maximum program size .pio\build\migration\firmware.elf
+Checking size .pio\build\migration\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   8.7% (used 28368 bytes from 327680 bytes)
+Flash: [=         ]  11.3% (used 355569 bytes from 3145728 bytes)
+========================= [SUCCESS] Took 6.53 seconds =========================
+
+Processing release (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp-wrover-kit.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP-WROVER-KIT
+HARDWARE: ESP32 240MHz, 320KB RAM, 3MB Flash
+DEBUG: Current (ftdi) On-board (ftdi) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- Preferences @ 2.0.0
+Building in release mode
+Compiling .pio\build\release\src\main.cpp.o
+In file included from include/arcade/Hardware.h:7,
+                 from src/main.cpp:3:
+.pio/libdeps/release/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Linking .pio\build\release\firmware.elf
+Retrieving maximum program size .pio\build\release\firmware.elf
+Checking size .pio\build\release\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  14.9% (used 48668 bytes from 327680 bytes)
+Flash: [=         ]  11.6% (used 364189 bytes from 3145728 bytes)
+Building .pio\build\release\firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio\build\release\firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 12.78 seconds =========================
+
+Processing debug (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp-wrover-kit.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP-WROVER-KIT
+HARDWARE: ESP32 240MHz, 320KB RAM, 3MB Flash
+DEBUG: Current (ftdi) On-board (ftdi) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- Preferences @ 2.0.0
+Building in debug mode
+Compiling .pio\build\debug\src\main.cpp.o
+In file included from include/arcade/Hardware.h:7,
+                 from src/main.cpp:3:
+.pio/libdeps/debug/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Linking .pio\build\debug\firmware.elf
+Retrieving maximum program size .pio\build\debug\firmware.elf
+Checking size .pio\build\debug\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  14.9% (used 48668 bytes from 327680 bytes)
+Flash: [=         ]  11.9% (used 374909 bytes from 3145728 bytes)
+Building .pio\build\debug\firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio\build\debug\firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 11.92 seconds =========================
+
+Processing no_psram (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp-wrover-kit.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP-WROVER-KIT
+HARDWARE: ESP32 240MHz, 320KB RAM, 3MB Flash
+DEBUG: Current (ftdi) On-board (ftdi) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- Preferences @ 2.0.0
+Building in release mode
+Compiling .pio\build\no_psram\src\main.cpp.o
+In file included from include/arcade/Hardware.h:7,
+                 from src/main.cpp:3:
+.pio/libdeps/no_psram/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Linking .pio\build\no_psram\firmware.elf
+Retrieving maximum program size .pio\build\no_psram\firmware.elf
+Checking size .pio\build\no_psram\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  14.8% (used 48548 bytes from 327680 bytes)
+Flash: [=         ]  11.4% (used 357429 bytes from 3145728 bytes)
+Building .pio\build\no_psram\firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio\build\no_psram\firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 11.67 seconds =========================
+
+Processing one_button (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp-wrover-kit.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP-WROVER-KIT
+HARDWARE: ESP32 240MHz, 320KB RAM, 3MB Flash
+DEBUG: Current (ftdi) On-board (ftdi) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- Preferences @ 2.0.0
+Building in release mode
+Compiling .pio\build\one_button\src\main.cpp.o
+In file included from include/arcade/Hardware.h:7,
+                 from src/main.cpp:3:
+.pio/libdeps/one_button/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Linking .pio\build\one_button\firmware.elf
+Retrieving maximum program size .pio\build\one_button\firmware.elf
+Checking size .pio\build\one_button\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  14.9% (used 48668 bytes from 327680 bytes)
+Flash: [=         ]  11.6% (used 364129 bytes from 3145728 bytes)
+Building .pio\build\one_button\firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio\build\one_button\firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 12.40 seconds =========================
+
+Processing expanded (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp-wrover-kit.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP-WROVER-KIT
+HARDWARE: ESP32 240MHz, 320KB RAM, 3MB Flash
+DEBUG: Current (ftdi) On-board (ftdi) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- Preferences @ 2.0.0
+Building in release mode
+Compiling .pio\build\expanded\src\main.cpp.o
+In file included from include/arcade/Hardware.h:7,
+                 from src/main.cpp:3:
+.pio/libdeps/expanded/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Linking .pio\build\expanded\firmware.elf
+Retrieving maximum program size .pio\build\expanded\firmware.elf
+Checking size .pio\build\expanded\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  14.9% (used 48668 bytes from 327680 bytes)
+Flash: [=         ]  11.6% (used 364253 bytes from 3145728 bytes)
+Building .pio\build\expanded\firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio\build\expanded\firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 10.38 seconds =========================
+
+Processing xbox (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp-wrover-kit.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP-WROVER-KIT
+HARDWARE: ESP32 240MHz, 320KB RAM, 3MB Flash
+DEBUG: Current (ftdi) On-board (ftdi) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 39 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- XboxSeriesXControllerESP32_asukiaaa @ 1.1.1
+|-- NimBLE-Arduino @ 2.3.6
+|-- XboxControllerNotificationParser @ 1.0.5
+|-- XboxSeriesXHIDReportBuilder_asukiaaa @ 1.0.1
+|-- Preferences @ 2.0.0
+Building in release mode
+Retrieving maximum program size .pio\build\xbox\firmware.elf
+Checking size .pio\build\xbox\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [==        ]  19.4% (used 63588 bytes from 327680 bytes)
+Flash: [==        ]  22.6% (used 710205 bytes from 3145728 bytes)
+========================= [SUCCESS] Took 12.31 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+migration      SUCCESS   00:00:06.534
+release        SUCCESS   00:00:12.778
+debug          SUCCESS   00:00:11.922
+no_psram       SUCCESS   00:00:11.667
+one_button     SUCCESS   00:00:12.401
+expanded       SUCCESS   00:00:10.385
+xbox           SUCCESS   00:00:12.314
+========================= 7 succeeded in 00:01:18.000 =========================

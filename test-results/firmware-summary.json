@@ -1,0 +1,44 @@
+{
+  "migration": {
+    "status": "PASS",
+    "static_ram_bytes": 28368,
+    "flash_bytes": 355569,
+    "firmware_sha256": "506b5a2cfdcd7d0fb7ad982718c65eff247a2e4b538cb282a1c863001e696838"
+  },
+  "release": {
+    "status": "PASS",
+    "static_ram_bytes": 48668,
+    "flash_bytes": 364189,
+    "firmware_sha256": "c89b9bd6e4170c214ce58072bb6f2d563acc19fa8f8d6ce487dcffac5b369f2a"
+  },
+  "debug": {
+    "status": "PASS",
+    "static_ram_bytes": 48668,
+    "flash_bytes": 374909,
+    "firmware_sha256": "90fb3ccd02f973b1ff311a92325ca6e27413dd32371136528e8e0c068e8b53a7"
+  },
+  "no_psram": {
+    "status": "PASS",
+    "static_ram_bytes": 48548,
+    "flash_bytes": 357429,
+    "firmware_sha256": "5ee664ac3661bc4feabc7f19463ed1717b131d1025ae5484ebeeadeaf9d6c7b3"
+  },
+  "one_button": {
+    "status": "PASS",
+    "static_ram_bytes": 48668,
+    "flash_bytes": 364129,
+    "firmware_sha256": "8aa7901b177fb11cc36aebc2f218f4b4ba783020e041695ce28589401974d915"
+  },
+  "expanded": {
+    "status": "PASS",
+    "static_ram_bytes": 48668,
+    "flash_bytes": 364253,
+    "firmware_sha256": "56acb6a77c85d952ccea944a38754ae4ee23f2641172a22ca07979fbbd6bd667"
+  },
+  "xbox": {
+    "status": "PASS",
+    "static_ram_bytes": 63588,
+    "flash_bytes": 710205,
+    "firmware_sha256": "a66f46a9fc2f6055c7ef876e1cdafb3c7179ecc1a522c7170d8d526cd9cd4b8c"
+  }
+}

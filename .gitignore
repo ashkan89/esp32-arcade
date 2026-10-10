@@ -1,0 +1,14 @@
+.pio/
+.cache/
+__pycache__/
+test-results/*.exe
+test-results/*.o
+test-results/*.obj
+test-results/*.pdb
+test-results/*.ilk
+test-results/*.ppm
+*.log
+!test-results/*.log
+graphify-out/.*
+graphify-out/cost.json
+graphify-out/cache/
