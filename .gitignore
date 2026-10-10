@@ -1,5 +1,6 @@
 .pio/
 .cache/
+graphify-out/
 __pycache__/
 test-results/*.exe
 test-results/*.o
