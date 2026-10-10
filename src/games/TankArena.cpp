@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class TankArena final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyTankArena();
+#endif
   struct Tank {
     bool active = false;
     float x = 0, y = 0;
@@ -29,11 +32,11 @@ class TankArena final : public TickGame {
   void wave() {
     enemies.clear();
     shells.clear();
-    for (int i = 0; i < std::min(8, 3 + int(level)); i++)
+    for (int i = 0; i < (level % 4 == 0 ? 1 : std::min(8, 3 + int(level))); i++)
       if (auto *e = enemies.acquire()) {
         e->x = 8 + i % 4 * 46;
         e->y = 28 + i / 4 * 22;
-        e->hp = 2;
+        e->hp = level % 4 == 0 ? 20 + int(level) : 2;
       }
     grace = 90;
   }
@@ -74,7 +77,11 @@ class TankArena final : public TickGame {
           e.x = nx;
         if (free({e.x, ny, 12, 12}))
           e.y = ny;
-        if (tick % 120 == 0)
+        if (overlaps({x, y, 12, 12}, {e.x, e.y, 12, 12}) && !grace) {
+          loseLife();
+          grace = 90;
+        }
+        if (tick % unsigned(level % 4 == 0 ? 45 : 120) == 0)
           shoot(e.x + 6, e.y + 6,
                 std::abs(x - e.x) > std::abs(y - e.y) ? (x > e.x ? 1 : 3) : (y > e.y ? 2 : 0),
                 true);
@@ -108,11 +115,22 @@ class TankArena final : public TickGame {
       }
     if (!enemies.count() && !ended) {
       nextStage();
+      if (ended)
+        return;
       wave();
     }
   }
 
 public:
+  bool bossEncounter() const override {
+    return level % 4 == 0 && enemies.count() > 0;
+  }
+  int bossHealth() const override {
+    for (const auto &e : enemies.items)
+      if (e.active && level % 4 == 0)
+        return e.hp;
+    return 0;
+  }
   void start(const GameOptions &o) override {
     baseStart(o);
     x = 82;
@@ -129,13 +147,20 @@ public:
     shells.clear();
   }
   void render(Canvas &c) const override {
+    if (bossEncounter()) {
+      c.text(5, 24, "BOSS", Pink);
+      c.rect(35, 24, bossHealth() * 136 / (20 + int(level)), 4, Red);
+    }
     for (int i = 0; i < 4; i++) {
       auto r = cover(i);
       c.rect(int(r.x), int(r.y), 28, 18, Grey);
     }
     for (const auto &e : enemies.items)
-      if (e.active)
+      if (e.active) {
         c.rect(int(e.x), int(e.y), 12, 12, Red);
+        if (level % 4 == 0)
+          c.rect(int(e.x) - 2, int(e.y) - 2, 16, 16, Pink, false);
+      }
     if (!grace || tick % 10 < 5) {
       c.rect(int(x), int(y), 12, 12, Green);
       static const int dx[] = {0, 10, 0, -10}, dy[] = {-10, 0, 10, 0};
@@ -151,9 +176,30 @@ GameEntry describeTankArena() {
       {"TANK ARENA",
        "CLEAR THE ARMORED PATROL",
        {"D-PAD MOVES AND AIMS", "HOLD A TO FIRE SHELLS", "COVER BLOCKS BOTH SIDES",
-        "ENEMY TANKS TAKE TWO HITS", "CLEAR PATROL TO ADVANCE", "THREE HITS END YOUR RUN"},
+        "BOSS TANKS TAKE MANY HITS", "CLEAR PATROL TO ADVANCE", "TWELVE WAVES TO WIN"},
        Green,
        16,
        Fire});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyTankArena() {
+  TankArena g;
+  g.start({});
+  g.level = 12;
+  g.wave();
+  g.enemies.items[0].hp = 1;
+  g.shoot(g.enemies.items[0].x + 6, g.enemies.items[0].y + 6, 2, false);
+  g.tick = 1;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

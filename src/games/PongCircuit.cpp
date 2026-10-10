@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class PongCircuit final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyPongCircuit();
+#endif
   float x = 88, y = 110, vx = 2, vy = 1.2f, player = 90, ai = 90;
   int serves = 0;
   void serve() {
@@ -36,6 +39,8 @@ class PongCircuit final : public TickGame {
       add(100);
       if (points % 500 == 0)
         nextStage();
+      if (ended)
+        return;
       serve();
     } else if (x < -4) {
       loseLife();
@@ -71,4 +76,24 @@ GameEntry describePongCircuit() {
        8,
        Up | Down});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyPongCircuit() {
+  PongCircuit g;
+  g.start({});
+  g.level = 12;
+  g.points = 400;
+  g.x = 181;
+  g.vx = 1;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

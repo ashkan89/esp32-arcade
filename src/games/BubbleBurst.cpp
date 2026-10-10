@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class BubbleBurst final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyBubbleBurst();
+#endif
   std::array<uint8_t, 108> grid{};
   float bx = 88, by = 200, vx = 0, vy = 0, aim = -1.57f;
   uint8_t color = 1;
@@ -108,6 +111,8 @@ class BubbleBurst final : public TickGame {
     if (!any) {
       add(500);
       nextStage();
+      if (ended)
+        return;
       board();
     }
     flying = false;
@@ -171,4 +176,26 @@ GameEntry describeBubbleBurst() {
        17,
        Fire | Left | Right});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyBubbleBurst() {
+  BubbleBurst g;
+  g.start({});
+  g.level = 12;
+  g.grid.fill(0);
+  g.grid[0] = g.grid[1] = 1;
+  g.bx = 52;
+  g.by = 34;
+  g.color = 1;
+  g.settle();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class JumpQuest final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyJumpQuest();
+#endif
   struct Platform {
     bool active = false;
     float x = 0, y = 0;
@@ -63,7 +66,7 @@ class JumpQuest final : public TickGame {
       } else
         break;
     }
-    level = uint16_t(std::min(999u, 1 + points / 500));
+    progressTo(uint16_t(std::min(13u, 1 + points / 500)));
     if (y > H + 10) {
       loseLife();
       if (!ended)
@@ -102,4 +105,22 @@ GameEntry describeJumpQuest() {
        22,
        Left | Right});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyJumpQuest() {
+  JumpQuest g;
+  g.start({});
+  g.level = 12;
+  g.points = 6000;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

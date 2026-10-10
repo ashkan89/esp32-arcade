@@ -1,13 +1,17 @@
 #include "games/MeteorPatrol.h"
 namespace arcade {
 void MeteorPatrol::updateEnemies() {
-  if (--spawnTimer <= 0) {
+  if (!bossStage && --spawnTimer <= 0) {
     spawnTimer = std::max(20, 95 - int(level) * 4 - options.difficulty * 10);
     spawnRock(float(rng.range(14, W - 28)), -26, 2, float(rng.range(-4, 5)) * 0.1f);
   }
   for (auto &e : enemies.items)
     if (e.active) {
       e.age++;
+      if (e.kind == 4) {
+        updateBoss(e);
+        continue;
+      }
       e.x += e.vx;
       e.y += e.vy;
       int r = 5 + e.size * 5;
@@ -28,7 +32,7 @@ GameEntry describeMeteorPatrol() {
       {"METEOR PATROL",
        "SURVIVE THE ROCK STORM",
        {"L/R MOVE - A SHOOTS", "B CYCLES GUNS", "LARGE ROCKS SPLIT", "CHAIN KILLS: X8 MAX",
-        "PRESSURE RISES IN 15S", "DODGE THE FRAGMENTS"},
+        "PRESSURE RISES IN 15S", "5/10/12: STATION BOSS"},
        Orange,
        3,
        Fire});

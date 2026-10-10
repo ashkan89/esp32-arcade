@@ -21,26 +21,44 @@ Dependency Graph
 |-- Preferences @ 2.0.0
 |-- WebServer @ 2.0.0
 Building in release mode
-Compiling .pio\build\release\src\arcade\Console.cpp.o
-Compiling .pio\build\release\src\arcade\Hardware.cpp.o
-Compiling .pio\build\release\src\arcade\Network.cpp.o
-Compiling .pio\build\release\src\main.cpp.o
-In file included from include/arcade/Hardware.h:7,
-                 from src/arcade/Hardware.cpp:1:
-.pio/libdeps/release/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
-       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
-        ^~~~~~~
-In file included from include/arcade/Hardware.h:7,
-                 from src/main.cpp:3:
-.pio/libdeps/release/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
-       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
-        ^~~~~~~
+Compiling .pio\build\release\src\games\AlpineRush.cpp.o
+Compiling .pio\build\release\src\games\BarrelClimb.cpp.o
+Compiling .pio\build\release\src\games\BladeDuel.cpp.o
+Compiling .pio\build\release\src\games\BlastGrid.cpp.o
+Compiling .pio\build\release\src\games\BubbleQuest.cpp.o
+Compiling .pio\build\release\src\games\BugBlaster.cpp.o
+Compiling .pio\build\release\src\games\BurgerWorks.cpp.o
+Compiling .pio\build\release\src\games\CanyonStrike.cpp.o
+Compiling .pio\build\release\src\games\CityShield.cpp.o
+Compiling .pio\build\release\src\games\CrystalCourier.cpp.o
+Compiling .pio\build\release\src\games\DotChase.cpp.o
+Compiling .pio\build\release\src\games\ElevatorHeist.cpp.o
+Compiling .pio\build\release\src\games\FortressRun.cpp.o
+Compiling .pio\build\release\src\games\GhoulCastle.cpp.o
+Compiling .pio\build\release\src\games\IronFront.cpp.o
+Compiling .pio\build\release\src\games\MeteorPatrol.cpp.o
+Compiling .pio\build\release\src\games\NeonBreaker.cpp.o
+Compiling .pio\build\release\src\games\NeonClaim.cpp.o
+Compiling .pio\build\release\src\games\NightRacer.cpp.o
+Compiling .pio\build\release\src\games\OrbitGuard.cpp.o
+Compiling .pio\build\release\src\games\PinballNova.cpp.o
+Compiling .pio\build\release\src\games\PrismRider.cpp.o
+Compiling .pio\build\release\src\games\RescueWing.cpp.o
+Compiling .pio\build\release\src\games\RobotWhack.cpp.o
+Compiling .pio\build\release\src\games\SkyJoust.cpp.o
+Compiling .pio\build\release\src\games\SlyInvaders.cpp.o
+Compiling .pio\build\release\src\games\SnowSiege.cpp.o
+Compiling .pio\build\release\src\games\SolarLance.cpp.o
+Compiling .pio\build\release\src\games\TankArena.cpp.o
+Compiling .pio\build\release\src\games\TunnelDigger.cpp.o
+Compiling .pio\build\release\src\games\VectorDrift.cpp.o
+Compiling .pio\build\release\src\games\WildRails.cpp.o
 Linking .pio\build\release\firmware.elf
 Retrieving maximum program size .pio\build\release\firmware.elf
 Checking size .pio\build\release\firmware.elf
 Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
-RAM:   [==        ]  17.9% (used 58616 bytes from 327680 bytes)
-Flash: [====      ]  36.5% (used 1149569 bytes from 3145728 bytes)
+RAM:   [==        ]  18.6% (used 60920 bytes from 327680 bytes)
+Flash: [====      ]  39.6% (used 1246649 bytes from 3145728 bytes)
 Building .pio\build\release\firmware.bin with action:
   "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
 Building .pio\build\release\firmware.bin
@@ -48,7 +66,7 @@ esptool.py v4.5.1
 Creating esp32 image...
 Merged 27 ELF sections
 Successfully created esp32 image.
-========================= [SUCCESS] Took 26.09 seconds =========================
+========================= [SUCCESS] Took 39.17 seconds =========================
 
 Processing debug (platform: espressif32@6.10.0; board: esp-wrover-kit; framework: arduino)
 --------------------------------------------------------------------------------
@@ -73,26 +91,44 @@ Dependency Graph
 |-- Preferences @ 2.0.0
 |-- WebServer @ 2.0.0
 Building in debug mode
-Compiling .pio\build\debug\src\arcade\Console.cpp.o
-Compiling .pio\build\debug\src\arcade\Hardware.cpp.o
-Compiling .pio\build\debug\src\arcade\Network.cpp.o
-Compiling .pio\build\debug\src\main.cpp.o
-In file included from include/arcade/Hardware.h:7,
-                 from src/arcade/Hardware.cpp:1:
-.pio/libdeps/debug/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
-       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
-        ^~~~~~~
-In file included from include/arcade/Hardware.h:7,
-                 from src/main.cpp:3:
-.pio/libdeps/debug/TFT_eSPI/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
-       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
-        ^~~~~~~
+Compiling .pio\build\debug\src\games\AlpineRush.cpp.o
+Compiling .pio\build\debug\src\games\BarrelClimb.cpp.o
+Compiling .pio\build\debug\src\games\BladeDuel.cpp.o
+Compiling .pio\build\debug\src\games\BlastGrid.cpp.o
+Compiling .pio\build\debug\src\games\BubbleQuest.cpp.o
+Compiling .pio\build\debug\src\games\BugBlaster.cpp.o
+Compiling .pio\build\debug\src\games\BurgerWorks.cpp.o
+Compiling .pio\build\debug\src\games\CanyonStrike.cpp.o
+Compiling .pio\build\debug\src\games\CityShield.cpp.o
+Compiling .pio\build\debug\src\games\CrystalCourier.cpp.o
+Compiling .pio\build\debug\src\games\DotChase.cpp.o
+Compiling .pio\build\debug\src\games\ElevatorHeist.cpp.o
+Compiling .pio\build\debug\src\games\FortressRun.cpp.o
+Compiling .pio\build\debug\src\games\GhoulCastle.cpp.o
+Compiling .pio\build\debug\src\games\IronFront.cpp.o
+Compiling .pio\build\debug\src\games\MeteorPatrol.cpp.o
+Compiling .pio\build\debug\src\games\NeonBreaker.cpp.o
+Compiling .pio\build\debug\src\games\NeonClaim.cpp.o
+Compiling .pio\build\debug\src\games\NightRacer.cpp.o
+Compiling .pio\build\debug\src\games\OrbitGuard.cpp.o
+Compiling .pio\build\debug\src\games\PinballNova.cpp.o
+Compiling .pio\build\debug\src\games\PrismRider.cpp.o
+Compiling .pio\build\debug\src\games\RescueWing.cpp.o
+Compiling .pio\build\debug\src\games\RobotWhack.cpp.o
+Compiling .pio\build\debug\src\games\SkyJoust.cpp.o
+Compiling .pio\build\debug\src\games\SlyInvaders.cpp.o
+Compiling .pio\build\debug\src\games\SnowSiege.cpp.o
+Compiling .pio\build\debug\src\games\SolarLance.cpp.o
+Compiling .pio\build\debug\src\games\TankArena.cpp.o
+Compiling .pio\build\debug\src\games\TunnelDigger.cpp.o
+Compiling .pio\build\debug\src\games\VectorDrift.cpp.o
+Compiling .pio\build\debug\src\games\WildRails.cpp.o
 Linking .pio\build\debug\firmware.elf
 Retrieving maximum program size .pio\build\debug\firmware.elf
 Checking size .pio\build\debug\firmware.elf
 Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
-RAM:   [==        ]  17.9% (used 58616 bytes from 327680 bytes)
-Flash: [====      ]  39.4% (used 1239485 bytes from 3145728 bytes)
+RAM:   [==        ]  18.6% (used 60920 bytes from 327680 bytes)
+Flash: [====      ]  43.5% (used 1368533 bytes from 3145728 bytes)
 Building .pio\build\debug\firmware.bin with action:
   "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
 Building .pio\build\debug\firmware.bin
@@ -100,10 +136,10 @@ esptool.py v4.5.1
 Creating esp32 image...
 Merged 27 ELF sections
 Successfully created esp32 image.
-========================= [SUCCESS] Took 24.20 seconds =========================
+========================= [SUCCESS] Took 40.99 seconds =========================
 
 Environment    Status    Duration
 -------------  --------  ------------
-release        SUCCESS   00:00:26.090
-debug          SUCCESS   00:00:24.204
-========================= 2 succeeded in 00:00:50.294 =========================
+release        SUCCESS   00:00:39.170
+debug          SUCCESS   00:00:40.988
+========================= 2 succeeded in 00:01:20.159 =========================

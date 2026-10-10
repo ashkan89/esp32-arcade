@@ -24,7 +24,7 @@ bool SnakeRush::placeFood() {
         available++;
     }
   if (!available) {
-    ended = true;
+    completeCampaign();
     add(1000);
     sound(Sound::Wave);
     return false;
@@ -91,7 +91,7 @@ void SnakeRush::step() {
   body[0] = head;
   if (eating) {
     add(10 + level * 2);
-    level = uint16_t(1 + (length - 4) / 5);
+    progressTo(uint16_t(1 + (length - 4) / 5));
     sound(Sound::Power);
     placeFood();
   }

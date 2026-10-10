@@ -2,8 +2,18 @@
 #include "games/Registration.h"
 namespace arcade {
 class GridMerge final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyGridMerge();
+#endif
   std::array<uint8_t, 16> cells{};
-  bool won = false;
+  int goalExponent() const {
+    return std::min(11, 6 + int(level));
+  }
+  void board() {
+    cells.fill(0);
+    spawn();
+    spawn();
+  }
   void spawn() {
     std::array<int, 16> empty{};
     int n = 0;
@@ -53,10 +63,14 @@ class GridMerge final : public TickGame {
       sound(Sound::Move);
     }
     for (auto v : cells)
-      if (v >= 11 && !won) {
-        won = true;
-        add(2048);
-        sound(Sound::Wave);
+      if (v >= goalExponent()) {
+        add(uint32_t(1) << v);
+        nextStage();
+        if (ended)
+          return;
+        if (!ended)
+          board();
+        return;
       }
     if (!possible()) {
       ended = true;
@@ -68,11 +82,8 @@ class GridMerge final : public TickGame {
 public:
   void start(const GameOptions &o) override {
     baseStart(o);
-    cells.fill(0);
-    won = false;
     health = 1;
-    spawn();
-    spawn();
+    board();
   }
   size_t activeEntities() const override {
     return 16;
@@ -86,7 +97,8 @@ public:
         if (v)
           c.number(xx + 3, yy + 14, uint32_t(1) << v, White);
       }
-    c.centered(205, won ? "2048! KEEP MERGING" : "D-PAD: SLIDE ALL TILES", won ? Yellow : Grey);
+    c.text(8, 205, "GOAL TILE", Grey);
+    c.number(74, 205, uint32_t(1) << goalExponent(), Yellow);
   }
 };
 GameEntry describeGridMerge() {
@@ -94,9 +106,29 @@ GameEntry describeGridMerge() {
       {"GRID MERGE",
        "BUILD THE 2048 TILE",
        {"D-PAD SLIDES THE BOARD", "EQUAL TILES MERGE ONCE", "VALID MOVES ADD A TILE",
-        "SCORE THE MERGED VALUES", "2048 GIVES A BONUS", "NO MOVES ENDS THE RUN"},
+        "REACH GOAL TO RESET BOARD", "GOALS RISE FROM 128 TO 2048", "WIN ALL TWELVE BOARDS"},
        Orange,
        18,
        Left | Right | Up | Down});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyGridMerge() {
+  GridMerge g;
+  g.start({});
+  g.level = 12;
+  g.cells.fill(0);
+  g.cells[0] = g.cells[1] = 10;
+  g.input.pressed = Left;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

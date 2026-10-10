@@ -1,2 +1,3 @@
-Lifecycle soak: 750000 simulation ticks, 7716 game-over/restart cycles
-PASS 802790 assertions across core, inputs, saves, menus, game rules and lifecycle soak
+Focused campaign checks: 1618 assertions plus legacy endings and solvable warehouses
+Lifecycle soak: 1500000 simulation ticks, 8526 game-over/restart cycles
+PASS 1603853 assertions across core, inputs, saves, menus, game rules and lifecycle soak

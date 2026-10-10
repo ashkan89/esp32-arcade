@@ -53,11 +53,11 @@ if not compiler and os.name == "nt":
 if not compiler:
     sys.exit("Install a C++14 or newer compiler or run in a Visual Studio Developer terminal.")
 if Path(compiler).stem.lower() == "cl":
-    command = [compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/O2", "/I" + str(root / "include"), *map(str, sources), "/Fe:" + str(exe), "/Fo:" + str(out) + os.sep]
+    command = [compiler, "/nologo", "/std:c++17", "/DARCADE_HOST_TESTS", "/EHsc", "/W4", "/O2", "/I" + str(root / "include"), *map(str, sources), "/Fe:" + str(exe), "/Fo:" + str(out) + os.sep]
     if args.sanitize:
         command += ["/fsanitize=address", "/Zi"]
 else:
-    command = [compiler, "-std=c++14", "-O2", "-Wall", "-Wextra", "-Wpedantic", "-I", str(root / "include"), *map(str, sources), "-o", str(exe)]
+    command = [compiler, "-std=c++14", "-DARCADE_HOST_TESTS", "-O2", "-Wall", "-Wextra", "-Wpedantic", "-I", str(root / "include"), *map(str, sources), "-o", str(exe)]
     if args.sanitize:
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g"]
 build = subprocess.run(command, cwd=root, capture_output=True, text=True)

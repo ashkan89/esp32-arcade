@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class MemoryMatch final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyMemoryMatch();
+#endif
   std::array<uint8_t, 20> cards{}, matched{};
   int cursor = 0, first = -1, second = -1, wait = 0, pairs = 0;
   uint32_t started = 0;
@@ -29,6 +32,8 @@ class MemoryMatch final : public TickGame {
         if (pairs == 10) {
           add(uint32_t(std::max(0, 500 - int((tick - started) / 60))));
           nextStage();
+          if (ended)
+            return;
           board();
         }
       }
@@ -84,4 +89,26 @@ GameEntry describeMemoryMatch() {
        19,
        Fire});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyMemoryMatch() {
+  MemoryMatch g;
+  g.start({});
+  g.level = 12;
+  g.cards[0] = g.cards[1] = 1;
+  g.first = 0;
+  g.second = 1;
+  g.pairs = 9;
+  g.wait = 1;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

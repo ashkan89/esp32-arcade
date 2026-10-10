@@ -12,6 +12,51 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+namespace arcade {
+unsigned campaignAssertions = 0;
+bool verifyVectorDrift();
+bool verifyBugBlaster();
+bool verifyCityShield();
+bool verifyPrismRider();
+bool verifyNeonClaim();
+bool verifyDotChase();
+bool verifyTunnelDigger();
+bool verifyBarrelClimb();
+bool verifySkyJoust();
+bool verifyBurgerWorks();
+bool verifyBubbleQuest();
+bool verifySnowSiege();
+bool verifyCanyonStrike();
+bool verifySolarLance();
+bool verifyFortressRun();
+bool verifyGhoulCastle();
+bool verifyIronFront();
+bool verifyBladeDuel();
+bool verifyElevatorHeist();
+bool verifyAlpineRush();
+bool verifyWildRails();
+bool verifyCrystalCourier();
+bool verifyNightRacer();
+bool verifyPinballNova();
+bool verifyRescueWing();
+bool verifyCargoShift();
+bool verifyPongCircuit();
+bool verifyBlockCascade();
+bool verifyMineGrid();
+bool verifyMazeRunner();
+bool verifyRiverLeap();
+bool verifyOrbitGuard();
+bool verifyLunarLander();
+bool verifyBlastGrid();
+bool verifyTankArena();
+bool verifyBubbleBurst();
+bool verifyGridMerge();
+bool verifyMemoryMatch();
+bool verifyRobotWhack();
+bool verifyStackTower();
+bool verifyJumpQuest();
+bool verifyColorCascade();
+} // namespace arcade
 using namespace arcade;
 static int assertions = 0;
 #define CHECK(x)                                                                                   \
@@ -24,6 +69,85 @@ static int assertions = 0;
   } while (0)
 namespace arcade {
 struct RuleTests {
+  static void prepareFinalBoss(Game &game) {
+    auto &g = static_cast<Shooter &>(game);
+    g.level = 12;
+    g.wave();
+  }
+  static void finishFinalBoss(Game &game) {
+    auto &g = static_cast<Shooter &>(game);
+    g.enemies.clear();
+    g.hostile.clear();
+    g.clearTimer = 1;
+    g.update();
+    CHECK(g.campaignComplete());
+  }
+  static void endings() {
+    for (unsigned id = 0; id < 4; ++id) {
+      auto &g = static_cast<Shooter &>(gameFor(GameId(id)));
+      g.start({});
+      g.level = 12;
+      g.wave();
+      CHECK(g.bossEncounter() && g.bossHealth() > 0);
+      auto &e = g.enemies.items[0];
+      e.hp = 1;
+      auto *b = g.shots.acquire();
+      b->oldX = b->x = e.x + 10;
+      b->oldY = e.y + 40;
+      b->y = e.y;
+      g.collisions();
+      CHECK(!e.active);
+      g.update();
+      for (int i = 0; i < 90; ++i)
+        g.update();
+      CHECK(g.campaignComplete() && g.stage() == 12);
+    }
+    NeonBreaker b;
+    b.start({});
+    b.level = 12;
+    b.layout();
+    b.bossHP = 1;
+    b.launched = true;
+    b.tick = 0;
+    b.ballX = 88;
+    b.ballY = 73;
+    b.vx = 0;
+    b.vy = -3;
+    b.update();
+    CHECK(b.campaignComplete() && b.stage() == 12);
+    SnakeRush s;
+    s.start({});
+    s.level = 12;
+    s.length = 63;
+    for (int i = 0; i < 63; ++i)
+      s.body[unsigned(i)] = {int8_t(i % 20), int8_t(8 + i / 20)};
+    s.body[0] = {9, 3};
+    s.direction = s.nextDir = 0;
+    s.food = {10, 3};
+    s.step();
+    CHECK(s.campaignComplete());
+    TurboDodge t;
+    t.start({});
+    t.level = 12;
+    t.tick = 599;
+    t.spawn = 100;
+    t.update();
+    CHECK(t.campaignComplete());
+    FlapEscape f;
+    f.start({});
+    f.level = 12;
+    f.points = 59;
+    f.gates.clear();
+    f.spawn = 100;
+    f.flying = true;
+    auto *gate = f.gates.acquire();
+    gate->x = 17;
+    gate->gapY = 100;
+    f.y = 140;
+    f.vy = 0;
+    f.update();
+    CHECK(f.campaignComplete());
+  }
   static void shooter() {
     SlyInvaders g;
     g.start({});
@@ -476,6 +600,10 @@ static void lifecycle() {
   unsigned overs = 0;
   for (unsigned id = 0; id < GameCount; id++) {
     CHECK(registry()[id].title[0]);
+    CHECK(std::strlen(registry()[id].title) <= 29);
+    CHECK(std::strlen(registry()[id].description) <= 29);
+    for (const auto *line : registry()[id].instructions)
+      CHECK(line && std::strlen(line) <= 27);
     for (unsigned difficulty : {0u, 1u, 2u}) {
       Game &g = gameFor(GameId(id));
       GameOptions o;
@@ -589,6 +717,18 @@ static void preview() {
   c.clear();
   console.render(c);
   write(int(GameCount) + 2);
+  console.update({0, Fire}, 210);
+  CHECK(console.state() == Screen::Playing);
+  RuleTests::prepareFinalBoss(*console.active());
+  c.clear();
+  console.render(c);
+  write(int(GameCount) + 3);
+  RuleTests::finishFinalBoss(*console.active());
+  console.update({}, 250);
+  CHECK(console.state() == Screen::Over);
+  c.clear();
+  console.render(c);
+  write(int(GameCount) + 4);
 }
 static void puzzleRules() {
   std::array<uint8_t, 4> line{{1, 1, 1, 1}};
@@ -617,7 +757,7 @@ static void puzzleRules() {
   colors.fill(0);
   colors[5] = colors[13] = colors[21] = 4;
   CHECK(matchRuns(colors) == ((uint64_t(1) << 5) | (uint64_t(1) << 13) | (uint64_t(1) << 21)));
-  CHECK(GameCount >= 25);
+  CHECK(GameCount >= 50);
   CHECK(registry().size() == GameCount);
 }
 static void releasePolicy() {
@@ -656,6 +796,52 @@ int main() {
   RuleTests::snake();
   RuleTests::turbo();
   RuleTests::flap();
+  RuleTests::endings();
+  CHECK(verifyVectorDrift());
+  CHECK(verifyBugBlaster());
+  CHECK(verifyCityShield());
+  CHECK(verifyPrismRider());
+  CHECK(verifyNeonClaim());
+  CHECK(verifyDotChase());
+  CHECK(verifyTunnelDigger());
+  CHECK(verifyBarrelClimb());
+  CHECK(verifySkyJoust());
+  CHECK(verifyBurgerWorks());
+  CHECK(verifyBubbleQuest());
+  CHECK(verifySnowSiege());
+  CHECK(verifyCanyonStrike());
+  CHECK(verifySolarLance());
+  CHECK(verifyFortressRun());
+  CHECK(verifyGhoulCastle());
+  CHECK(verifyIronFront());
+  CHECK(verifyBladeDuel());
+  CHECK(verifyElevatorHeist());
+  CHECK(verifyAlpineRush());
+  CHECK(verifyWildRails());
+  CHECK(verifyCrystalCourier());
+  CHECK(verifyNightRacer());
+  CHECK(verifyPinballNova());
+  CHECK(verifyRescueWing());
+  CHECK(verifyCargoShift());
+  CHECK(verifyPongCircuit());
+  CHECK(verifyBlockCascade());
+  CHECK(verifyMineGrid());
+  CHECK(verifyMazeRunner());
+  CHECK(verifyRiverLeap());
+  CHECK(verifyOrbitGuard());
+  CHECK(verifyLunarLander());
+  CHECK(verifyBlastGrid());
+  CHECK(verifyTankArena());
+  CHECK(verifyBubbleBurst());
+  CHECK(verifyGridMerge());
+  CHECK(verifyMemoryMatch());
+  CHECK(verifyRobotWhack());
+  CHECK(verifyStackTower());
+  CHECK(verifyJumpQuest());
+  CHECK(verifyColorCascade());
+  std::printf(
+      "Focused campaign checks: %u assertions plus legacy endings and solvable warehouses\n",
+      campaignAssertions);
   lifecycle();
   preview();
   std::printf(

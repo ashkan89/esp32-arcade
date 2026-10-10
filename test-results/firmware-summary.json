@@ -1,16 +1,16 @@
 {
   "release": {
     "status": "PASS",
-    "static_ram_bytes": 58616,
-    "flash_bytes": 1149569,
-    "binary_bytes": 1156144,
-    "firmware_sha256": "e2475d91d0f6c7e485526c7cd3b8fa959db202070f83def9088cb531e519ebf7"
+    "static_ram_bytes": 60920,
+    "flash_bytes": 1246649,
+    "binary_bytes": 1253232,
+    "firmware_sha256": "706f9343ee66912a5e7a1e9ab7aa906269841030770a89f085e7158a8638c4cb"
   },
   "debug": {
     "status": "PASS",
-    "static_ram_bytes": 58616,
-    "flash_bytes": 1239485,
-    "binary_bytes": 1246064,
-    "firmware_sha256": "301d960e4d7fa229bd0955928fde922c74ba7ed52e92a111c9744f2efa08f78c"
+    "static_ram_bytes": 60920,
+    "flash_bytes": 1368533,
+    "binary_bytes": 1375104,
+    "firmware_sha256": "68865a763fb3a8de2331db7ef0be103d4d6790e48840d043e497d68003ddee7a"
   }
 }

@@ -1,6 +1,6 @@
-# Sly Arcade — ESP32-WROVER N16R8
+# Game Arcade — ESP32-WROVER N16R8
 
-25 native arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
+50 native arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
 favorites, saved scores, difficulty settings, pause/restart menus, and a PSRAM-backed frame history.
 Wi-Fi setup runs on demand; firmware updates come from
 [ashkan89/esp32-arcade releases](https://github.com/ashkan89/esp32-arcade/releases).
@@ -55,9 +55,21 @@ It is a visual history, not a replay of game inputs.
 | | Jump Quest | |
 | | Maze Runner | |
 
+The 25 additions are Vector Drift, Bug Blaster, City Shield, Prism Rider, Neon Claim,
+Dot Chase, Tunnel Digger, Barrel Climb, Sky Joust, Burger Works, Bubble Quest, Snow Siege,
+Canyon Strike, Solar Lance, Fortress Run, Ghoul Castle, Iron Front, Blade Duel,
+Elevator Heist, Alpine Rush, Wild Rails, Crystal Courier, Night Racer, Pinball Nova,
+and Rescue Wing. Each lives in its own source file with its own game rules.
+
+All 50 games have twelve stages and a **Campaign Complete** ending with a score bonus.
+Combat games include bosses; puzzle, territory and racing campaigns finish their own
+objectives. Read the [complete game guide](docs/GAMES.md) for stage objectives and boss
+schedules, and [web research](docs/GAME_REFERENCES.md) for the 25 classic inspirations.
+The additions use original code and procedural artwork, with their own titles and rules.
+
 ## Wi-Fi and firmware updates
 
-Open **Menu → Wi-Fi / Firmware Update → Wi-Fi / Repository Setup**. Join `SlyArcade-Setup`
+Open **Menu → Wi-Fi / Firmware Update → Wi-Fi / Repository Setup**. Join `GameArcade-Setup`
 using the random key shown on the display, then open `http://192.168.4.1/`.
 Enter your Wi-Fi name/password and `ashkan89/esp32-arcade` (or another public repository).
 Setup supports WPA/WPA2 personal credentials, with an 8–63 character password. Credentials

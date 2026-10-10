@@ -45,7 +45,7 @@ void FlapEscape::update() {
     if (!g.passed && g.x + 20 < 38) {
       g.passed = true;
       add(1);
-      level = uint16_t(std::min(999u, 1 + points / 5));
+      progressTo(uint16_t(std::min(13u, 1 + points / 5)));
       sound(Sound::Power);
     }
     if (g.x < -24)

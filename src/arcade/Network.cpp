@@ -77,7 +77,7 @@ public:
       config.event_handler = event;
       config.user_data = this;
       config.buffer_size = 4096;
-      config.user_agent = "SlyArcade/" ARCADE_VERSION;
+      config.user_agent = "GameArcade/" ARCADE_VERSION;
       client = esp_http_client_init(&config);
       if (!client)
         return false;
@@ -178,17 +178,18 @@ void Network::setupPortal() {
   std::snprintf(apPassword, sizeof(apPassword), "%08lx%04lx", (unsigned long)a,
                 (unsigned long)(b & 65535));
   WiFi.mode(WIFI_AP);
-  if (!WiFi.softAP("SlyArcade-Setup", apPassword, 1, false, 1)) {
+  if (!WiFi.softAP("GameArcade-Setup", apPassword, 1, false, 1)) {
     status("COULD NOT START SETUP WI-FI");
     WiFi.mode(WIFI_OFF);
     return;
   }
   server.on("/", HTTP_GET, [this] {
     String page =
-        "<!doctype html><meta name='viewport' content='width=device-width'><title>Sly Arcade "
+        "<!doctype html><meta name='viewport' content='width=device-width'><title>Game Arcade "
         "setup</title><style>body{font:18px system-ui;max-width:32em;margin:2em "
         "auto;padding:1em;background:#101729;color:white}input,button{display:block;padding:.7em;"
-        "margin:.5em 0;width:90%}</style><h1>Sly Arcade</h1><p>Configure Wi-Fi and a public GitHub "
+        "margin:.5em 0;width:90%}</style><h1>Game Arcade</h1><p>Configure Wi-Fi and a public "
+        "GitHub "
         "release repository.</p><form method='post' action='/save'>";
     page +=
         "<input name='token' type='hidden' value='" + String(apPassword) +
@@ -528,7 +529,7 @@ void Network::draw(Canvas &c) {
     c.text(6, 140 + row * 12, line, working ? Cyan : White);
   }
   if (portal) {
-    c.text(6, 176, "WI-FI: SlyArcade-Setup", Yellow);
+    c.text(6, 176, "WI-FI: GameArcade-Setup", Yellow);
     c.text(6, 188, "KEY:", Grey);
     c.text(36, 188, apPassword, Yellow);
     c.text(6, 202, "HTTP://192.168.4.1", White);

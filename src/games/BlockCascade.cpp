@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class BlockCascade final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyBlockCascade();
+#endif
   std::array<uint8_t, 200> cells{};
   int px = 3, py = 0, rotation = 0, kind = 0, next = 0, fall = 0, lines = 0;
   uint16_t shape(int k, int r) const {
@@ -66,7 +69,7 @@ class BlockCascade final : public TickGame {
     if (cleared) {
       add(uint32_t(cleared * cleared * 100) * level);
       lines += cleared;
-      level = uint16_t(std::min(999, 1 + lines / 10));
+      progressTo(uint16_t(std::min(13, 1 + lines / 10)));
       sound(Sound::Power);
     }
     spawn();
@@ -150,4 +153,24 @@ GameEntry describeBlockCascade() {
        9,
        Left | Right | Down | Fire | Special});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyBlockCascade() {
+  BlockCascade g;
+  g.start({});
+  g.level = 12;
+  g.lines = 119;
+  for (int x = 0; x < 10; ++x)
+    g.cells[190 + x] = 1;
+  g.lock();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

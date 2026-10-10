@@ -11,11 +11,32 @@ protected:
   GameOptions options;
   Random rng;
   InputFrame input;
-  bool paused = false, ended = false;
+  bool paused = false, ended = false, victorious = false;
   uint32_t points = 0, tick = 0;
   uint16_t level = 1;
   int health = 3;
   Sound pending = Sound::None;
+  void completeCampaign() {
+    if (ended)
+      return;
+    victorious = ended = true;
+    add(5000 + uint32_t(std::max(0, health)) * 1000);
+    sound(Sound::Wave);
+  }
+  void advanceStage() {
+    if (ended)
+      return;
+    if (level >= 12)
+      completeCampaign();
+    else {
+      ++level;
+      sound(Sound::Wave);
+    }
+  }
+  void progressTo(uint16_t target) {
+    while (!ended && level < target)
+      advanceStage();
+  }
   void add(uint32_t n) {
     points = UINT32_MAX - points < n ? UINT32_MAX : points + n;
   }
@@ -27,7 +48,7 @@ protected:
     options = o;
     rng.state = o.seed ? o.seed : 1;
     input = {};
-    paused = ended = false;
+    paused = ended = victorious = false;
     points = tick = 0;
     level = 1;
     health = 3;
@@ -69,6 +90,15 @@ public:
   }
   bool gameOver() const {
     return ended;
+  }
+  bool campaignComplete() const {
+    return victorious;
+  }
+  virtual bool bossEncounter() const {
+    return false;
+  }
+  virtual int bossHealth() const {
+    return 0;
   }
   Sound takeSound() {
     Sound s = pending;

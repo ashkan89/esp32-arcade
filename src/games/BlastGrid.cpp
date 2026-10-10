@@ -1,8 +1,12 @@
 #include "games/Registration.h"
 namespace arcade {
 class BlastGrid final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyBlastGrid();
+#endif
   std::array<uint8_t, 99> wall{}, flame{};
   std::array<int, 3> bots{};
+  std::array<int, 3> botHP{}, botGrace{};
   int player = 12, bomb = -1, fuse = 0, grace = 0;
   bool blocked(int p) const {
     return p < 0 || p >= 99 || wall[p] != 0;
@@ -19,6 +23,8 @@ class BlastGrid final : public TickGame {
     for (int p : {10, 11, 19, 70, 71, 79, 80, 16, 25})
       wall[p] = 0;
     bots = {16, 70, 80};
+    botHP = {{level % 4 == 0 ? 5 : 1, 1, 1}};
+    botGrace.fill(0);
     flame.fill(0);
     bomb = -1;
     fuse = grace = 0;
@@ -63,16 +69,25 @@ class BlastGrid final : public TickGame {
         }
     bool danger = flame[player] != 0;
     int left = 0;
-    for (auto &bot : bots)
+    for (unsigned index = 0; index < bots.size(); ++index) {
+      auto &bot = bots[index];
+      if (botGrace[index])
+        --botGrace[index];
       if (bot >= 0) {
-        if (flame[bot]) {
-          bot = -1;
-          add(100);
-        } else {
+        if (flame[bot] && !botGrace[index]) {
+          botGrace[index] = 60;
+          if (--botHP[index] == 0) {
+            bot = -1;
+            add(100);
+          } else
+            sound(Sound::Hit);
+        }
+        if (bot >= 0) {
           left++;
           danger |= bot == player;
         }
       }
+    }
     if (danger && !grace) {
       loseLife();
       player = 10;
@@ -81,11 +96,19 @@ class BlastGrid final : public TickGame {
     if (!left && !ended) {
       add(300);
       nextStage();
+      if (ended)
+        return;
       board();
     }
   }
 
 public:
+  bool bossEncounter() const override {
+    return level % 4 == 0 && bots[0] >= 0;
+  }
+  int bossHealth() const override {
+    return bossEncounter() ? botHP[0] : 0;
+  }
   void start(const GameOptions &o) override {
     baseStart(o);
     board();
@@ -109,6 +132,10 @@ public:
     if (!grace || tick % 10 < 5)
       c.circle(15 + player % 9 * 18, 30 + player / 9 * 17, 5, Cyan, true);
     c.centered(211, "A BOMB - ESCAPE THE BLAST", White);
+    if (bossEncounter()) {
+      c.text(5, 24, "BOSS", Pink);
+      c.rect(35, 24, botHP[0] * 26, 4, Red);
+    }
   }
 };
 GameEntry describeBlastGrid() {
@@ -116,9 +143,31 @@ GameEntry describeBlastGrid() {
       {"BLAST GRID",
        "OUTWIT THE ROAMING BOTS",
        {"D-PAD MOVES ON THE GRID", "A PLANTS ONE TIMED BOMB", "BLAST REACHES TWO CELLS",
-        "STONE BLOCKS STOP FIRE", "CRATES BREAK FOR POINTS", "CLEAR THREE BOTS TO LEVEL"},
+        "STONE BLOCKS STOP FIRE", "CRATES BREAK FOR POINTS", "4/8/12: FIVE-BLAST BOSS"},
        Orange,
        15,
        Fire});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyBlastGrid() {
+  BlastGrid g;
+  g.start({});
+  g.level = 12;
+  g.board();
+  g.bots = {{16, -1, -1}};
+  g.botHP[0] = 1;
+  g.flame[16] = 30;
+  g.tick = 1;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

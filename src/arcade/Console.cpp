@@ -93,7 +93,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
     if (current->gameOver()) {
       record();
       transition(Screen::Over, now);
-      pending = Sound::Over;
+      pending = current->campaignComplete() ? Sound::Wave : Sound::Over;
     }
     return;
   }
@@ -279,7 +279,7 @@ void Console::icon(Canvas &c, int index, int x, int y) const {
 }
 void Console::render(Canvas &c) const {
   if (screen == Screen::Boot) {
-    c.centered(55, "SLY", Green, 3);
+    c.centered(55, "GAME", Green, 3);
     c.centered(86, "ARCADE", Cyan, 3);
     char tagline[32];
     std::snprintf(tagline, sizeof(tagline), "%u GAMES. ONE CABINET.", unsigned(GameCount));
@@ -289,7 +289,7 @@ void Console::render(Canvas &c) const {
   }
   if (screen == Screen::Launcher) {
     char title[28];
-    std::snprintf(title, sizeof(title), "SLY ARCADE / %u", unsigned(GameCount));
+    std::snprintf(title, sizeof(title), "GAME ARCADE / %u", unsigned(GameCount));
     header(c, title);
     int page = selection / 5;
     for (int row = 0; row < 5; row++) {
@@ -329,6 +329,7 @@ void Console::render(Canvas &c) const {
     c.text(98, 6, "L", Red);
     c.number(109, 6, current ? uint32_t(std::max(0, current->lives())) : 0, White);
     c.number(143, 6, current ? current->stage() : 1, Yellow);
+    c.text(157, 6, "/12", Grey);
     if (screen == Screen::Attract) {
       c.rect(18, 103, 140, 21, Navy);
       c.centered(110, "PRESS ANY BUTTON", Yellow);
@@ -344,7 +345,8 @@ void Console::render(Canvas &c) const {
     return;
   }
   if (screen == Screen::Over) {
-    header(c, "GAME OVER", Red);
+    bool won = current && current->campaignComplete();
+    header(c, won ? "CAMPAIGN COMPLETE" : "GAME OVER", won ? Green : Red);
     c.centered(49, registry()[selection].title, Cyan);
     c.centered(78, "SCORE", Grey);
     char text[16];

@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class StackTower final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyStackTower();
+#endif
   struct Slab {
     int x = 0, width = 0;
   };
@@ -41,6 +44,8 @@ class StackTower final : public TickGame {
       moving = direction > 0 ? 0 : float(W - width);
       speed = std::min(5.0f, speed + 0.09f);
       nextStage();
+      if (ended)
+        return;
       sound(perfect ? Sound::Power : Sound::Hit);
     }
   }
@@ -78,4 +83,24 @@ GameEntry describeStackTower() {
        21,
        Fire});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyStackTower() {
+  StackTower g;
+  g.start({});
+  g.level = 12;
+  g.moving = float(g.lastX);
+  g.speed = 0;
+  g.input.pressed = Fire;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

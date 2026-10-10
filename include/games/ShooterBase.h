@@ -41,6 +41,7 @@ protected:
   int cooldown = 0, shotTimer = 0, spawnTimer = 0, moveTimer = 0, dir = 1, clearTimer = 0,
       spawned = 0, bombs = 1;
   uint32_t lastKill = 0;
+  uint32_t waveStarted = 0;
   bool bossStage = false, damaged = false;
   uint16_t shake = 0;
   bool ufoActive = false, beam = false;
@@ -62,6 +63,15 @@ protected:
   void collisions();
 
 public:
+  bool bossEncounter() const override {
+    return bossStage && bossHealth() > 0;
+  }
+  int bossHealth() const override {
+    for (const auto &e : enemies.items)
+      if (e.active && e.kind == 4)
+        return e.hp;
+    return 0;
+  }
   explicit Shooter(ShooterMode m) : mode(m) {}
   void start(const GameOptions &) override;
   void update() override;

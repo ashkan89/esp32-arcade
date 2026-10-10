@@ -1,15 +1,17 @@
 #pragma once
 #include "arcade/Game.h"
+#include "games/HostChecks.h"
 #include <new>
 namespace arcade {
 class TickGame : public Game {
 protected:
   virtual void simulate() = 0;
   void nextStage() {
-    level = uint16_t(std::min(999, int(level) + 1));
-    sound(Sound::Wave);
+    advanceStage();
   }
   void loseLife() {
+    if (ended)
+      return;
     if (--health <= 0) {
       ended = true;
       sound(Sound::Over);

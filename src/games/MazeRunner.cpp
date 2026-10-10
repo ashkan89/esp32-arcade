@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class MazeRunner final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyMazeRunner();
+#endif
   std::array<uint8_t, 17 * 19> maze{}, gems{};
   std::array<int, 3> enemies{};
   int player = 18, left = 0, grace = 0;
@@ -92,6 +95,8 @@ class MazeRunner final : public TickGame {
     if (left == 0 && !ended) {
       add(500);
       nextStage();
+      if (ended)
+        return;
       board();
     }
   }
@@ -130,4 +135,25 @@ GameEntry describeMazeRunner() {
        11,
        Left | Right | Up | Down});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyMazeRunner() {
+  MazeRunner g;
+  g.start({});
+  g.level = 12;
+  g.gems.fill(0);
+  g.gems[g.player] = 1;
+  g.left = 1;
+  g.tick = 1;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

@@ -1,6 +1,11 @@
 #include "games/Registration.h"
 namespace arcade {
 class CargoShift final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyCargoShift();
+  std::array<int8_t, 800> solutionWalk{};
+  int solutionSteps = 0;
+#endif
   std::array<uint8_t, 80> board{};
   std::array<bool, 80> goal{};
   int player = 0, moves = 0;
@@ -10,8 +15,62 @@ class CargoShift final : public TickGame {
   };
   std::array<Snapshot, 32> history{};
   int count = 0;
+  void generatedPuzzle() {
+    rng.state = options.seed ^ (uint32_t(level) * 0x9e3779b9u);
+    // Start solved, then reverse legal pushes. The reverse walk is a constructive solution.
+    board.fill(0);
+    goal.fill(false);
+    for (int y = 0; y < 10; ++y)
+      for (int x = 0; x < 8; ++x)
+        if (x == 0 || x == 7 || y == 0 || y == 9)
+          board[y * 8 + x] = 1;
+    for (int p : {26, 29, 43}) {
+      goal[p] = true;
+      board[p] = 2;
+    }
+    player = 36;
+#ifdef ARCADE_HOST_TESTS
+    solutionSteps = 0;
+#endif
+    int pulls = 0;
+    for (int step = 0; step < 800; ++step) {
+      int d = std::array<int, 4>{{-1, 1, -8, 8}}[rng.range(0, 4)], next = player + d;
+      if (next < 0 || next >= 80 || board[next])
+        continue;
+      int behind = player - d;
+      if (behind >= 0 && behind < 80 && board[behind] == 2 && rng.range(0, 3) != 0) {
+        board[player] = 2;
+        board[behind] = 0;
+        ++pulls;
+      }
+      player = next;
+#ifdef ARCADE_HOST_TESTS
+      solutionWalk[solutionSteps++] = int8_t(-d);
+#endif
+      if (pulls >= 8 + int(level) * 2)
+        break;
+    }
+    bool solved = true;
+    for (int p = 0; p < 80; ++p)
+      if (goal[p] && board[p] != 2)
+        solved = false;
+    if (solved) {
+      board[26] = 0;
+      board[34] = 2;
+      player = 42;
+#ifdef ARCADE_HOST_TESTS
+      solutionWalk[0] = -8;
+      solutionSteps = 1;
+#endif
+    }
+    moves = count = 0;
+  }
   void puzzle() {
-    // Hand-authored solvable boards. Rotate/mirror boards to vary subsequent cycles.
+    if (level >= 4) {
+      generatedPuzzle();
+      return;
+    }
+    // Three hand-authored opening puzzles, followed by nine reverse-generated warehouses.
     static const char *maps[] = {"########"
                                  "#      #"
                                  "# . .  #"
@@ -95,6 +154,8 @@ class CargoShift final : public TickGame {
     if (solved) {
       add(uint32_t(std::max(100, 1000 - moves * 10)));
       nextStage();
+      if (ended)
+        return;
       puzzle();
     }
   }
@@ -137,3 +198,33 @@ GameEntry describeCargoShift() {
        Special | Fire});
 }
 } // namespace arcade
+
+#ifdef ARCADE_HOST_TESTS
+namespace arcade {
+bool verifyCargoShift() {
+  CargoShift g;
+  for (unsigned seed = 1; seed <= 30; ++seed)
+    for (int stage = 4; stage <= 12; ++stage) {
+      GameOptions o;
+      o.seed = seed;
+      g.start(o);
+      g.level = uint16_t(stage);
+      g.puzzle();
+      auto original = g.board;
+      int originalPlayer = g.player;
+      auto witness = g.solutionWalk;
+      int steps = g.solutionSteps;
+      g.puzzle();
+      HOST_CHECK(g.board == original && g.player == originalPlayer);
+      for (int i = steps - 1; i >= 0 && !g.gameOver() && g.stage() == stage; --i) {
+        int d = witness[i];
+        uint16_t b = d == -1 ? Left : d == 1 ? Right : d == -8 ? Up : Down;
+        g.handle({b, b});
+        g.update();
+      }
+      HOST_CHECK(g.campaignComplete() || g.stage() == stage + 1);
+    }
+  return true;
+}
+} // namespace arcade
+#endif

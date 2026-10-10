@@ -1,6 +1,13 @@
 #include "games/NeonBreaker.h"
 namespace arcade {
 void NeonBreaker::layout() {
+  hazards.clear();
+  bossGrace = 90;
+  bossHP = bossMaximum = level % 4 == 0 ? 12 + int(level) : 0;
+  if (bossHP) {
+    bricks.fill(0);
+    return;
+  }
   for (unsigned i = 0; i < bricks.size(); i++)
     bricks[i] = ((int(i) / 8 + int(i) % 8 + int(level)) % 5 == 0)
                     ? 0
@@ -34,6 +41,23 @@ void NeonBreaker::update() {
   if (paused || ended)
     return;
   tick++;
+  if (bossGrace)
+    --bossGrace;
+  if (bossHP) {
+    bossX = 88 + std::sin(tick * .018f) * 50;
+    if (launched && tick % 100 == 0)
+      projectile(hazards, bossX, 74, 0, 1.7f);
+    moveProjectiles(hazards);
+    for (auto &h : hazards.items)
+      if (h.active && h.y >= 194 && h.x >= paddle && h.x <= paddle + (wide ? 48 : 32) &&
+          !bossGrace) {
+        h.active = false;
+        lose();
+        bossGrace = 120;
+      }
+  }
+  if (ended)
+    return;
   if (wide > 0)
     wide--;
   if (slow > 0)
@@ -69,6 +93,13 @@ void NeonBreaker::update() {
     if (ballY < Top + 4) {
       ballY = Top + 4;
       vy = std::abs(vy);
+    }
+    if (bossHP && swept(ox, oy, ballX, ballY, {bossX - 24, 48, 48, 22}, 3)) {
+      --bossHP;
+      ballY = 74;
+      vy = std::abs(vy);
+      add(75);
+      sound(Sound::Hit);
     }
     if (vy > 0 && oy + 3 <= 198 && ballY + 3 >= 198 && ballX + 3 > paddle &&
         ballX - 3 < paddle + width) {
@@ -123,8 +154,10 @@ void NeonBreaker::update() {
   bool any = false;
   for (auto b : bricks)
     any |= b != 0;
-  if (!any) {
-    level = uint16_t(std::min(999, int(level) + 1));
+  if (!any && !bossHP) {
+    advanceStage();
+    if (ended)
+      return;
     add(100);
     layout();
     launched = false;
@@ -134,6 +167,14 @@ void NeonBreaker::update() {
   input.pressed = 0;
 }
 void NeonBreaker::render(Canvas &c) const {
+  if (bossHP) {
+    c.rect(int(bossX) - 24, 48, 48, 22, Red);
+    c.rect(int(bossX) - 17, 53, 9, 7, Yellow);
+    c.rect(int(bossX) + 8, 53, 9, 7, Yellow);
+    c.text(5, 24, "BOSS", Pink);
+    c.rect(35, 24, bossHP * 136 / std::max(1, bossMaximum), 5, Red);
+    drawProjectiles(c, hazards, Pink);
+  }
   for (unsigned i = 0; i < bricks.size(); i++)
     if (bricks[i]) {
       int x = 4 + int(i % 8) * 21, y = 34 + int(i / 8) * 13;
@@ -161,7 +202,7 @@ GameEntry describeNeonBreaker() {
       {"NEON BREAKER",
        "BREAK EVERY NEON WALL",
        {"L/R MOVE THE PADDLE", "A SERVES THE BALL", "W WIDE / S SLOW BALL", "L GIVES AN EXTRA LIFE",
-        "AIM WITH PADDLE EDGE", "CLEAR BRICKS TO ADVANCE"},
+        "AIM WITH PADDLE EDGE", "4/8/12: SENTINEL BOSS"},
        Cyan,
        4,
        Fire});

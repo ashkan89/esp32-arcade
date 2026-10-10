@@ -24,6 +24,7 @@ void Shooter::start(const GameOptions &o) {
   wave();
 }
 void Shooter::wave() {
+  waveStarted = tick;
   shots.clear();
   hostile.clear();
   enemies.clear();
@@ -31,7 +32,7 @@ void Shooter::wave() {
   damaged = false;
   spawned = spawnTimer = shotTimer = moveTimer = 0;
   dir = 1;
-  bossStage = mode != ShooterMode::Meteor && level % (mode == ShooterMode::Sky ? 4 : 5) == 0;
+  bossStage = level % (mode == ShooterMode::Sky ? 4 : 5) == 0 || level == 12;
   for (auto &s : barriers) {
     s.fill(3);
     for (int y = 7; y < 12; y++)
@@ -260,13 +261,12 @@ void Shooter::collisions() {
     for (auto &e : enemies.items) {
       if (!e.active)
         continue;
-      float r = mode == ShooterMode::Meteor ? float(5 + e.size * 5) : 0;
-      Rect box = mode == ShooterMode::Meteor
-                     ? Rect{e.x - r, e.y - r, 2 * r, 2 * r}
-                     : Rect{e.x, e.y, e.kind == 4 ? 72.0f : 14.0f, e.kind == 4 ? 26.0f : 10.0f};
-      bool hit = mode == ShooterMode::Meteor
-                     ? segmentCircle(b.oldX, b.oldY, b.x, b.y, e.x, e.y, r + b.damage)
-                     : swept(b.oldX, b.oldY, b.x, b.y, box, float(b.damage));
+      bool rock = mode == ShooterMode::Meteor && e.kind != 4;
+      float r = rock ? float(5 + e.size * 5) : 0;
+      Rect box = rock ? Rect{e.x - r, e.y - r, 2 * r, 2 * r}
+                      : Rect{e.x, e.y, e.kind == 4 ? 72.0f : 14.0f, e.kind == 4 ? 26.0f : 10.0f};
+      bool hit = rock ? segmentCircle(b.oldX, b.oldY, b.x, b.y, e.x, e.y, r + b.damage)
+                      : swept(b.oldX, b.oldY, b.x, b.y, box, float(b.damage));
       if (hit) {
         b.active = false;
         e.hp -= b.damage;
@@ -299,13 +299,12 @@ void Shooter::collisions() {
   for (auto &e : enemies.items) {
     if (!e.active)
       continue;
-    float r = mode == ShooterMode::Meteor ? float(5 + e.size * 5) : 0;
-    Rect box = mode == ShooterMode::Meteor
-                   ? Rect{e.x - r, e.y - r, 2 * r, 2 * r}
-                   : Rect{e.x, e.y, e.kind == 4 ? 72.0f : 14.0f, e.kind == 4 ? 26.0f : 10.0f};
+    bool rock = mode == ShooterMode::Meteor && e.kind != 4;
+    float r = rock ? float(5 + e.size * 5) : 0;
+    Rect box = rock ? Rect{e.x - r, e.y - r, 2 * r, 2 * r}
+                    : Rect{e.x, e.y, e.kind == 4 ? 72.0f : 14.0f, e.kind == 4 ? 26.0f : 10.0f};
     Rect player{px + 2, py + 2, 12, 9};
-    bool hit =
-        mode == ShooterMode::Meteor ? circleRect(e.x, e.y, r, player) : overlaps(box, player);
+    bool hit = rock ? circleRect(e.x, e.y, r, player) : overlaps(box, player);
     if (hit) {
       hurt();
       if (e.kind != 4)
@@ -327,7 +326,9 @@ void Shooter::update() {
   tick++;
   if (clearTimer > 0) {
     if (--clearTimer == 0) {
-      level = uint16_t(std::min(999, int(level) + 1));
+      advanceStage();
+      if (ended)
+        return;
       bombs = 1;
       wave();
     }
@@ -419,10 +420,13 @@ void Shooter::update() {
       if (--p.life <= 0)
         p.active = false;
     }
-  if (mode == ShooterMode::Meteor) {
-    if (tick % 900 == 0) {
-      level = uint16_t(std::min(999, int(level) + 1));
+  if (mode == ShooterMode::Meteor && !bossStage) {
+    if (elapsed(tick, waveStarted) >= 900) {
+      advanceStage();
+      if (ended)
+        return;
       add(100);
+      wave();
       sound(Sound::Wave);
     }
   } else if (!ended && enemies.count() == 0 &&

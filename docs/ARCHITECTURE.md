@@ -13,6 +13,7 @@ each game owns its rules, pools and presentation.
 | `src/games/<Game>.cpp` | One concrete game, local state/rules/rendering and metadata |
 | `ShooterBase` | Shared projectile pools, collisions, power-ups, boss and sprite utilities |
 | `Registration` / `Catalog.def` | Type-erased construction/destruction and stable catalog IDs |
+| `Game` / `Campaign` | Twelve-stage victory, transitions, grace periods and bounded visual effects |
 | `Hardware` | Display transfers, piezo sound, NVS persistence and measurements |
 | `FrameHistory` | 8 MB PSRAM bank API; bounded sampled-frame ring |
 | `Network` / `ReleasePolicy` | Setup portal, GitHub release discovery, HTTPS, inactive-slot OTA |
@@ -37,12 +38,29 @@ No display/audio worker tasks or BLE services exist.
    resources. Start must reset every state field and call `baseStart(options)`.
 2. Export `GameEntry describeMyGame()` returning `gameEntry<MyGame>({...})` with title, description,
    six short instruction lines (at most 27 characters), accent, icon ID, and required-button mask.
-3. Append `ARCADE_GAME(MyId, MyGame, 25)` to `include/games/Catalog.def`. Use the next unused ID.
+3. Append `ARCADE_GAME(MyId, MyGame, 50)` to `include/games/Catalog.def`. Use the next unused ID.
    Never reorder/renumber released IDs; scores/favorites use stable numeric slots. Current save
    capacity is 64 slots. The launcher/page count and both build environments update automatically.
 4. Add meaningful rule tests and run `python scripts/verify.py`. Raise the arena size deliberately
    if the compile-time `sizeof` guard rejects your game. Test pause, resume, restart, boundaries,
    pool capacity, deterministic seeds and game-over behavior.
+
+For a staged action game, derive `CampaignGame` in `games/Campaign.h`, implement `setupStage`,
+`play`, `render` and `activeEntities`; call `clearStage()` when its objective is complete.
+It waits 90 ticks, then advances and resets stage time and grace. Boss rules stay in the game.
+`bossHealth()` and `bossEncounter()` expose read-only state. Puzzle/territory/racing games
+complete their normal objectives instead of an unrelated boss minigame.
+
+`advanceStage()` grants the completion bonus once and stops simulation after stage 12.
+`campaignComplete()` distinguishes victory from failure; score-based games use `progressTo()`.
+Callers must stop immediately on `ended`, avoiding board generation after victory.
+Host-only named friend checks exercise private rules and compile out of firmware.
+Cargo Shift constructs later warehouses by reversing legal pushes from solved boards;
+host tests replay those constructive solution witnesses. Reset recreates the same warehouse.
+
+The identity `SLY_ARCADE_N16R8|<version>`, OTA board ID and firmware asset names remain
+stable so installed v2 consoles can install v3. These are compatibility identifiers,
+separate from the Game Arcade UI, setup SSID, portal and release branding.
 
 Settings schema 2 is a 304-byte CRC-protected NVS blob containing 64 high scores, favorites,
 options and the Sly top five. Schema 1 console saves migrate in memory and are rewritten later.

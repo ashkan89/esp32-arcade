@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class RiverLeap final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyRiverLeap();
+#endif
   struct Mover {
     bool active = false;
     float x = 0;
@@ -83,6 +86,8 @@ class RiverLeap final : public TickGame {
         if (full) {
           add(400);
           nextStage();
+          if (ended)
+            return;
           board();
         }
       }
@@ -123,4 +128,25 @@ GameEntry describeRiverLeap() {
        12,
        Up | Down | Left | Right});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyRiverLeap() {
+  RiverLeap g;
+  g.start({});
+  g.level = 12;
+  g.homes.fill(true);
+  g.homes[3] = false;
+  g.row = 8;
+  g.x = 150;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

@@ -2,6 +2,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class ColorCascade final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyColorCascade();
+#endif
   std::array<uint8_t, 64> cells{};
   int cursor = 0, chosen = -1, moves = 30, combo = 0, wait = 0;
   uint64_t clearing = 0;
@@ -47,6 +50,8 @@ class ColorCascade final : public TickGame {
       combo = 0;
       if (points >= uint32_t(level) * 1500) {
         nextStage();
+        if (ended)
+          return;
         moves += 15;
       }
       if (moves == 0) {
@@ -128,4 +133,25 @@ GameEntry describeColorCascade() {
        24,
        Fire});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyColorCascade() {
+  ColorCascade g;
+  g.start({});
+  g.level = 12;
+  g.fill();
+  g.points = 18000;
+  g.wait = 1;
+  g.clearing = 0;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

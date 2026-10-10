@@ -1,6 +1,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class LunarLander final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyLunarLander();
+#endif
   float x = 88, y = 50, vx = 0, vy = 0, fuel = 100;
   int pad = 60, wait = 0;
   bool landed = false;
@@ -42,6 +45,8 @@ class LunarLander final : public TickGame {
         landed = true;
         add(200 + uint32_t(fuel) * 3);
         nextStage();
+        if (ended)
+          return;
         sound(Sound::Power);
       } else
         loseLife();
@@ -87,4 +92,25 @@ GameEntry describeLunarLander() {
        14,
        Left | Right | Fire});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyLunarLander() {
+  LunarLander g;
+  g.start({});
+  g.level = 12;
+  g.x = float(g.pad + 22);
+  g.y = 192;
+  g.vx = 0;
+  g.vy = 0;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

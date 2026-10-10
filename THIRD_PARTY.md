@@ -18,3 +18,7 @@ The player, alien and UFO sprites in `include/assets/Sprites.h` came from the us
 project. No original license was supplied; their ownership/rights are preserved. New code,
 procedural art, menus, font, scripts, tests and documentation use `LICENSE-new-code.txt`.
 No downloaded commercial game graphics or audio recordings are included.
+
+The 25 v3 additions use original names, native rules and procedural graphics. Classic title
+references and researched sources are in `docs/GAME_REFERENCES.md`; they do not confer rights
+to those original games or imply that Game Arcade contains licensed commercial ports.

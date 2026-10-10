@@ -56,7 +56,7 @@ GameEntry describeSlyInvaders() {
       {"SLY INVADERS",
        "DEFEND THE LAST CITY",
        {"L/R MOVE - A SHOOTS", "B CYCLES 3 GUNS", "R RAPID / L EXTRA LIFE", "S SHIELD / D DOUBLE",
-        "BREAKABLE COVER BELOW", "BOSS EVERY FIFTH WAVE"},
+        "BREAKABLE COVER BELOW", "FIFTH WAVES + FINAL BOSS"},
        Green,
        0,
        Fire});

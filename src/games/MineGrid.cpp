@@ -2,6 +2,9 @@
 #include "games/Registration.h"
 namespace arcade {
 class MineGrid final : public TickGame {
+#ifdef ARCADE_HOST_TESTS
+  friend bool verifyMineGrid();
+#endif
   std::array<uint8_t, 81> mines{}, open{}, flag{};
   int cursor = 40, remaining = 0;
   bool planted = false;
@@ -70,6 +73,8 @@ class MineGrid final : public TickGame {
       if (remaining == 0 && !ended) {
         add(500);
         nextStage();
+        if (ended)
+          return;
         board();
       }
     }
@@ -113,4 +118,28 @@ GameEntry describeMineGrid() {
        10,
        Fire | Special});
 }
+
+#ifdef ARCADE_HOST_TESTS
+bool verifyMineGrid() {
+  MineGrid g;
+  g.start({});
+  g.level = 12;
+  g.planted = true;
+  g.mines.fill(0);
+  g.open.fill(1);
+  g.cursor = 0;
+  g.open[0] = 0;
+  g.remaining = 1;
+  g.input.pressed = Fire;
+  g.simulate();
+  HOST_CHECK(g.campaignComplete() && g.gameOver() && g.stage() == 12);
+  auto score = g.score();
+  for (int i = 0; i < 100; ++i)
+    g.update();
+  HOST_CHECK(g.score() == score);
+  g.start({});
+  HOST_CHECK(!g.campaignComplete() && !g.gameOver() && g.stage() == 1 && g.score() == 0);
+  return true;
+}
+#endif
 } // namespace arcade

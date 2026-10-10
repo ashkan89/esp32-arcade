@@ -70,7 +70,9 @@ void TurboDodge::update() {
     }
   }
   if (tick % 600 == 0) {
-    level = uint16_t(std::min(999, int(level) + 1));
+    advanceStage();
+    if (ended)
+      return;
     sound(Sound::Wave);
   }
   if (tick % 60 == 0)
