@@ -2,7 +2,9 @@
 
 No physical ESP32 was available for these checks. Record results on the actual N16R8 console.
 
-- Check the new pin map, the two external pull-ups, 3.3 V logic and display power rating.
+- Check the new pin map (B=4, Menu=5, Back=15), button-to-ground wiring, 3.3 V logic and display
+  power rating. All eight buttons use internal pull-ups.
+- Keep Menu/Back released during power-on/reset; confirm normal startup with the rewired buttons.
 - Upload the release build over USB, including its bootloader and partition table.
 - Confirm serial detects 16 MB flash / 8 MB physical PSRAM; check mapped heap and banked-history
   capacity separately. Wrong-capacity hardware must halt startup.

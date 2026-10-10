@@ -273,10 +273,9 @@ void Storage::update(uint32_t now, bool safe) {
     Serial.println("NVS save failed; retry pending");
 }
 void beginButtons() {
-  for (int pin : {board::Left, board::Right, board::Up, board::Down, board::Fire, board::Weapon})
+  for (int pin : {board::Left, board::Right, board::Up, board::Down, board::Fire, board::Weapon,
+                  board::Pause, board::Back})
     pinMode(pin, INPUT_PULLUP);
-  pinMode(board::Pause, INPUT);
-  pinMode(board::Back, INPUT);
 }
 uint16_t readButtons() {
   const int pins[] = {board::Left, board::Right, board::Fire, board::Weapon,

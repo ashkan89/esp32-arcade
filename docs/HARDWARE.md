@@ -16,12 +16,15 @@ All signals use 3.3 V logic; grounds are common. Configuration lives in `include
 | D-pad Left | 25 | Button to ground, internal pull-up |
 | D-pad Right | 21 | Button to ground, internal pull-up |
 | A / action | 22 | Button to ground, internal pull-up |
-| B / secondary | 19 | Button to ground, internal pull-up |
-| Menu / pause | 34 | Button to ground; external 10 kΩ to 3.3 V |
-| Back | 35 | Button to ground; external 10 kΩ to 3.3 V |
+| B / secondary | 4 | Button to ground, internal pull-up |
+| Menu / pause | 5 | Button to ground, internal pull-up; release during power-on/reset |
+| Back | 15 | Button to ground, internal pull-up; release during power-on/reset |
 | Passive piezo | 27 | Small low-current piezo through 100–220 Ω; other terminal ground |
 
-GPIO34/35 are input-only and have no internal pull-ups. Do install both external resistors.
+All eight buttons use internal pull-ups; no external button pull-up resistors are required.
+Move B, Menu and Back from GPIO19/34/35 to GPIO4/5/15 respectively. GPIO34/35 are unused.
+GPIO5/15 are strapping pins: keep Menu and Back released during power-on/reset to preserve
+the default startup settings. Internal button pull-ups are enabled by the firmware after boot.
 TFT MISO is unused. The framebuffer is portrait 176×220, rotation 0, RGB565, at 20 MHz SPI.
 Power/backlight connections depend on the actual display carrier: follow its voltage rating;
 do not feed a raw high-current backlight from a GPIO. Use a regulated supply with enough current
@@ -29,7 +32,8 @@ for the ESP32's Wi-Fi peaks and the display. Provide 100 nF local decoupling and
 bulk capacitor near the module; keep SPI wires short.
 
 GPIO6–11 connect to flash; GPIO16/17 connect to WROVER PSRAM. No peripheral uses them.
-The new map avoids boot-strapping GPIO0/2/5/12/15. The sensor, signal LED, ambient LED, SD card,
+The map avoids boot-strapping GPIO0/2/12 and uses GPIO5/15 as described above.
+The sensor, signal LED, ambient LED, SD card,
 and Xbox controller are removed. Do not retain their old connections on reassigned pins.
 
 An electrodynamic speaker or larger transducer needs a driver/amplifier, not direct GPIO drive.

@@ -17,7 +17,8 @@
 #ifdef __cplusplus
 namespace board {
 constexpr int Left = 25, Right = 21, Up = 32, Down = 33;
-constexpr int Fire = 22, Weapon = 19, Pause = 34, Back = 35;
+// Menu/Back use strapping pins: release both buttons during power-on/reset.
+constexpr int Fire = 22, Weapon = 4, Pause = 5, Back = 15;
 constexpr int Buzzer = 27;
 constexpr int Width = 176, Height = 220, Rotation = 0;
 constexpr unsigned ExpectedFlash = 16u * 1024u * 1024u;
