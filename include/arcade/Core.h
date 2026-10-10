@@ -131,14 +131,16 @@ enum class Sound : uint8_t { None, Move, Shot, Hit, Explosion, Power, Wave, Over
 struct Settings {
   uint8_t difficulty = 1, sound = 1, effects = 1, lastGame = 0, invert = 0, layout = 0, attract = 1,
           fps = 30;
-  std::array<uint32_t, 8> best{};
+  std::array<uint32_t, 64> best{}; // Stable catalog IDs; spare slots allow expansion.
+  uint64_t favorites = 0;
   std::array<uint32_t, 5> slyLeaders{};
   bool valid() const;
   bool record(unsigned game, uint32_t score);
 };
-constexpr size_t SaveSize = 72;
+constexpr size_t SaveSize = 304;
 using SaveBytes = std::array<uint8_t, SaveSize>;
 SaveBytes encode(const Settings &s);
 bool decode(const SaveBytes &bytes, Settings &out);
+bool decodeStored(const uint8_t *bytes, size_t length, Settings &out);
 uint32_t checksum(const uint8_t *bytes, size_t size);
 } // namespace arcade

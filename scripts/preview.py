@@ -5,9 +5,9 @@ import zlib
 
 root = Path(__file__).resolve().parents[1]
 panels = sorted((root / "test-results").glob("preview_*.ppm"))
-if len(panels) != 11:
+if len(panels) != 28:
     raise SystemExit("Run python scripts/test_host.py first.")
-cols, rows, scale = 4, 3, 2
+cols, rows, scale = 5, 6, 2
 width, height = (176 + 8) * cols * scale, (220 + 8) * rows * scale
 pixels = bytearray(bytes((18, 21, 32)) * width * height)
 for index, path in enumerate(panels):

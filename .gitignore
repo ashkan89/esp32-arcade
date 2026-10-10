@@ -9,6 +9,5 @@ test-results/*.ilk
 test-results/*.ppm
 *.log
 !test-results/*.log
-graphify-out/.*
-graphify-out/cost.json
-graphify-out/cache/
+dist/
+.venv/

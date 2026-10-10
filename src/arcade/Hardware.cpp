@@ -8,9 +8,6 @@
 #include <functional>
 namespace arcade {
 bool Display::begin() {
-  // Keep an optional uninitialized SD card off the shared SPI bus.
-  pinMode(board::SdCs, OUTPUT);
-  digitalWrite(board::SdCs, HIGH);
   tft.init();
   tft.setRotation(board::Rotation);
   tft.setSwapBytes(true);
@@ -20,14 +17,8 @@ bool Display::begin() {
     return false;
   }
   bool sixteen = true;
-  if (!ARCADE_FORCE_INTERNAL && psramFound())
+  if (psramFound())
     memory = heap_caps_malloc(W * H * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  if (!memory)
-    memory = heap_caps_malloc(W * H * 2, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (!memory) {
-    sixteen = false;
-    memory = heap_caps_malloc(W * H, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  }
   // This SPI path is synchronous, not DMA. Internal staging also keeps future DMA conversion safe.
   strip =
       static_cast<uint16_t *>(heap_caps_malloc(W * 8 * 2, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
@@ -44,10 +35,8 @@ bool Display::begin() {
   canvas.attach(memory, sixteen);
   canvas.clear();
   size_t bytes = W * H * (sixteen ? 2 : 1);
-  if (!ARCADE_FORCE_INTERNAL && psramFound())
+  if (psramFound())
     previous = heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  if (!previous && heap_caps_get_free_size(MALLOC_CAP_INTERNAL) > bytes + 65536)
-    previous = heap_caps_malloc(bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   Serial.println(previous ? "Renderer: exact dirty tiles with full-strip fallback"
                           : "Renderer: CRC dirty strips; periodic full refresh");
   uint32_t total = 0;
@@ -152,22 +141,18 @@ void Display::present(bool force) {
     std::memcpy(previous, canvas.data(), size_t(W * H) * (canvas.sixteen() ? 2 : 1));
 }
 void Audio::begin() {
-#if ARCADE_AUDIO
   ready = ledcSetup(0, 1000, 8) > 0;
   if (ready) {
     ledcAttachPin(board::Buzzer, 0);
     ledcWrite(0, 0);
   } else
     Serial.println("Audio LEDC initialization failed");
-#endif
 }
 void Audio::stop() {
   length = index = priority = 0;
   active = false;
-#if ARCADE_AUDIO
   if (ready)
     ledcWrite(0, 0);
-#endif
 }
 void Audio::next(uint32_t now) {
   if (index >= length) {
@@ -177,10 +162,8 @@ void Audio::next(uint32_t now) {
   auto n = sequence[index++];
   deadline = now + n.ms;
   active = true;
-#if ARCADE_AUDIO
   ledcWriteTone(0, n.hz);
   ledcWrite(0, n.hz ? 128 : 0); // passive transducer, fixed 50% duty, no pretend volume
-#endif
 }
 void Audio::play(Sound s, uint32_t now) {
   if (!ready || !enabled || s == Sound::None)
@@ -248,30 +231,14 @@ void Storage::begin() {
   }
   SaveBytes bytes{};
   size_t len = prefs.getBytesLength("state");
-  if (len == SaveSize && prefs.getBytes("state", bytes.data(), bytes.size()) == bytes.size() &&
-      decode(bytes, settings)) {
-    Serial.println("NVS version 1 loaded");
+  if ((len == SaveSize || len == 72) && prefs.getBytes("state", bytes.data(), len) == len &&
+      decodeStored(bytes.data(), len, settings)) {
+    Serial.println("Settings and records loaded");
+    if (len != SaveSize)
+      mark(millis());
     return;
   }
-  Serial.println(len ? "Invalid saved settings: using defaults"
-                     : "New settings: importing original Invaders records");
-  if (len == 0) {
-    Preferences old;
-    if (old.begin("invadersv4", true)) {
-      settings.best[0] = uint32_t(std::max(0, old.getInt("hiscore", 0)));
-      settings.sound = old.getBool("sound", true);
-      settings.attract = old.getBool("attract", true);
-      settings.effects = old.getBool("crt", true);
-      settings.difficulty = uint8_t(clamp(old.getInt("dificaulty", 2) - 1, 0, 2));
-      for (unsigned i = 0; i < 5; i++) {
-        char key[5];
-        std::snprintf(key, sizeof(key), "lb%u", i);
-        settings.slyLeaders[i] = uint32_t(std::max(0, old.getInt(key, 0)));
-      }
-      std::sort(settings.slyLeaders.begin(), settings.slyLeaders.end(), std::greater<uint32_t>());
-      old.end();
-    }
-  }
+  Serial.println("New or invalid settings: using defaults");
   mark(millis());
 }
 void Storage::update(uint32_t now, bool safe) {
@@ -286,42 +253,19 @@ void Storage::update(uint32_t now, bool safe) {
     Serial.println("NVS save failed; retry pending");
 }
 void beginButtons() {
-  pinMode(board::Fire, INPUT_PULLUP);
-  if (!ARCADE_ONE_BUTTON) {
-    pinMode(board::Left, INPUT_PULLUP);
-    pinMode(board::Right, INPUT_PULLUP);
-    pinMode(board::Weapon, INPUT_PULLUP);
-  }
-  if (ARCADE_EXPANDED) {
-    pinMode(board::Up, INPUT_PULLUP);
-    pinMode(board::Down, INPUT_PULLUP);
-    pinMode(board::Pause, INPUT);
-  }
+  for (int pin : {board::Left, board::Right, board::Up, board::Down, board::Fire, board::Weapon})
+    pinMode(pin, INPUT_PULLUP);
+  pinMode(board::Pause, INPUT);
+  pinMode(board::Back, INPUT);
 }
 uint16_t readButtons() {
-  uint16_t b = digitalRead(board::Fire) == LOW ? Fire : 0;
-  if (!ARCADE_ONE_BUTTON) {
-    bool l = digitalRead(board::Left) == LOW, r = digitalRead(board::Right) == LOW;
-    if (l && r)
-      b |= Back;
-    else {
-      if (l)
-        b |= Left;
-      if (r)
-        b |= Right;
-    }
-    if (digitalRead(board::Weapon) == LOW)
-      b |= Special;
-  }
-  if (ARCADE_EXPANDED) {
-    if (digitalRead(board::Up) == LOW)
-      b |= Up;
-    if (digitalRead(board::Down) == LOW)
-      b |= Down;
-    if (digitalRead(board::Pause) == LOW)
-      b |= Pause;
-  }
-  return b;
+  const int pins[] = {board::Left, board::Right, board::Fire, board::Weapon,
+                      board::Back, board::Up,    board::Down, board::Pause};
+  uint16_t result = 0;
+  for (int i = 0; i < 8; i++)
+    if (digitalRead(pins[i]) == LOW)
+      result |= uint16_t(1u << i);
+  return result;
 }
 void Diagnostics::begin() {
   uint32_t actualFlash = 0;
@@ -360,7 +304,7 @@ void Diagnostics::begin() {
   if (chipFlash != board::ExpectedFlash)
     Serial.println("FLASH MISMATCH: use flash_id and correct partitions before further uploads");
   if (!psramFound())
-    Serial.println("PSRAM unavailable: internal framebuffer fallback, all games supported");
+    Serial.println("PSRAM unavailable: console requires the N16R8 memory hardware");
 }
 void Diagnostics::frame(uint32_t us) {
   frames++;
@@ -374,6 +318,8 @@ void Diagnostics::frame(uint32_t us) {
   frameBuckets[bucket]++;
 }
 void Diagnostics::report(uint32_t now, const Display &d, const StepClock &clock) {
+  if (!ARCADE_PROFILE)
+    return;
   if (elapsed(now, lastReport) < 30000)
     return;
   lastReport = now;

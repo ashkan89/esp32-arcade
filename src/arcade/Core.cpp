@@ -1,4 +1,5 @@
 #include "arcade/Core.h"
+#include <cstring>
 namespace arcade {
 bool segmentCircle(float x0, float y0, float x1, float y1, float cx, float cy, float radius) {
   float dx = x1 - x0, dy = y1 - y0, length = dx * dx + dy * dy;
@@ -78,11 +79,11 @@ void Input::suppress() {
     k.blocked = k.stable || k.raw;
 }
 bool Settings::valid() const {
-  return difficulty <= 2 && sound <= 1 && effects <= 1 && lastGame < 8 && invert <= 1 &&
+  return difficulty <= 2 && sound <= 1 && effects <= 1 && lastGame < 64 && invert <= 1 &&
          layout < 3 && attract <= 1 && (fps == 30 || fps == 60);
 }
 bool Settings::record(unsigned g, uint32_t s) {
-  if (g >= 8)
+  if (g >= best.size())
     return false;
   bool changed = false;
   if (s > best[g]) {
@@ -123,7 +124,7 @@ static uint32_t get(const SaveBytes &b, size_t o) {
 SaveBytes encode(const Settings &s) {
   SaveBytes b{};
   put(b, 0, 0x41435244);
-  put(b, 4, 1);
+  put(b, 4, 2);
   b[8] = s.difficulty;
   b[9] = s.sound;
   b[10] = s.effects;
@@ -132,15 +133,17 @@ SaveBytes encode(const Settings &s) {
   b[13] = s.layout;
   b[14] = s.attract;
   b[15] = s.fps;
-  for (unsigned i = 0; i < 8; i++)
+  for (unsigned i = 0; i < 64; i++)
     put(b, 16 + 4 * i, s.best[i]);
   for (unsigned i = 0; i < 5; i++)
-    put(b, 48 + 4 * i, s.slyLeaders[i]);
-  put(b, 68, checksum(b.data(), 68));
+    put(b, 272 + 4 * i, s.slyLeaders[i]);
+  put(b, 292, uint32_t(s.favorites));
+  put(b, 296, uint32_t(s.favorites >> 32));
+  put(b, 300, checksum(b.data(), 300));
   return b;
 }
 bool decode(const SaveBytes &b, Settings &out) {
-  if (get(b, 0) != 0x41435244 || get(b, 4) != 1 || get(b, 68) != checksum(b.data(), 68))
+  if (get(b, 0) != 0x41435244 || get(b, 4) != 2 || get(b, 300) != checksum(b.data(), 300))
     return false;
   Settings s;
   s.difficulty = b[8];
@@ -151,10 +154,11 @@ bool decode(const SaveBytes &b, Settings &out) {
   s.layout = b[13];
   s.attract = b[14];
   s.fps = b[15];
-  for (unsigned i = 0; i < 8; i++)
+  for (unsigned i = 0; i < 64; i++)
     s.best[i] = get(b, 16 + 4 * i);
   for (unsigned i = 0; i < 5; i++)
-    s.slyLeaders[i] = get(b, 48 + 4 * i);
+    s.slyLeaders[i] = get(b, 272 + 4 * i);
+  s.favorites = uint64_t(get(b, 292)) | (uint64_t(get(b, 296)) << 32);
   if (!s.valid())
     return false;
   for (unsigned i = 1; i < 5; i++)
@@ -162,5 +166,32 @@ bool decode(const SaveBytes &b, Settings &out) {
       return false;
   out = s;
   return true;
+}
+bool decodeStored(const uint8_t *data, size_t length, Settings &out) {
+  SaveBytes bytes{};
+  if (length == SaveSize) {
+    std::memcpy(bytes.data(), data, length);
+    return decode(bytes, out);
+  }
+  if (length != 72)
+    return false;
+  std::memcpy(bytes.data(), data, length);
+  if (get(bytes, 0) != 0x41435244 || get(bytes, 4) != 1 || get(bytes, 68) != checksum(data, 68))
+    return false;
+  Settings migrated;
+  migrated.difficulty = bytes[8];
+  migrated.sound = bytes[9];
+  migrated.effects = bytes[10];
+  migrated.lastGame = bytes[11];
+  migrated.invert = bytes[12];
+  migrated.layout = bytes[13];
+  migrated.attract = bytes[14];
+  migrated.fps = bytes[15];
+  for (unsigned i = 0; i < 8; i++)
+    migrated.best[i] = get(bytes, 16 + i * 4);
+  for (unsigned i = 0; i < 5; i++)
+    migrated.slyLeaders[i] = get(bytes, 48 + i * 4);
+  auto encoded = encode(migrated);
+  return decode(encoded, out);
 }
 } // namespace arcade

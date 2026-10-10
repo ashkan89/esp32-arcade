@@ -1,89 +1,55 @@
-# Architecture and adding games
+# Architecture and expansion
 
-`include/BoardConfig.h` is the single pin/display configuration. PlatformIO injects it into
-library compilation so TFT_eSPI cannot silently use another machine's Arduino setup.
-`platformio.ini` selects the classic ESP32 board, exact framework/library versions, and
-feature environments; `partitions_16mb.csv` reserves NVS and two 3 MB applications, with the
-remaining flash intentionally unallocated. No filesystem assets or OTA service are needed.
-
-## Modules
+The core runs gameplay at 60 fixed simulation steps/second, independently of 30/60 display
+requests. Catch-up is bounded to four steps and drops excessive backlog. Hardware input is
+polled every loop, debounced for 20 ms, and edges are consumed once; held buttons are suppressed
+until released after screen transitions. All rendering is clipped. Menus own game lifecycle;
+each game owns its rules, pools and presentation.
 
 | Module | Responsibility |
 | --- | --- |
-| `Core` | Rollover-safe time, fixed steps, RNG, AABB/swept collisions, fixed pools, debounce, validated settings serialization |
-| `Canvas` | Clipped RGB565/RGB332 primitives, original compact font, sprite drawing; pure C++ |
-| `Game` | Initialize/start/input/update/render/pause/resume/cleanup contract and options |
-| `Console` | Registry selection, screens, instructions, pause/restart, scores, settings, attract demo |
-| `Hardware::Display` | TFT ownership, allocation tiers, internal staging, measured tile/strip crossover |
-| `Hardware::Audio` | One LEDC channel, prioritized finite effects, rollover-safe note deadlines, menu melody |
-| `Hardware::Storage` | One versioned NVS blob, legacy import, deferred/retried writes |
-| `Hardware::Diagnostics` | Physical/configured memory, reset reasons, timing buckets, heap/latency reporting |
-| `Controller` | Optional BLE discovery in menus; atomic input snapshots; no rendering from callbacks |
-| `Shooters` | Shared bounded entities and four distinct shooter rule sets |
-| `ArcadeGames` | Independent paddle, snake, racing, and flap rules |
-| `Registry` | Titles, descriptions, instructions, colors, icons, minimum input capability, game instances |
-| `main.cpp` | Single peripheral owner, cooperative input/audio service, simulation/render scheduling |
+| `Core` / `Canvas` | Portable timing, collision, pools, input, CRC saves and graphics |
+| `Console` | Paged launcher, favorites, controls, pause/restart, scores/settings, update actions |
+| `src/games/<Game>.cpp` | One concrete game, local state/rules/rendering and metadata |
+| `ShooterBase` | Shared projectile pools, collisions, power-ups, boss and sprite utilities |
+| `Registration` / `Catalog.def` | Type-erased construction/destruction and stable catalog IDs |
+| `Hardware` | Display transfers, piezo sound, NVS persistence and measurements |
+| `FrameHistory` | 8 MB PSRAM bank API; bounded sampled-frame ring |
+| `Network` / `ReleasePolicy` | Setup portal, GitHub release discovery, HTTPS, inactive-slot OTA |
+| `main.cpp` | Main-loop ownership and startup health acceptance |
 
-Rules and menus include no Arduino headers. Host tests compile their real implementations,
-not rewritten models. Game instances use static storage; pools clear on switch and there are
-no game-resource allocations during play. The renderer allocates once at startup; only its
-backing pixels are in PSRAM. Frequently accessed gameplay data remains internal. NVS writes
-occur outside play; the optional BLE stack can allocate during connection in menus.
+`gameFor()` destroys the previous instance and placement-constructs the next one into a single
+aligned 8 KB internal RAM arena. Returned references are invalid after the next `gameFor()` call.
+Never cache inactive game pointers. Menus call cleanup before replacing/leaving a game.
+There are no allocations in game update/render paths. Shared shooter utilities are not a
+collection of games in one file: each shooter's enemy AI lives in its own named source file.
 
-```mermaid
-flowchart LR
-    GPIO[GPIO buttons] --> Input[Debounced input]
-    BLE[Optional BLE snapshots] --> Input
-    Input --> Console[Console screens]
-    Console --> Game[Active game fixed step]
-    Game --> Canvas[Clipped canvas]
-    Console --> Canvas
-    Canvas --> Staging[Internal staging]
-    Staging --> TFT[Synchronous SPI / ILI9225]
-    Game --> Audio[Prioritized LEDC audio]
-    Console --> NVS[Validated deferred NVS]
-```
+The main task owns buttons, console, audio, display, NVS, and banked frame history. A temporary
+network task runs HTTPS/OTA on core 0 while the update screen remains responsive; game/menu
+actions are frozen for that job. It never draws or changes console state. Status uses a short
+critical section and completion/progress use atomics. The task deletes itself after the job.
+No display/audio worker tasks or BLE services exist.
 
-All display transactions stay in `loop()`. No application-created FreeRTOS tasks or affinity
-assignments exist. BLE notifications publish input with a bounded seqlock read. Connection
-and subscription calls can block in menus, so they never run during a playing/attract frame.
-GATT vibration is only sent for a menu confirmation.
+## Add a game
 
-## Timing and input contract
+1. Create `src/games/MyGame.cpp`, include `games/Registration.h`, and implement `Game` or `TickGame`.
+   Implement `start`, `simulate` (or `update`), `render`, `activeEntities`, and cleanup of owned
+   resources. Start must reset every state field and call `baseStart(options)`.
+2. Export `GameEntry describeMyGame()` returning `gameEntry<MyGame>({...})` with title, description,
+   six short instruction lines (at most 27 characters), accent, icon ID, and required-button mask.
+3. Append `ARCADE_GAME(MyId, MyGame, 25)` to `include/games/Catalog.def`. Use the next unused ID.
+   Never reorder/renumber released IDs; scores/favorites use stable numeric slots. Current save
+   capacity is 64 slots. The launcher/page count and both build environments update automatically.
+4. Add meaningful rule tests and run `python scripts/verify.py`. Raise the arena size deliberately
+   if the compile-time `sizeof` guard rejects your game. Test pause, resume, restart, boundaries,
+   pool capacity, deterministic seeds and game-over behavior.
 
-`update()` means exactly one 16,667 µs simulation tick. Movement, cooldowns, power-ups,
-particle lifetimes, difficulty, and invulnerability use simulation ticks, so pauses freeze
-them. `StepClock` consumes unsigned differences, clamps elapsed time to six ticks, executes
-at most four ticks, and counts discarded catch-up time. Sustained overload loses simulated
-time instead of entering an unbounded catch-up loop; profiling makes that visible.
+Settings schema 2 is a 304-byte CRC-protected NVS blob containing 64 high scores, favorites,
+options and the Sly top five. Schema 1 console saves migrate in memory and are rewritten later.
+Writes are deferred outside gameplay and retried after failure. Invalid data never partially
+overwrites settings. Network credentials use a separate atomic JSON string in their own namespace.
 
-Input polling runs between rendering operations. Debounce is 20 ms; hold is 700 ms; menu
-repeat begins at 350 ms and repeats every 120 ms. Edges accumulate until the next step, then
-are consumed once; held values survive bounded catch-up. `Console::transition()` requests
-suppression, and the hardware loop blocks all currently raw/stable held keys until release.
-Screen changes stop audio and invalidate display comparison. Pause/resume clears game input.
-
-`GameInfo::required` currently declares Fire for every game because all eight have meaningful
-one-button variants. Baseline gameplay uses four existing buttons. Up/down and dedicated
-pause require expanded wiring; bombs are omitted in the one-button Sky variant. The launcher
-therefore has no unavailable entries. Future games with stronger requirements must be
-filtered against hardware capabilities before they appear in the launcher.
-
-## Adding a game
-
-1. Add a concrete class under `include/games/` and implementation under `src/games/`.
-2. Implement every lifecycle method. `start` calls `baseStart`, resets all pools/timers and
-   score; `update` exits when paused/ended. `render` must not mutate game rules. Use `add`
-   for saturating scores and `sound` for bounded prioritized feedback.
-3. Keep rule state fixed size. Do not introduce Arduino calls, busy waits, heap allocations,
-   or peripheral access into a game. Seed procedural content through its options/RNG.
-4. Add a registry entry, an icon, instructions, and a `gameFor` instance. If the count grows,
-   update the score array, launcher layout, serialized schema/version and migration logic.
-5. Add tests of meaningful outcomes: collision edge cases, score/progression, pause, reset,
-   resource bounds, and full lifecycle. Run `python scripts/verify.py`.
-6. Validate controls and worst-case transfer time on the actual screen. Extend the hardware
-   checklist before claiming FPS or input responsiveness.
-
-`tests/RuleTests` is a narrowly scoped friend for deterministic collision/rule setup; firmware
-does not expose cheats or state mutations through menus. `preview.py` losslessly packs output
-from the same C++ render functions for review.
+Display presentation compares exact 16×8 tiles against a PSRAM snapshot. Sparse frames transfer
+tiles; dense frames use 176×8 internal strips. The crossover and requested FPS cap are measured
+at startup. Transfer is synchronous, with no claimed DMA overlap. Software RGB inversion is
+used because the library's ILI9225 hardware-invert operation is a placeholder.

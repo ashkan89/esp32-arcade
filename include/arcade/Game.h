@@ -3,9 +3,8 @@
 namespace arcade {
 struct GameOptions {
   uint8_t difficulty = 1, layout = 0;
-  bool effects = true, oneButton = false, expanded = false;
+  bool effects = true;
   uint32_t seed = 1;
-  bool bluetooth = false;
 };
 class Game {
 protected:
@@ -77,7 +76,14 @@ public:
     return s;
   }
 };
-enum class GameId : uint8_t { Sly, Sky, Star, Meteor, Breaker, Snake, Turbo, Flap, Count };
+enum class GameId : uint8_t {
+#define ARCADE_GAME(id, type, number) id = number,
+#include "games/Catalog.def"
+#undef ARCADE_GAME
+  Count
+};
+constexpr size_t GameCount = size_t(GameId::Count);
+static_assert(GameCount <= 64, "Expand persistent score slots before shipping more than 64 games");
 struct GameInfo {
   const char *title;
   const char *description;
@@ -86,6 +92,12 @@ struct GameInfo {
   uint8_t icon;
   uint16_t required;
 };
-const std::array<GameInfo, 8> &registry();
+struct GameEntry {
+  GameInfo info;
+  size_t bytes;
+  Game *(*construct)(void *);
+  void (*destroy)(Game *);
+};
+const std::array<GameInfo, GameCount> &registry();
 Game &gameFor(GameId id);
 } // namespace arcade

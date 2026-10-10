@@ -12,8 +12,11 @@ enum class Screen : uint8_t {
   Scores,
   System,
   Utilities,
-  Attract
+  Attract,
+  Updates,
+  History
 };
+enum class ConsoleAction : uint8_t { None, CheckUpdate, InstallUpdate, SetupNetwork, Rollback };
 class Console {
   Settings &settings;
   GameOptions options;
@@ -23,6 +26,8 @@ class Console {
   int selection = 0, cursor = 0;
   bool suppressNeeded = true, dirty = false, fromPause = false, recorded = false;
   Sound pending = Sound::None;
+  ConsoleAction action = ConsoleAction::None;
+  bool newRun = false;
   void transition(Screen s, uint32_t now);
   void start(uint32_t now);
   void leave(uint32_t now);
@@ -45,6 +50,19 @@ public:
   }
   Game *active() const {
     return current;
+  }
+  ConsoleAction takeAction() {
+    auto result = action;
+    action = ConsoleAction::None;
+    return result;
+  }
+  int historyOffset() const {
+    return cursor;
+  }
+  bool consumeNewRun() {
+    bool value = newRun;
+    newRun = false;
+    return value;
   }
   bool consumeSuppression() {
     bool b = suppressNeeded;
