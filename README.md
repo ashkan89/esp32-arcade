@@ -94,6 +94,7 @@ For the next firmware release, increase `VERSION`, commit, create the matching `
 and push it. The GitHub workflow builds both environments, runs host tests, and publishes the
 application binary, manifest, initial-flash image and checksums.
 
-No physical ESP32 was connected during development. On-device SPI timing, buttons, sound,
-Wi-Fi provisioning, actual PSRAM banking and power-loss/rollback behavior still need the
+Boot was verified on a physical ESP32 via COM5: 16 MB flash, 8 MB PSRAM, 40 banked-history
+slots and successful boot-health confirmation, with no serial errors during a 35-second capture.
+Buttons, sound, Wi-Fi provisioning, history capture/playback and power-loss/rollback still need the
 [hardware acceptance checks](docs/HARDWARE_CHECKLIST.md).

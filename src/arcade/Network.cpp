@@ -152,7 +152,7 @@ void Network::status(const char *text) {
 void Network::begin() {
   storageReady = prefs.begin("arcade-net", false);
   if (storageReady) {
-    String saved = prefs.getString("config", "");
+    String saved = prefs.isKey("config") ? prefs.getString("config", "") : String();
     StaticJsonDocument<512> config;
     if (saved.length() < 512 && !deserializeJson(config, saved)) {
       ssid = config["ssid"] | "";

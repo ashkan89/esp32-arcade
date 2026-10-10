@@ -45,8 +45,22 @@ contained 1,350 nodes and 1,631 edges without dangling or collapsed edges. Its p
 fully extract the macro-driven registry, which is instead checked by both real firmware builds
 and native catalog tests. Generated graphs are development caches, not shipped firmware sources.
 
-No serial device was connected. Detected on-device memory, PSRAM bank mapping, GPIO levels,
-display SPI timing, achieved FPS/latency, audio, Wi-Fi/HTTPS, flash power-loss behavior and OTA
-rollback must be checked on hardware using `docs/HARDWARE_CHECKLIST.md`.
+On 2026-10-11, release firmware was uploaded and verified on COM5. The device reported
+16 MB flash, 8 MB physical PSRAM, 3,932,159 bytes of mapped PSRAM heap, and allocation of
+40 banked-history slots. Boot health checks passed; a 35-second serial capture contained no
+errors, aborts or repeated resets (`artifacts/bootloop-final.log`, local ignored log).
+Full-frame SPI transfer measured approximately 74.6 ms; the configured 30 FPS request cap
+does not imply 30 FPS for full-screen redraws.
+
+The initial firmware repeatedly aborted before setup because the SDK's himem constructor
+queried PSRAM before Arduino initialized it. `scripts/defer_himem.py` links a project-local
+SDK object with the automatic constructor disabled, and `FrameHistory::begin()` explicitly
+initializes himem after the PSRAM checks. A build check inspects the linked constructor table
+to prevent this startup regression. The installed SDK is unchanged. A 64 KB coredump partition
+was added after both OTA slots, and absent optional NVS keys are checked before reading them.
+
+GPIO levels, physical display output, achieved FPS/latency, audio, Wi-Fi/HTTPS, history
+capture/playback, flash power-loss behavior and OTA rollback still require the checks in
+`docs/HARDWARE_CHECKLIST.md`.
 The release's eight-second acceptance checks ensure allocation and UI progress; they cannot
 prove that physical colors, every switch, sound or the radio operate correctly.

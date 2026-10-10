@@ -6,6 +6,7 @@
 #include <esp_spi_flash.h>
 #include <esp_system.h>
 #include <functional>
+#include <nvs.h>
 namespace arcade {
 bool Display::begin() {
   tft.init();
@@ -230,7 +231,7 @@ void Storage::begin() {
     return;
   }
   SaveBytes bytes{};
-  size_t len = prefs.getBytesLength("state");
+  size_t len = prefs.isKey("state") ? prefs.getBytesLength("state") : 0;
   if ((len == SaveSize || len == 72) && prefs.getBytes("state", bytes.data(), len) == len &&
       decodeStored(bytes.data(), len, settings)) {
     Serial.println("Settings and records loaded");
@@ -241,8 +242,12 @@ void Storage::begin() {
   // Read the historical namespace without changing it, so older firmware can still boot.
   const char historicalNamespace[] = {0x73, 0x6c, 0x79, 0x61, 0x72, 0x63, 0x61, 0x64, 0x65, 0};
   Preferences previous;
-  if (previous.begin(historicalNamespace, true)) {
-    len = previous.getBytesLength("state");
+  nvs_handle_t historicalHandle;
+  bool historicalExists = nvs_open(historicalNamespace, NVS_READONLY, &historicalHandle) == ESP_OK;
+  if (historicalExists)
+    nvs_close(historicalHandle);
+  if (historicalExists && previous.begin(historicalNamespace, true)) {
+    len = previous.isKey("state") ? previous.getBytesLength("state") : 0;
     bool migrated = (len == SaveSize || len == 72) &&
                     previous.getBytes("state", bytes.data(), len) == len &&
                     decodeStored(bytes.data(), len, settings);

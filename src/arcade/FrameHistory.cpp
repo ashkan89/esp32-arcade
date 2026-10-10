@@ -1,8 +1,14 @@
 #include "arcade/FrameHistory.h"
 #include <Arduino.h>
 #include <cstring>
+// scripts/defer_himem.py disables the SDK's premature global constructor.
+// Arduino must initialize PSRAM before himem queries its physical size.
+extern "C" void esp_himem_init();
 namespace arcade {
 bool FrameHistory::begin() {
+  if (!psramFound())
+    return false;
+  esp_himem_init();
   capacity = std::min(size_t(40), esp_himem_get_free_size() / SlotBytes);
   if (!capacity || esp_himem_alloc(capacity * SlotBytes, &memory) != ESP_OK) {
     capacity = 0;
