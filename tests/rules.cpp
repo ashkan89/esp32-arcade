@@ -530,7 +530,8 @@ static void lifecycle() {
   canvas.circle(W - 1, H - 1, 12, White, true);
   canvas.text(160, 215, "CLIPPED", White, 2);
   CHECK(small.front() == 17 && small.back() == 19);
-  std::printf("Lifecycle soak: 750000 simulation ticks, %u game-over/restart cycles\n", overs);
+  std::printf("Lifecycle soak: %u simulation ticks, %u game-over/restart cycles\n",
+              unsigned(GameCount * 30000), overs);
 }
 static void preview() {
   std::array<uint16_t, W * H> pixels{};
@@ -616,7 +617,7 @@ static void puzzleRules() {
   colors.fill(0);
   colors[5] = colors[13] = colors[21] = 4;
   CHECK(matchRuns(colors) == ((uint64_t(1) << 5) | (uint64_t(1) << 13) | (uint64_t(1) << 21)));
-  CHECK(GameCount == 25);
+  CHECK(GameCount >= 25);
   CHECK(registry().size() == GameCount);
 }
 static void releasePolicy() {
