@@ -1,10 +1,16 @@
 """Pack the actual C++ renderer's PPM output into a PNG contact sheet, without dependencies."""
 from pathlib import Path
+import argparse
 import struct
 import zlib
 
 root = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser()
+parser.add_argument("--menus", action="store_true", help="Export only console screens for UI review")
+args = parser.parse_args()
 panels = sorted((root / "test-results").glob("preview_*.ppm"))
+if args.menus:
+    panels = [p for p in panels if int(p.stem.split("_")[1]) == 0 or int(p.stem.split("_")[1]) > 50]
 if len(panels) < 3:
     raise SystemExit("Run python scripts/test_host.py first.")
 cols, scale = 5, 2
@@ -29,7 +35,7 @@ def chunk(kind, payload):
 raw = b"".join(b"\0" + pixels[y * width * 3:(y + 1) * width * 3] for y in range(height))
 png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
 png += chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
-artifact = root / "artifacts/console-preview.png"
+artifact = root / ("artifacts/menu-preview.png" if args.menus else "artifacts/console-preview.png")
 artifact.parent.mkdir(exist_ok=True)
 artifact.write_bytes(png)
-print("Wrote artifacts/console-preview.png from the real game/menu renderer.")
+print(f"Wrote {artifact.relative_to(root)} from the real game/menu renderer.")

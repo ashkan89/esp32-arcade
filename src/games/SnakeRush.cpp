@@ -1,4 +1,5 @@
 #include "games/SnakeRush.h"
+#include "assets/Visuals.h"
 namespace arcade {
 bool SnakeRush::wall(Cell c) const {
   if (c.x < 0 || c.y < 0 || c.x >= Cols || c.y >= Rows)
@@ -112,10 +113,21 @@ void SnakeRush::render(Canvas &c) const {
   for (int y = 0; y < Rows; y++)
     for (int x = 0; x < Cols; x++)
       if (wall({int8_t(x), int8_t(y)}))
-        c.rect(8 + x * 8, 28 + y * 8, 7, 7, Pink);
-  c.rect(8 + food.x * 8, 28 + food.y * 8, 7, 7, Yellow);
+        visual::tile(c, 8 + x * 8, 28 + y * 8, 7, 7, Pink);
+  int fx = 11 + food.x * 8, fy = 31 + food.y * 8;
+  c.circle(fx, fy, 3, Yellow, true);
+  c.pixel(fx - 1, fy - 1, White);
+  c.pixel(fx + 1, fy - 3, Green);
   for (unsigned i = 0; i < length; i++)
-    c.rect(8 + body[i].x * 8, 28 + body[i].y * 8, 7, 7, i == 0 ? White : Green);
+    visual::tile(c, 8 + body[i].x * 8, 28 + body[i].y * 8, 7, 7, i == 0 ? Cyan : Green);
+  int hx = 8 + body[0].x * 8, hy = 28 + body[0].y * 8;
+  if (direction % 2 == 0) {
+    c.pixel(hx + (direction == 0 ? 5 : 1), hy + 2, Black);
+    c.pixel(hx + (direction == 0 ? 5 : 1), hy + 4, Black);
+  } else {
+    c.pixel(hx + 2, hy + (direction == 1 ? 5 : 1), Black);
+    c.pixel(hx + 4, hy + (direction == 1 ? 5 : 1), Black);
+  }
   c.text(8, 211, "D-PAD TO TURN", Grey);
 }
 } // namespace arcade

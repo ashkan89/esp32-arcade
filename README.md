@@ -8,6 +8,21 @@ Only `release` and `debug` environments exist, with the same complete hardware a
 
 ![Actual C++ game and menu renderer](artifacts/console-preview.png)
 
+The space-themed interface uses illustrated game thumbnails, accent selection cards,
+favorite stars, page indicators, and consistent menus for controls, settings, scores,
+pause, and results. Original procedural pixel artwork adds shaded spacecraft, animated
+aliens, meteor craters, detailed cars, beveled puzzle tiles, and a snake with directional eyes.
+Planets, parallax stars, and shooting stars animate behind menus; gameplay backgrounds
+use dim stars to preserve target visibility. **Settings → Effects → Reduced** freezes
+the new decorative motion and disables projectile trails. These assets allocate no heap
+memory and work with both RGB565 and the RGB332 framebuffer fallback.
+
+![Menu and settings preview](artifacts/menu-preview.png)
+
+Generate previews from the real C++ renderer with `python scripts/test_host.py`,
+then `python scripts/preview.py` and `python scripts/preview.py --menus`.
+Physical display legibility and frame timing still require device verification.
+
 ## Build and first upload
 
 ```sh

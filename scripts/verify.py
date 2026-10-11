@@ -27,6 +27,7 @@ with (out / "firmware-builds.log").open("w", encoding="utf-8") as log:
         sys.exit(process.returncode)
 subprocess.run([sys.executable, "scripts/test_host.py"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/preview.py"], cwd=root, check=True)
+subprocess.run([sys.executable, "scripts/preview.py", "--menus"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/package_release.py"], cwd=root, check=True)
 log=(out/'firmware-builds.log').read_text(encoding='utf-8')
 summary={}

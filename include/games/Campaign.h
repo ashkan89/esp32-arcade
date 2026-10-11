@@ -1,4 +1,5 @@
 #pragma once
+#include "assets/Visuals.h"
 #include "games/Registration.h"
 namespace arcade {
 // Shared presentation and campaign lifecycle; each title owns its rules and boss AI.
@@ -77,8 +78,7 @@ protected:
     return level % 4 == 0;
   }
   void scenery(Canvas &c, uint16_t accent) const {
-    for (int i = 0; i < 30; ++i)
-      c.pixel((i * 47 + 11) % W, 25 + (i * 31 + int(tick / (1 + i % 3))) % 180, Grey);
+    visual::stars(c, options.effects ? tick : 0);
     for (const auto &s : sparks.items)
       if (s.active)
         c.rect(int(s.x), int(s.y), 2, 2, Orange);
@@ -93,10 +93,7 @@ protected:
     c.rect(36, 25, clamp(hp, 0, maximum) * 134 / std::max(1, maximum), 4, Red);
   }
   static void ship(Canvas &c, float x, float y, uint16_t color) {
-    c.line(int(x), int(y) - 7, int(x) - 7, int(y) + 6, color);
-    c.line(int(x), int(y) - 7, int(x) + 7, int(y) + 6, color);
-    c.line(int(x) - 7, int(y) + 6, int(x) + 7, int(y) + 6, color);
-    c.rect(int(x) - 2, int(y) - 2, 5, 7, White);
+    visual::ship(c, int(x) - 7, int(y) - 7, color);
   }
 
 public:

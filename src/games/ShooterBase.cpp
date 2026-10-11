@@ -1,5 +1,6 @@
 #include "games/ShooterBase.h"
 #include "assets/Sprites.h"
+#include "assets/Visuals.h"
 #include <cstdio>
 namespace arcade {
 void Shooter::start(const GameOptions &o) {
@@ -449,10 +450,12 @@ void Shooter::render(Canvas &c) const {
       int y = Top + int((i * 27 + tick) % 200);
       c.rect(8 + (i % 2) * 145, y, 8, 7, 0x1263);
     }
-  } else
-    for (int i = 0; i < 30; i++)
-      c.pixel((i * 47 + 13) % W, Top + int((i * 31 + tick / (1 + i % 3)) % (H - Top)),
-              i % 3 == 0 ? White : Grey);
+  } else {
+    // Distant planet and restrained parallax stay darker than every gameplay object.
+    c.circle(145, 132, 21, 0x0845, true);
+    c.circle(151, 127, 17, 0x0002, true);
+    visual::stars(c, options.effects ? tick : 0);
+  }
   if (mode == ShooterMode::Invaders)
     for (unsigned s = 0; s < 3; s++)
       for (int y = 0; y < 12; y++)
@@ -464,6 +467,10 @@ void Shooter::render(Canvas &c) const {
       int x = int(e.x) + sx, y = int(e.y);
       if (e.kind == 4) {
         c.rect(x, y, 72, 26, Pink);
+        c.rect(x + 2, y + 2, 68, 22, visual::shade(Pink, 45));
+        c.line(x + 8, y + 2, x + 63, y + 2, White);
+        for (int k = 0; k < 6; ++k)
+          c.rect(x + 6 + k * 11, y + 22, 5, 3, options.effects && tick % 12 < 6 ? Orange : Yellow);
         c.rect(x + 8, y + 6, 12, 6, Black);
         c.rect(x + 52, y + 6, 12, 6, Black);
         c.rect(x + 20, y + 19, 32, 3, Black);
@@ -472,24 +479,39 @@ void Shooter::render(Canvas &c) const {
                Red);
       } else if (mode == ShooterMode::Meteor) {
         int r = 5 + e.size * 5;
-        c.circle(x, y, r, Grey, true);
-        c.circle(x - 3, y - 3, std::max(1, r / 3), Black, true);
-        c.line(x + r / 2, y, x, y + r, White);
+        c.circle(x, y, r, 0x526b, true);
+        c.circle(x - 1, y - 1, std::max(1, r - 2), Grey, true);
+        c.circle(x - r / 3, y - r / 3, std::max(1, r / 3), 0x526b, true);
+        c.circle(x + r / 3, y + r / 3, std::max(1, r / 4), 0x632c, true);
+        c.pixel(x - r / 2, y - r / 2, White);
       } else if (mode == ShooterMode::Sky) {
-        c.rect(x + 5, y, 4, 12, Orange);
-        c.line(x, y + 8, x + 13, y + 8, Yellow);
-        c.line(x + 3, y + 11, x + 10, y + 11, White);
+        for (int j = 0; j < 10; ++j)
+          c.rect(x + 6 - j / 2, y + j, 2 + j, 1, j < 5 ? Orange : visual::shade(Orange, 60));
+        c.rect(x + 6, y + 3, 2, 3, White);
+        c.line(x + 1, y + 8, x + 12, y + 8, Yellow);
       } else
-        c.bitmap(x, y, e.kind == 0 ? alienA : e.kind == 1 ? alienB : alienC, 14, 10);
+        visual::alien(c, x + 1, y,
+                      e.kind == 0   ? Green
+                      : e.kind == 1 ? Pink
+                                    : Orange,
+                      options.effects ? tick / 18 : 0);
     }
   if (ufoActive) {
     c.bitmap(int(ufoX), 24, ufoSprite, 24, 10);
+    c.line(int(ufoX) + 5, 28, int(ufoX) + 18, 28, Cyan);
+    for (int k = 0; k < 4; ++k)
+      c.pixel(int(ufoX) + 4 + k * 5, 32, (tick / 8 + k) % 2 ? Pink : White);
     if (beam)
       c.line(int(ufoX) + 12, 34, int(ufoX) + 12, H, ufoTimer % 180 > 100 ? Cyan : Grey);
   }
   for (auto &b : shots.items)
-    if (b.active)
+    if (b.active) {
+      if (options.effects)
+        c.rect(int(b.x) + sx - 1, int(b.y) + 2, 4, 9,
+               visual::shade(b.damage == 2 ? Pink : Yellow, 25));
       c.rect(int(b.x) + sx, int(b.y), b.damage == 2 ? 4 : 2, 6, b.damage == 2 ? Pink : Yellow);
+      c.pixel(int(b.x) + sx, int(b.y), White);
+    }
   for (auto &b : hostile.items)
     if (b.active)
       c.rect(int(b.x) + sx, int(b.y), 3, 5, Red);
@@ -504,7 +526,7 @@ void Shooter::render(Canvas &c) const {
     if (p.active)
       c.pixel(int(p.x) + sx, int(p.y), p.color);
   if (invincible == 0 || tick % 8 < 4)
-    c.bitmap(int(px) + sx, int(py), playerSprite, 16, 12);
+    visual::ship(c, int(px) + sx, int(py), Cyan, options.effects ? tick / 4 : 0);
   if (shield > 0)
     c.circle(int(px) + 8, int(py) + 6, 12, Cyan);
   char status[24];

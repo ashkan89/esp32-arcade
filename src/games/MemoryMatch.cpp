@@ -1,3 +1,4 @@
+#include "assets/Visuals.h"
 #include "games/Registration.h"
 namespace arcade {
 class MemoryMatch final : public TickGame {
@@ -68,11 +69,12 @@ public:
     for (int i = 0; i < 20; i++) {
       int x = 15 + i % 4 * 38, y = 33 + i / 4 * 33;
       bool visible = matched[i] || i == first || i == second;
-      c.rect(x, y, 32, 28, visible ? uint16_t(Cyan + (cards[i] * 0x1000)) : Navy);
-      if (visible)
-        c.number(x + 13, y + 10, cards[i] + 1, Black);
-      else
-        c.text(x + 13, y + 10, "?", Grey);
+      visual::card(c, x, y, 32, 28, visible ? Cyan : visual::Edge, i == cursor);
+      if (visible) {
+        c.number(x + 13, y + 10, cards[i] + 1, matched[i] ? Green : White);
+        c.line(x + 5, y + 23, x + 26, y + 23, matched[i] ? Green : Cyan);
+      } else
+        visual::alien(c, x + 10, y + 9, visual::Muted, 0);
       if (i == cursor)
         c.rect(x - 2, y - 2, 36, 32, Yellow, false);
     }

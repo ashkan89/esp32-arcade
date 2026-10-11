@@ -1,6 +1,7 @@
 #include "arcade/Console.h"
 #include "arcade/ReleasePolicy.h"
 #include "arcade/SetupKey.h"
+#include "assets/Visuals.h"
 #include "games/FlapEscape.h"
 #include "games/MeteorPatrol.h"
 #include "games/NeonBreaker.h"
@@ -662,6 +663,39 @@ static void lifecycle() {
   std::printf("Lifecycle soak: %u simulation ticks, %u game-over/restart cycles\n",
               unsigned(GameCount * 30000), overs);
 }
+static void visualChecks() {
+  // Reduced effects must freeze decorative motion; live effects must actually animate.
+  std::array<uint16_t, W * H> first{}, second{};
+  Canvas a, b;
+  a.attach(first.data());
+  b.attach(second.data());
+  Settings settings;
+  settings.effects = 0;
+  Console console(settings);
+  console.begin({}, 0);
+  console.update({}, 1200);
+  console.render(a);
+  console.update({}, 2200);
+  console.render(b);
+  CHECK(first == second);
+  settings.effects = 1;
+  console.render(a);
+  console.update({}, 3200);
+  console.render(b);
+  CHECK(first != second);
+  CHECK(console.selected() == 0 && console.state() == Screen::Launcher);
+  // The original pixel assets must stay inside the framebuffer in both storage formats.
+  std::array<uint8_t, W * H + 2> guarded{};
+  guarded.front() = 17;
+  guarded.back() = 19;
+  a.attach(guarded.data() + 1, false);
+  visual::backdrop(a, 400, true);
+  for (int id = 0; id < int(GameCount); ++id)
+    visual::thumbnail(a, id, id % 2 ? -10 : W - 6, H - 5, Cyan, 40);
+  visual::alien(a, -8, -8, Green, 1, 2);
+  visual::tile(a, W - 2, H - 2, 9, 8, Pink);
+  CHECK(guarded.front() == 17 && guarded.back() == 19);
+}
 static void preview() {
   std::array<uint16_t, W * H> pixels{};
   Canvas c;
@@ -730,6 +764,24 @@ static void preview() {
   c.clear();
   console.render(c);
   write(int(GameCount) + 4);
+  // Additional real menu captures make the redesign reviewable alongside all 50 games.
+  Console menus(settings);
+  menus.begin({}, 0);
+  menus.update({}, 600);
+  menus.render(c);
+  write(int(GameCount) + 5);
+  menus.update({}, 1200);
+  menus.update({0, Back}, 1300);
+  menus.render(c);
+  write(int(GameCount) + 6);
+  menus.update({0, Fire}, 1400);
+  menus.render(c);
+  write(int(GameCount) + 7);
+  menus.update({0, Special}, 1500);
+  menus.update({0, Down}, 1600);
+  menus.update({0, Fire}, 1700);
+  menus.render(c);
+  write(int(GameCount) + 8);
 }
 static void puzzleRules() {
   std::array<uint8_t, 4> line{{1, 1, 1, 1}};
@@ -861,6 +913,7 @@ int main() {
       "Focused campaign checks: %u assertions plus legacy endings and solvable warehouses\n",
       campaignAssertions);
   lifecycle();
+  visualChecks();
   preview();
   std::printf(
       "PASS %d assertions across core, inputs, saves, menus, game rules and lifecycle soak\n",

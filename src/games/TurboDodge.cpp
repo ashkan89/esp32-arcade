@@ -1,4 +1,5 @@
 #include "games/TurboDodge.h"
+#include "assets/Visuals.h"
 namespace arcade {
 void TurboDodge::start(const GameOptions &o) {
   baseStart(o);
@@ -81,6 +82,13 @@ void TurboDodge::update() {
 }
 void TurboDodge::render(Canvas &c) const {
   c.rect(17, Top, 142, H - Top, 0x1082);
+  c.line(17, Top, 17, H - 1, White);
+  c.line(158, Top, 158, H - 1, White);
+  for (int y = Top; y < H; y += 8) {
+    uint16_t curb = ((y + (options.effects ? tick / 2 : 0)) / 8) % 2 ? Red : White;
+    c.rect(12, y, 4, 8, curb);
+    c.rect(160, y, 4, 8, curb);
+  }
   for (int l = 1; l < 3; l++)
     for (int y = Top; y < H; y++)
       if ((y + tick / 2) % 22 < 10)
@@ -88,17 +96,15 @@ void TurboDodge::render(Canvas &c) const {
   for (auto &o : obstacles.items)
     if (o.active) {
       int x = 29 + o.lane * 52;
-      if (o.coin)
+      if (o.coin) {
         c.circle(x + 7, int(o.y) + 8, 5, Yellow, true);
-      else {
-        c.rect(x, int(o.y), 14, 18, Red);
-        c.rect(x + 2, int(o.y) + 3, 10, 4, White);
-      }
+        c.circle(x + 7, int(o.y) + 8, 3, Orange);
+        c.line(x + 6, int(o.y) + 5, x + 6, int(o.y) + 9, White);
+      } else
+        visual::car(c, x, int(o.y), Red, 18);
     }
   if (invincible == 0 || tick % 10 < 5) {
-    c.rect(int(carX), 185, 14, 22, Cyan);
-    c.rect(int(carX) + 2, 188, 10, 5, White);
-    c.rect(int(carX) + 2, 203, 10, 3, Navy);
+    visual::car(c, int(carX), 185, Cyan);
   }
   c.text(4, H - 8, "COINS", Grey);
   c.number(40, H - 8, unsigned(coins), Yellow);

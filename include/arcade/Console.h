@@ -22,7 +22,7 @@ class Console {
   GameOptions options;
   Game *current = nullptr;
   Screen screen = Screen::Boot, returnTo = Screen::Launcher;
-  uint32_t entered = 0, lastAction = 0;
+  uint32_t entered = 0, lastAction = 0, visualTime = 0;
   int selection = 0, cursor = 0;
   bool suppressNeeded = true, dirty = false, fromPause = false, recorded = false;
   Sound pending = Sound::None;

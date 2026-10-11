@@ -1,3 +1,4 @@
+#include "assets/Visuals.h"
 #include "games/Registration.h"
 namespace arcade {
 class BlockCascade final : public TickGame {
@@ -122,7 +123,7 @@ public:
     for (int y = 0; y < 20; y++)
       for (int x = 0; x < 10; x++)
         if (cells[y * 10 + x])
-          c.rect(8 + x * 10, 28 + y * 9, 9, 8, colors[cells[y * 10 + x]]);
+          visual::tile(c, 8 + x * 10, 28 + y * 9, 9, 8, colors[cells[y * 10 + x]]);
     int ghost = py;
     while (fits(px, ghost + 1, rotation))
       ghost++;
@@ -131,14 +132,14 @@ public:
       for (int x = 0; x < 4; x++)
         if (mask & (1u << (y * 4 + x))) {
           c.rect(8 + (px + x) * 10, 28 + (ghost + y) * 9, 9, 8, Grey, false);
-          c.rect(8 + (px + x) * 10, 28 + (py + y) * 9, 9, 8, colors[kind + 1]);
+          visual::tile(c, 8 + (px + x) * 10, 28 + (py + y) * 9, 9, 8, colors[kind + 1]);
         }
     c.text(118, 40, "NEXT", Cyan);
     mask = shape(next, 0);
     for (int y = 0; y < 4; y++)
       for (int x = 0; x < 4; x++)
         if (mask & (1u << (y * 4 + x)))
-          c.rect(118 + x * 10, 60 + y * 9, 9, 8, colors[next + 1]);
+          visual::tile(c, 118 + x * 10, 60 + y * 9, 9, 8, colors[next + 1]);
     c.text(116, 132, "LINES", Grey);
     c.number(120, 146, lines, White);
   }
