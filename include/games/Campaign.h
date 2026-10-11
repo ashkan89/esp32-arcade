@@ -30,7 +30,7 @@ protected:
         advanceStage();
         if (!ended) {
           stageTick = 0;
-          grace = 90;
+          grace = hazardInterval(90);
           setupStage();
         }
       }
@@ -43,7 +43,7 @@ protected:
     if (grace || ended || transition)
       return;
     loseLife();
-    grace = 100;
+    grace = hazardInterval(100);
   }
   void burst(float x, float y) {
     sound(Sound::Explosion);
@@ -67,8 +67,11 @@ protected:
   }
   void beginCampaign(const GameOptions &o) {
     baseStart(o);
-    health = o.difficulty == 0 ? 5 : o.difficulty == 2 ? 2 : 3;
-    grace = 90;
+    health = options.difficulty == 0   ? 4
+             : options.difficulty == 1 ? 3
+             : options.difficulty == 2 ? 2
+                                       : 1;
+    grace = hazardInterval(90);
     transition = 0;
     stageTick = 0;
     sparks.clear();

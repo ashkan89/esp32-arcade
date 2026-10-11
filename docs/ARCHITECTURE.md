@@ -64,6 +64,10 @@ firmware asset names remain stable. Game Arcade remains the console and release 
 
 Settings schema 2 is a 304-byte CRC-protected NVS blob containing 64 high scores, favorites,
 options and the Sky top five. Schema 1 console saves migrate in memory and are rewritten later.
+Difficulty values 0–3 represent Easy, Medium (formerly Normal), Hard and Nightmare.
+Existing schema 1/2 saves retain their scores, favorites and difficulty indexes. Nightmare
+fits the existing options byte; no blob-layout migration is needed. Older firmware that
+only accepts 0–2 cannot load a save while its difficulty byte is set to Nightmare.
 Settings use the `skyarcade` namespace. If its state is absent or invalid, a valid historical
 namespace state is imported and saved later; the historical state remains untouched for rollback.
 Writes are deferred outside gameplay and retried after failure. Invalid data never partially

@@ -30,13 +30,13 @@ class AlpineRush final : public CampaignGame {
       jump = 45;
       sound(Sound::Move);
     }
-    if (stageTick % 70 == 0)
+    if (stageTick % unsigned(hazardInterval(70)) == 0)
       if (auto *e = obstacles.acquire()) {
         e->kind = 0;
         e->x = float(rng.range(8, 169));
         e->y = 30;
       }
-    if (stageTick % 150 == 0)
+    if (stageTick % unsigned(hazardInterval(150)) == 0)
       if (auto *e = obstacles.acquire()) {
         e->kind = 1;
         e->x = float(rng.range(30, 146));

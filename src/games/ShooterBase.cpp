@@ -46,7 +46,7 @@ void Shooter::wave() {
     e->x = 52;
     e->y = 34;
     e->hp = 40 + std::min(200, int(level) * 5);
-    e->vx = 1.0f;
+    e->vx = hazardSpeed(1.0f);
     return;
   }
   if (mode == ShooterMode::Invaders || mode == ShooterMode::Star) {
@@ -105,7 +105,7 @@ void Shooter::hurt() {
   }
   --health;
   damaged = true;
-  invincible = 100;
+  invincible = hazardInterval(100);
   shake = options.effects ? 12 : 0;
   combo = 1;
   explode(px + 8, py + 6, Red);
@@ -164,7 +164,7 @@ void Shooter::spawnSky() {
       e->y = -12 - i * 18;
       e->kind = uint8_t(pattern);
       e->hp = 1 + int(level) / 5;
-      e->vy = 0.7f + std::min(1.8f, level * 0.08f);
+      e->vy = hazardSpeed(0.7f + std::min(1.8f, level * 0.08f));
       e->vx = pattern == 2 ? (i % 2 ? -0.7f : 0.7f) : 0;
       spawned++;
     }
@@ -176,7 +176,7 @@ void Shooter::spawnRock(float x, float y, uint8_t size, float vx) {
     e->x = x;
     e->y = y;
     e->vx = vx;
-    e->vy = 0.7f + std::min(2.0f, level * 0.1f) + (2 - size) * 0.25f;
+    e->vy = hazardSpeed(0.7f + std::min(2.0f, level * 0.1f) + (2 - size) * 0.25f);
     e->hp = 1;
   }
 }
@@ -194,7 +194,7 @@ void Shooter::killed(Enemy &e) {
   if (kind == 5 && size > 0) {
     spawnRock(x - 4, y, uint8_t(size - 1), -0.9f);
     spawnRock(x + 4, y, uint8_t(size - 1), 0.9f);
-  } else if (kind != 5 && (kind == 4 || rng.range(0, 100) < 18)) {
+  } else if (kind != 5 && (kind == 4 || rng.range(0, 100) < 18 - challenge() * 2)) {
     if (auto *p = powers.acquire()) {
       p->x = x + 7;
       p->y = y + 5;
@@ -209,11 +209,11 @@ void Shooter::updateBoss(Enemy &e) {
     e.x = clamp(e.x, 4.0f, float(W - 76));
     e.vx = -e.vx;
   }
-  if (e.age % uint32_t(e.hp < 20 ? 38 : 65) == 0) {
+  if (e.age % uint32_t(hazardInterval(e.hp < 20 ? 38 : 65)) == 0) {
     int p = int(e.age / 65) % 3;
     if (p == 0) {
       for (int k = -2; k <= 2; k++)
-        enemyFire(e.x + 36, e.y + 26, k * 0.7f, 2.0f + options.difficulty * 0.3f);
+        enemyFire(e.x + 36, e.y + 26, k * 0.7f, 2.0f + challenge() * 0.3f);
     } else if (p == 1) {
       for (int k = 0; k < 5; k++)
         enemyFire(12 + k * 34, e.y + 26, 0, 2.5f);
@@ -224,7 +224,7 @@ void Shooter::updateBoss(Enemy &e) {
 }
 void Shooter::formationFire() {
   if (!bossStage && --shotTimer <= 0) {
-    shotTimer = std::max(18, 55 - int(level) * 3 - options.difficulty * 5);
+    shotTimer = std::max(18, 55 - int(level) * 3 - challenge() * 5);
     std::array<Enemy *, 6> bottom{};
     for (unsigned i = 0; i < enemies.items.size(); i++) {
       auto &e = enemies.items[i];
@@ -233,7 +233,7 @@ void Shooter::formationFire() {
     }
     unsigned c = unsigned(rng.range(0, 6));
     if (bottom[c])
-      enemyFire(bottom[c]->x + 7, bottom[c]->y + 10, 0, 2.5f + options.difficulty * 0.3f);
+      enemyFire(bottom[c]->x + 7, bottom[c]->y + 10, 0, 2.5f + challenge() * 0.3f);
   }
 }
 

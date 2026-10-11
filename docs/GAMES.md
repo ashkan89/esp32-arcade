@@ -1,5 +1,25 @@
 # Game Arcade game guide
 
+Difficulty is selected under Menu → Settings: Easy, Medium, Hard and Nightmare.
+Medium retains the saved index of the former Normal mode. All fifty games use the selected
+mode, through hazard tuning, lives, puzzle rules or a combination. Player input and the
+60 Hz simulation clock do not speed up with difficulty.
+
+Shared hazard pacing increases by 6%, 12%, 22% and 42% respectively where used. Legacy
+enemy speed, firing, AI, gravity and puzzle formulas use pressure steps 1, 2, 3 and 5
+instead of the former 0, 1 and 2. These are tuning parameters, not a measured percentage
+change in a game's overall difficulty. Ordinary life-based games start with 3/3/2/1 lives;
+campaign games generally start with 4/3/2/1. Single-life puzzles and city-defense objectives
+retain their own health rules.
+
+Mines increase with mode while preserving the first-open safety area. Color Cascade starts
+with 28/26/24/20 moves and awards 14/13/12/10 per stage. Cargo Shift retains 28/24/20/12
+undo moves and increases reverse-generation depth, with a constructive solution at every
+mode. Grid Merge raises the chance of a new 4 tile to 15/20/25/35 percent. Memory Match
+shortens its stage deadline. Bubble Burst adds a row after 4/4/3/2 consecutive misses.
+Hard and Nightmare require tighter decisions; physical playtesting is still needed to tune
+the challenge on the actual display and buttons.
+
 Every game has twelve stages and a Campaign Complete ending. Clearing the last stage adds
 5,000 points plus 1,000 per remaining life, once, and freezes the score. A replays; B returns
 to the launcher. Menu/Back opens pause, restart, controls and exit. The HUD shows stage /12.

@@ -70,7 +70,7 @@ class ElevatorHeist final : public CampaignGame {
     for (auto &e : agents.items)
       if (e.active) {
         e.x += clamp(x - e.x, -.3f, .3f);
-        if (stageTick % unsigned(std::max(35, 120 - int(level) * 4)) == 0)
+        if (stageTick % unsigned(std::max(28, 120 - int(level) * 4 - challenge() * 6)) == 0)
           projectile(hostile, e.x, ground(e.floor) - 10, x > e.x ? 2.f : -2.f, 0);
         if (e.floor == floor && std::abs(e.x - x) < 10)
           hit();

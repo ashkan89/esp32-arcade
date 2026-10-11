@@ -1,7 +1,7 @@
 #include "games/SkyInvaders.h"
 namespace arcade {
 void SkyInvaders::updateEnemies() {
-  bool step = ++moveTimer >= std::max(5, 19 - int(level));
+  bool step = ++moveTimer >= std::max(5, 19 - int(level) - challenge());
   if (step)
     moveTimer = 0;
   if (step && !bossStage) {

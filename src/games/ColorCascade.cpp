@@ -52,7 +52,7 @@ class ColorCascade final : public TickGame {
         nextStage();
         if (ended)
           return;
-        moves += 15;
+        moves += 15 - challenge();
       }
       if (moves == 0) {
         ended = true;
@@ -97,7 +97,7 @@ public:
     fill();
     cursor = 0;
     chosen = -1;
-    moves = 30;
+    moves = 30 - challenge() * 2;
     combo = wait = 0;
     clearing = 0;
     health = 1;
@@ -128,7 +128,7 @@ GameEntry describeColorCascade() {
       {"COLOR CASCADE",
        "CHAIN THE COLOR MATCHES",
        {"D-PAD SELECTS A GEM", "A SELECTS THEN SWAPS", "SWAP WITH A NEIGHBOR",
-        "MATCH THREE OR MORE", "CASCADES MULTIPLY POINTS", "1500/STAGE ADDS 15 MOVES"},
+        "MATCH THREE OR MORE", "CASCADES MULTIPLY POINTS", "1500/STAGE ADDS MORE MOVES"},
        Pink,
        24,
        Fire});
@@ -137,6 +137,14 @@ GameEntry describeColorCascade() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyColorCascade() {
   ColorCascade g;
+  int previous = 100;
+  for (uint8_t mode = 0; mode < DifficultyCount; ++mode) {
+    GameOptions o;
+    o.difficulty = mode;
+    g.start(o);
+    HOST_CHECK(g.moves > 0 && g.moves < previous);
+    previous = g.moves;
+  }
   g.start({});
   g.level = 12;
   g.fill();

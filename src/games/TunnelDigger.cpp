@@ -84,7 +84,7 @@ class TunnelDigger final : public CampaignGame {
         } else {
           if (e.inflate)
             e.inflate--;
-          if (stageTick % unsigned(std::max(12, 36 - int(level))) == 0) {
+          if (stageTick % unsigned(std::max(10, 36 - int(level) - challenge() * 2)) == 0) {
             int target =
                 e.p + (std::abs(dx) > std::abs(dy) ? (dx > 0 ? -1 : 1) : (dy > 0 ? -11 : 11));
             if (target >= 0 && target < 143 &&

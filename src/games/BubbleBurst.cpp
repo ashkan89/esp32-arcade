@@ -88,7 +88,7 @@ class BubbleBurst final : public TickGame {
         grid[q] = 0;
         add(30);
       }
-    if (misses >= 5) {
+    if (misses >= (challenge() >= 5 ? 2 : challenge() >= 3 ? 3 : 4)) {
       for (int q = 99; q < 108; q++)
         if (grid[q]) {
           ended = true;

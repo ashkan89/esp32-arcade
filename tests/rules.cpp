@@ -71,6 +71,51 @@ static int assertions = 0;
   } while (0)
 namespace arcade {
 struct RuleTests {
+  static void difficulty() {
+    int lastFire = 1000, lastGrace = 1000, lastSnake = 1000;
+    float lastRock = 0, lastRoad = 0;
+    for (uint8_t mode = 0; mode < DifficultyCount; ++mode) {
+      GameOptions o;
+      o.difficulty = mode;
+      SkyInvaders g;
+      g.start(o);
+      CHECK(g.lives() == (mode < 2 ? 3 : mode == 2 ? 2 : 1));
+      g.formationFire();
+      CHECK(g.shotTimer < lastFire);
+      lastFire = g.shotTimer;
+      g.hurt();
+      CHECK(g.invincible < lastGrace);
+      lastGrace = g.invincible;
+      g.enemies.clear();
+      g.spawnRock(80, 40, 2, 0);
+      CHECK(g.enemies.items[0].vy > lastRock);
+      lastRock = g.enemies.items[0].vy;
+      SnakeRush snake;
+      snake.start(o);
+      auto head = snake.body[0];
+      int steps = 0;
+      do {
+        snake.update();
+        ++steps;
+      } while (snake.body[0] == head && steps < 60);
+      CHECK(steps < lastSnake);
+      lastSnake = steps;
+      TurboDodge road;
+      road.start(o);
+      road.obstacles.clear();
+      auto *obstacle = road.obstacles.acquire();
+      obstacle->y = 40;
+      road.spawn = 100;
+      road.update();
+      CHECK(obstacle->y - 40 > lastRoad);
+      lastRoad = obstacle->y - 40;
+    }
+    SkyInvaders invalid;
+    GameOptions o;
+    o.difficulty = 255;
+    invalid.start(o);
+    CHECK(invalid.options.difficulty == 3 && invalid.lives() == 1);
+  }
   static void prepareFinalBoss(Game &game) {
     auto &g = static_cast<Shooter &>(game);
     g.level = 12;
@@ -451,6 +496,11 @@ static void saves() {
   CHECK(out.best == s.best);
   CHECK(out.favorites == s.favorites);
   CHECK(out.skyLeaders[0] == 120);
+  for (uint8_t mode = 0; mode < DifficultyCount; ++mode) {
+    s.difficulty = mode;
+    CHECK(decodeStored(encode(s).data(), SaveSize, out));
+    CHECK(out.difficulty == mode && out.best == s.best && out.favorites == s.favorites);
+  }
   for (size_t k = 0; k < b.size(); k++) {
     auto bad = b;
     bad[k] ^= 0x80;
@@ -460,6 +510,10 @@ static void saves() {
     CHECK(unchanged.best[0] == 99);
   }
   s.difficulty = 3;
+  CHECK(s.valid());
+  CHECK(decode(encode(s), out) && out.difficulty == 3);
+  CHECK(out.best == s.best && out.favorites == s.favorites);
+  s.difficulty = 4;
   CHECK(!s.valid());
   CHECK(!decode(encode(s), out));
   s = Settings{};
@@ -590,6 +644,20 @@ static void consoleRules() {
   c.update({0, Fire}, 120);
   CHECK(s.sound == 0);
   CHECK(c.consumeDirty());
+  c.update({0, Down}, 140);
+  uint32_t changedAt = 160;
+  for (unsigned expected : {2u, 3u, 0u, 1u}) {
+    c.update({0, Fire}, changedAt);
+    changedAt += 10;
+    CHECK(s.difficulty == expected && s.valid());
+    CHECK(c.consumeDirty());
+  }
+  s.difficulty = 3;
+  c.update({0, Special}, 200);
+  c.update({0, Special}, 220);
+  c.update({0, Fire}, 240);
+  c.update({0, Fire}, 260);
+  CHECK(c.state() == Screen::Playing && c.active()->lives() == 1);
 }
 static void lifecycle() {
   std::array<uint16_t, W * H + 2> pixels{};
@@ -606,7 +674,7 @@ static void lifecycle() {
     CHECK(std::strlen(registry()[id].description) <= 29);
     for (const auto *line : registry()[id].instructions)
       CHECK(line && std::strlen(line) <= 27);
-    for (unsigned difficulty : {0u, 1u, 2u}) {
+    for (unsigned difficulty : {0u, 1u, 2u, 3u}) {
       Game &g = gameFor(GameId(id));
       GameOptions o;
       o.difficulty = uint8_t(difficulty);
@@ -661,7 +729,7 @@ static void lifecycle() {
   canvas.text(160, 215, "CLIPPED", White, 2);
   CHECK(small.front() == 17 && small.back() == 19);
   std::printf("Lifecycle soak: %u simulation ticks, %u game-over/restart cycles\n",
-              unsigned(GameCount * 30000), overs);
+              unsigned(GameCount * DifficultyCount * 10000), overs);
 }
 static void visualChecks() {
   // Reduced effects must freeze decorative motion; live effects must actually animate.
@@ -782,6 +850,12 @@ static void preview() {
   menus.update({0, Fire}, 1700);
   menus.render(c);
   write(int(GameCount) + 8);
+  menus.update({0, Special}, 1800);
+  menus.update({0, Fire}, 1900);
+  menus.update({0, Down}, 2000);
+  settings.difficulty = 3;
+  menus.render(c);
+  write(int(GameCount) + 9);
 }
 static void puzzleRules() {
   std::array<uint8_t, 4> line{{1, 1, 1, 1}};
@@ -862,6 +936,7 @@ int main() {
   releasePolicy();
   newGameRules();
   RuleTests::shooter();
+  RuleTests::difficulty();
   RuleTests::breaker();
   RuleTests::snake();
   RuleTests::turbo();

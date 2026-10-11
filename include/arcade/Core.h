@@ -5,6 +5,11 @@
 #include <cstddef>
 #include <cstdint>
 namespace arcade {
+constexpr uint8_t DifficultyCount = 4;
+inline const char *difficultyName(unsigned difficulty) {
+  static const char *const names[] = {"EASY", "MEDIUM", "HARD", "NIGHTMARE"};
+  return names[difficulty < DifficultyCount ? difficulty : 1];
+}
 constexpr int W = 176, H = 220, Top = 20;
 constexpr uint16_t Black = 0x0000, Navy = 0x0843, Cyan = 0x07ff, Pink = 0xf81f, Green = 0x07e0,
                    Yellow = 0xffe0, Red = 0xf800, White = 0xffff, Grey = 0x8410, Orange = 0xfd20;

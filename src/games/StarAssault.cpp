@@ -10,16 +10,17 @@ void StarAssault::updateEnemies() {
       }
       if (e.kind != 3) {
         e.x = e.homeX + std::sin(tick * 0.022f) * 8;
-        if (e.age > 90 && rng.range(0, 900) < 2 + std::min(8, int(level))) {
+        if (e.age > hazardInterval(90) &&
+            rng.range(0, 900) < 2 + std::min(8, int(level)) + challenge()) {
           e.kind = 3;
           e.age = 0;
           e.vx = (px - e.x) / 90;
-          e.vy = 1.4f;
+          e.vy = hazardSpeed(1.4f);
         }
       } else {
         e.x += e.vx + std::sin(e.age * 0.06f) * 1.4f;
         e.y += e.vy;
-        if (e.age % 70 == 0)
+        if (e.age % unsigned(hazardInterval(70)) == 0)
           enemyFire(e.x + 7, e.y + 10, 0, 2.5f);
         if (e.y > H + 10) {
           e.y = e.homeY;

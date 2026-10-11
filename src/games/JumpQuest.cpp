@@ -17,7 +17,7 @@ class JumpQuest final : public TickGame {
       if (auto *p = platforms.acquire()) {
         p->x = float(i == 0 ? 65 : rng.range(4, 134));
         p->y = float(205 - i * 25);
-        p->width = 42;
+        p->width = 42 - challenge() * 2;
       }
     x = 85;
     y = 190;
@@ -62,7 +62,7 @@ class JumpQuest final : public TickGame {
         p->y = top - 25;
         top = p->y;
         p->x = float(rng.range(3, 135));
-        p->width = 38;
+        p->width = 38 - challenge() * 2;
       } else
         break;
     }
@@ -100,7 +100,7 @@ GameEntry describeJumpQuest() {
       {"JUMP QUEST",
        "CLIMB ABOVE THE CLOUDS",
        {"L/R STEERS IN THE AIR", "LANDING AUTO JUMPS", "SCREEN SIDES WRAP AROUND",
-        "CLIMB TO SCROLL THE WORLD", "GAIN POINTS FOR HEIGHT", "THREE FALLS END THE RUN"},
+        "CLIMB TO SCROLL THE WORLD", "GAIN POINTS FOR HEIGHT", "LIVES DEPEND ON MODE"},
        Yellow,
        22,
        Left | Right});

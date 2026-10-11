@@ -14,7 +14,7 @@ class RiverLeap final : public TickGame {
   int row = 0, grace = 0;
   std::array<bool, 4> homes{};
   float speed(int r) const {
-    return (r % 2 ? 1 : -1) * (0.45f + std::min(0.7f, level * 0.04f) + options.difficulty * 0.12f);
+    return (r % 2 ? 1 : -1) * (0.45f + std::min(0.7f, level * 0.04f) + challenge() * 0.12f);
   }
   void board() {
     movers.clear();

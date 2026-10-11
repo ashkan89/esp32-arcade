@@ -45,7 +45,7 @@ class WildRails final : public CampaignGame {
       grace = 60;
       sound(Sound::Power);
     }
-    if (!bossRound() && spawned < 18 && stageTick % 70 == 0)
+    if (!bossRound() && spawned < 18 && stageTick % unsigned(hazardInterval(70)) == 0)
       if (auto *e = bandits.acquire()) {
         e->x = spawned % 2 ? 160 : 16;
         e->y = 40;
@@ -56,7 +56,7 @@ class WildRails final : public CampaignGame {
       if (e.active) {
         e.x += clamp(x - e.x, -.3f, .3f);
         e.y += .55f + level * .025f;
-        if (stageTick % 90 == 0) {
+        if (stageTick % unsigned(hazardInterval(90)) == 0) {
           float a = std::atan2(y - e.y, x - e.x);
           projectile(hostile, e.x, e.y, std::cos(a) * 1.6f, std::sin(a) * 1.6f);
         }
@@ -65,7 +65,7 @@ class WildRails final : public CampaignGame {
         if (near(x, y, e.x, e.y, 12))
           hit();
       }
-    if (hp && stageTick % 50 == 0) {
+    if (hp && stageTick % unsigned(hazardInterval(50)) == 0) {
       for (int i = -1; i <= 1; ++i)
         projectile(hostile, 88, 72, i * 1.1f, 2.1f);
     }

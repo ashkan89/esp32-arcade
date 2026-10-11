@@ -16,6 +16,21 @@ protected:
   uint16_t level = 1;
   int health = 3;
   Sound pending = Sound::None;
+  // Tune hazards and decision windows, never the simulation clock or input sampling.
+  int challenge() const {
+    static constexpr int pressure[] = {1, 2, 3, 5};
+    return pressure[options.difficulty];
+  }
+  int pacePercent() const {
+    static constexpr int pace[] = {106, 112, 122, 142};
+    return pace[options.difficulty];
+  }
+  int hazardInterval(int ticks) const {
+    return std::max(1, ticks * 100 / pacePercent());
+  }
+  float hazardSpeed(float speed) const {
+    return speed * pacePercent() / 100.f;
+  }
   void completeCampaign() {
     if (ended)
       return;
@@ -46,12 +61,13 @@ protected:
   }
   void baseStart(const GameOptions &o) {
     options = o;
+    options.difficulty = std::min(uint8_t(DifficultyCount - 1), o.difficulty);
     rng.state = o.seed ? o.seed : 1;
     input = {};
     paused = ended = victorious = false;
     points = tick = 0;
     level = 1;
-    health = 3;
+    health = options.difficulty < 2 ? 3 : options.difficulty == 2 ? 2 : 1;
     pending = Sound::None;
   }
 

@@ -81,7 +81,7 @@ class RescueWing final : public CampaignGame {
         float sx = screenX(e.x);
         e.y += e.y < 135 ? .15f : 0;
         e.x = wrap(e.x + clamp(88 - sx, -.45f, .45f));
-        if (stageTick % 100 == 0 && sx > 0 && sx < 176)
+        if (stageTick % unsigned(hazardInterval(100)) == 0 && sx > 0 && sx < 176)
           projectile(hostile, sx, e.y, clamp((88 - sx) / 70, -1.4f, 1.4f), 1.6f);
         if (near(sx, e.y, 88, y, 12))
           hit();
@@ -105,7 +105,7 @@ class RescueWing final : public CampaignGame {
           --hp;
         }
       }
-    if (hp && stageTick % 55 == 0) {
+    if (hp && stageTick % unsigned(hazardInterval(55)) == 0) {
       float sx = screenX(264);
       if (sx >= 0 && sx < 176)
         for (int i = -1; i <= 1; ++i)

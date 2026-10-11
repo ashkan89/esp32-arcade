@@ -45,7 +45,7 @@ void NeonBreaker::update() {
     --bossGrace;
   if (bossHP) {
     bossX = 88 + std::sin(tick * .018f) * 50;
-    if (launched && tick % 100 == 0)
+    if (launched && tick % unsigned(hazardInterval(100)) == 0)
       projectile(hazards, bossX, 74, 0, 1.7f);
     moveProjectiles(hazards);
     for (auto &h : hazards.items)
@@ -76,7 +76,7 @@ void NeonBreaker::update() {
     return;
   }
   float speed = slow ? 0.7f : 1.0f;
-  speed *= 1 + std::min(0.6f, level * 0.04f) + options.difficulty * 0.05f;
+  speed *= 1 + std::min(0.6f, level * 0.04f) + challenge() * 0.05f;
   // Four substeps keep the ball displacement below brick thickness even at max speed.
   for (int step = 0; step < 4 && !ended && launched; step++) {
     float ox = ballX, oy = ballY;

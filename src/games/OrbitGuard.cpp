@@ -45,7 +45,7 @@ class OrbitGuard final : public TickGame {
       sound(Sound::Power);
     }
     if (--spawn <= 0) {
-      spawn = std::max(18, 70 - int(level) * 3 - options.difficulty * 8);
+      spawn = std::max(18, 70 - int(level) * 3 - challenge() * 8);
       if (auto *r = rocks.acquire()) {
         r->angle = bossHP ? bossAngle : rng.range(0, 628) * 0.01f;
         r->radius = 88;

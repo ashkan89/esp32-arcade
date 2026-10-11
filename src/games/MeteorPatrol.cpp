@@ -2,7 +2,7 @@
 namespace arcade {
 void MeteorPatrol::updateEnemies() {
   if (!bossStage && --spawnTimer <= 0) {
-    spawnTimer = std::max(20, 95 - int(level) * 4 - options.difficulty * 10);
+    spawnTimer = std::max(20, 95 - int(level) * 4 - challenge() * 10);
     spawnRock(float(rng.range(14, W - 28)), -26, 2, float(rng.range(-4, 5)) * 0.1f);
   }
   for (auto &e : enemies.items)

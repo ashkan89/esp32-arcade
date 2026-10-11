@@ -26,7 +26,7 @@ class CrystalCourier final : public CampaignGame {
     if (power)
       --power;
     if (input.hit(Fire) && !power) {
-      power = 120;
+      power = hazardInterval(120);
       sound(Sound::Power);
     }
     int target = gridMove(input, player, 9, 9);
@@ -39,7 +39,7 @@ class CrystalCourier final : public CampaignGame {
         sound(Sound::Move);
       }
     }
-    if (stageTick % unsigned(std::max(12, 35 - int(level))) == 0)
+    if (stageTick % unsigned(std::max(10, 35 - int(level) - challenge() * 2)) == 0)
       for (int i = 0; i < 3; ++i) {
         int p = hunters[i], dx = player % 9 - p % 9, dy = player / 9 - p / 9;
         int next = p + (std::abs(dx) > std::abs(dy) ? (dx > 0 ? 1 : -1) : (dy > 0 ? 9 : -9));

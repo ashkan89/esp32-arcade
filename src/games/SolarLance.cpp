@@ -43,7 +43,7 @@ class SolarLance final : public CampaignGame {
       cool = 12;
       sound(Sound::Shot);
     }
-    if (!bossRound() && spawned < 22 && stageTick % 50 == 0)
+    if (!bossRound() && spawned < 22 && stageTick % unsigned(hazardInterval(50)) == 0)
       if (auto *e = drones.acquire()) {
         e->x = 170;
         e->y = 60 + spawned % 4 * 36;
@@ -54,7 +54,7 @@ class SolarLance final : public CampaignGame {
       if (e.active) {
         e.x -= .8f + level * .025f;
         e.y += std::sin((stageTick + int(e.x) * 3) * .04f) * .5f;
-        if (stageTick % 100 == 0)
+        if (stageTick % unsigned(hazardInterval(100)) == 0)
           projectile(hostile, e.x, e.y, -2, clamp((y - e.y) / 100, -1.f, 1.f));
         if (e.x < 3)
           e.active = false;
@@ -68,7 +68,7 @@ class SolarLance final : public CampaignGame {
       }
     float bossY = 120 + std::sin(stageTick * .018f) * 45;
     bool open = stageTick % 180 >= 75;
-    if (hp && stageTick % 60 == 0)
+    if (hp && stageTick % unsigned(hazardInterval(60)) == 0)
       for (int i = -1; i <= 1; ++i)
         projectile(hostile, 143, bossY, -2, i * .6f);
     moveProjectiles(shots);

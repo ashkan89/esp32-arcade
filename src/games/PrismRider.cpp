@@ -45,9 +45,9 @@ class PrismRider final : public CampaignGame {
       cool = 10;
       sound(Sound::Shot);
     }
-    if (hp && stageTick % 90 == 0)
+    if (hp && stageTick % unsigned(hazardInterval(90)) == 0)
       bossLane = (bossLane + 1 + int(level) / 4) % 12;
-    int interval = std::max(15, 65 - int(level) * 3);
+    int interval = std::max(12, 65 - int(level) * 3 - challenge() * 3);
     if (stageTick % unsigned(interval) == 0 && (hp || spawned < 16 + level * 2))
       if (auto *e = foes.acquire()) {
         e->lane = hp ? bossLane : rng.range(0, 12);
@@ -70,7 +70,7 @@ class PrismRider final : public CampaignGame {
       }
     for (auto &e : foes.items)
       if (e.active) {
-        e.depth += .0018f + level * .00012f + options.difficulty * .0002f;
+        e.depth += .0018f + level * .00012f + challenge() * .0002f;
         if (level >= 5 && stageTick % 150 == 0)
           e.lane = (e.lane + 1) % 12;
         for (auto &p : bolts.items)

@@ -82,7 +82,7 @@ class GhoulCastle final : public CampaignGame {
     if (hp) {
       bx = 140 + std::sin(stageTick * .02f) * 18;
       by = 90 + std::sin(stageTick * .012f) * 40;
-      if (stageTick % unsigned(hp < maximum / 2 ? 45 : 80) == 0) {
+      if (stageTick % unsigned(hazardInterval(hp < maximum / 2 ? 45 : 80)) == 0) {
         float a = std::atan2(y - by, x - bx);
         for (int k = -1; k <= 1; ++k)
           projectile(hostile, bx, by, std::cos(a + k * .22f) * 1.8f, std::sin(a + k * .22f) * 1.8f);

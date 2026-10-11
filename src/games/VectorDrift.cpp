@@ -19,8 +19,8 @@ class VectorDrift final : public CampaignGame {
       r->y = yy;
       r->size = size;
       float a = rng.range(0, 628) * 0.01f;
-      r->vx = std::cos(a) * (0.45f + level * .04f);
-      r->vy = std::sin(a) * .65f;
+      r->vx = std::cos(a) * hazardSpeed(0.45f + level * .04f);
+      r->vy = std::sin(a) * hazardSpeed(.65f);
     }
   }
   void setupStage() override {
@@ -101,7 +101,7 @@ class VectorDrift final : public CampaignGame {
       }
     if (hp) {
       bx = 88 + std::sin(stageTick * .015f) * 55;
-      if (stageTick % 60 == 0)
+      if (stageTick % unsigned(hazardInterval(60)) == 0)
         for (int i = -1; i <= 1; ++i)
           projectile(hostile, bx, 65, clamp((x - bx) / 65, -1.4f, 1.4f) + i * .5f, 1.8f);
       for (auto &p : shots.items)

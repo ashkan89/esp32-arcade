@@ -48,8 +48,7 @@ class MemoryMatch final : public TickGame {
         wait = cards[first] == cards[second] ? 20 : 60;
       }
     }
-    if (tick - started >
-        uint32_t(std::max(30, 150 - int(level) * 5 - options.difficulty * 10)) * 60) {
+    if (tick - started > uint32_t(std::max(30, 150 - int(level) * 5 - challenge() * 10)) * 60) {
       loseLife();
       if (!ended)
         board();

@@ -23,7 +23,7 @@ class LunarLander final : public TickGame {
       return;
     }
     vx += (int(input.down(Right)) - int(input.down(Left))) * 0.014f;
-    vy += 0.013f + options.difficulty * 0.002f;
+    vy += 0.013f + challenge() * 0.002f;
     if (input.down(Fire) && fuel > 0) {
       vy -= 0.031f;
       fuel = std::max(0.0f, fuel - 0.18f);

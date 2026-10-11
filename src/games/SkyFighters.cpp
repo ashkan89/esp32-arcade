@@ -2,7 +2,7 @@
 namespace arcade {
 void SkyFighters::updateEnemies() {
   if (!bossStage && spawned < 24 && --spawnTimer <= 0) {
-    spawnTimer = 95;
+    spawnTimer = hazardInterval(95);
     spawnSky();
   }
   for (auto &e : enemies.items)
@@ -20,9 +20,9 @@ void SkyFighters::updateEnemies() {
         if (e.x < 5 || e.x > W - 19)
           e.vx = -e.vx;
       }
-      if (e.age % uint32_t(std::max(55, 130 - int(level) * 4)) == 0 && e.y > Top)
+      if (e.age % uint32_t(std::max(40, 130 - int(level) * 4 - challenge() * 6)) == 0 && e.y > Top)
         enemyFire(e.x + 7, e.y + 10, clamp((px - e.x) / 120, -0.8f, 0.8f),
-                  2.0f + options.difficulty * 0.4f);
+                  2.0f + challenge() * 0.4f);
       if (e.y > H)
         e.active = false;
     }

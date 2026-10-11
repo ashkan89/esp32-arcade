@@ -39,7 +39,7 @@ void TurboDodge::update() {
     lane = std::min(2, lane + 1);
   float target = 29 + lane * 52;
   carX += clamp(target - carX, -6.0f, 6.0f);
-  float speed = 1.2f + std::min(2.0f, level * 0.10f) + options.difficulty * 0.15f;
+  float speed = 1.2f + std::min(2.0f, level * 0.10f) + challenge() * 0.15f;
   // Rows have at least 86 pixels of separation: enough warning and travel time for two lanes.
   if (--spawn <= 0) {
     spawn = int(96 / speed);
@@ -57,7 +57,7 @@ void TurboDodge::update() {
         sound(Sound::Power);
       } else if (invincible == 0) {
         health--;
-        invincible = 90;
+        invincible = hazardInterval(90);
         sound(Sound::Explosion);
         if (health <= 0) {
           ended = true;
@@ -118,7 +118,7 @@ GameEntry describeTurboDodge() {
       {"TURBO DODGE",
        "FIND THE OPEN LANE",
        {"L/R CHANGE LANES", "WATCH THE SAFE LANE", "GOLD COINS GIVE 50", "EACH ROW HAS SAFE LANE",
-        "THREE LIVES TO SURVIVE", "SPEED RISES EVERY 10S"},
+        "LIVES DEPEND ON MODE", "SPEED RISES EVERY 10S"},
        Yellow,
        6,
        Fire});

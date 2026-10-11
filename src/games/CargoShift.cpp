@@ -47,7 +47,7 @@ class CargoShift final : public TickGame {
 #ifdef ARCADE_HOST_TESTS
       solutionWalk[solutionSteps++] = int8_t(-d);
 #endif
-      if (pulls >= 8 + int(level) * 2)
+      if (pulls >= 8 + int(level) * 2 + challenge() * 3)
         break;
     }
     bool solved = true;
@@ -134,10 +134,10 @@ class CargoShift final : public TickGame {
     int beyond = target + (target - player);
     if (board[target] == 2 && (beyond < 0 || beyond >= 80 || board[beyond]))
       return;
-    if (count == 32) {
-      for (int i = 1; i < 32; i++)
+    if (count == 32 - challenge() * 4) {
+      for (int i = 1; i < 32 - challenge() * 4; i++)
         history[i - 1] = history[i];
-      count = 31;
+      count = 31 - challenge() * 4;
     }
     history[count++] = {board, player, moves};
     if (board[target] == 2) {
@@ -192,7 +192,7 @@ GameEntry describeCargoShift() {
       {"CARGO SHIFT",
        "PUSH CRATES ONTO TARGETS",
        {"D-PAD MOVES THE WORKER", "PUSH ONE CRATE AT A TIME", "GREEN CIRCLES ARE TARGETS",
-        "B UNDOES LAST 32 MOVES", "A RESETS THIS PUZZLE", "FEWER MOVES SCORE HIGHER"},
+        "B UNDOES RECENT MOVES", "A RESETS THIS PUZZLE", "FEWER MOVES SCORE HIGHER"},
        Orange,
        23,
        Special | Fire});
@@ -203,27 +203,29 @@ GameEntry describeCargoShift() {
 namespace arcade {
 bool verifyCargoShift() {
   CargoShift g;
-  for (unsigned seed = 1; seed <= 30; ++seed)
-    for (int stage = 4; stage <= 12; ++stage) {
-      GameOptions o;
-      o.seed = seed;
-      g.start(o);
-      g.level = uint16_t(stage);
-      g.puzzle();
-      auto original = g.board;
-      int originalPlayer = g.player;
-      auto witness = g.solutionWalk;
-      int steps = g.solutionSteps;
-      g.puzzle();
-      HOST_CHECK(g.board == original && g.player == originalPlayer);
-      for (int i = steps - 1; i >= 0 && !g.gameOver() && g.stage() == stage; --i) {
-        int d = witness[i];
-        uint16_t b = d == -1 ? Left : d == 1 ? Right : d == -8 ? Up : Down;
-        g.handle({b, b});
-        g.update();
+  for (unsigned difficulty = 0; difficulty < DifficultyCount; ++difficulty)
+    for (unsigned seed = 1; seed <= 30; ++seed)
+      for (int stage = 4; stage <= 12; ++stage) {
+        GameOptions o;
+        o.seed = seed;
+        o.difficulty = uint8_t(difficulty);
+        g.start(o);
+        g.level = uint16_t(stage);
+        g.puzzle();
+        auto original = g.board;
+        int originalPlayer = g.player;
+        auto witness = g.solutionWalk;
+        int steps = g.solutionSteps;
+        g.puzzle();
+        HOST_CHECK(g.board == original && g.player == originalPlayer);
+        for (int i = steps - 1; i >= 0 && !g.gameOver() && g.stage() == stage; --i) {
+          int d = witness[i];
+          uint16_t b = d == -1 ? Left : d == 1 ? Right : d == -8 ? Up : Down;
+          g.handle({b, b});
+          g.update();
+        }
+        HOST_CHECK(g.campaignComplete() || g.stage() == stage + 1);
       }
-      HOST_CHECK(g.campaignComplete() || g.stage() == stage + 1);
-    }
   return true;
 }
 } // namespace arcade

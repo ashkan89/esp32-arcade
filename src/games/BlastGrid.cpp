@@ -60,7 +60,7 @@ class BlastGrid final : public TickGame {
       bomb = -1;
       sound(Sound::Explosion);
     }
-    if (tick % uint32_t(std::max(10, 28 - int(level) - options.difficulty * 4)) == 0)
+    if (tick % uint32_t(std::max(10, 28 - int(level) - challenge() * 4)) == 0)
       for (auto &bot : bots)
         if (bot >= 0) {
           int d = std::array<int, 4>{{-1, 1, -9, 9}}[rng.range(0, 4)], q = bot + d;

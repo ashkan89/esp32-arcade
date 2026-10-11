@@ -59,7 +59,7 @@ class DotChase final : public CampaignGame {
         add(10);
       }
     }
-    if (stageTick % unsigned(std::max(8, 20 - int(level) / 2 - options.difficulty * 2)) == 0) {
+    if (stageTick % unsigned(std::max(8, 20 - int(level) / 2 - challenge() * 2)) == 0) {
       for (int i = 0; i < 4; ++i) {
         int best = ghosts[i], distance = power ? -1 : 9999;
         const int ds[] = {-1, 1, -13, 13};

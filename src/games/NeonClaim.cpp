@@ -20,9 +20,9 @@ class NeonClaim final : public CampaignGame {
     drawing = false;
     ex = 8;
     ey = 9;
-    vx = .06f + level * .003f;
-    vy = .05f + level * .003f;
-    timer = 60 * 120;
+    vx = hazardSpeed(.06f + level * .003f);
+    vy = hazardSpeed(.05f + level * .003f);
+    timer = hazardInterval(60 * 120);
   }
   void abandon() {
     for (auto &v : cells)
@@ -73,7 +73,7 @@ class NeonClaim final : public CampaignGame {
   }
   void play() override {
     if (--timer <= 0) {
-      timer = 60 * 120;
+      timer = hazardInterval(60 * 120);
       abandon();
       return;
     }

@@ -101,7 +101,7 @@ void SnakeRush::update() {
   if (paused || ended)
     return;
   tick++;
-  int interval = std::max(5, 18 - int(level) - options.difficulty * 2);
+  int interval = std::max(5, 18 - int(level) - challenge() * 2);
   if (++moveTicks >= interval) {
     moveTicks = 0;
     step();

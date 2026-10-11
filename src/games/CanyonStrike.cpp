@@ -48,7 +48,7 @@ class CanyonStrike final : public CampaignGame {
         clearStage();
       sound(Sound::Power);
     }
-    if (!bossRound() && spawned < 24 && stageTick % 45 == 0)
+    if (!bossRound() && spawned < 24 && stageTick % unsigned(hazardInterval(45)) == 0)
       if (auto *e = planes.acquire()) {
         e->x = 20 + spawned % 4 * 43;
         e->y = 35;
@@ -62,7 +62,7 @@ class CanyonStrike final : public CampaignGame {
         e.y += .75f + level * .06f;
         if (e.x < 8 || e.x > 168)
           e.vx = -e.vx;
-        if (stageTick % 90 == 0)
+        if (stageTick % unsigned(hazardInterval(90)) == 0)
           projectile(hostile, e.x, e.y, clamp((x - e.x) / 90, -1.f, 1.f), 1.9f);
         if (near(x, y, e.x, e.y, 12))
           hit();
@@ -71,9 +71,9 @@ class CanyonStrike final : public CampaignGame {
       }
     if (hp) {
       bx = 88 + std::sin(stageTick * .02f) * 50;
-      if (stageTick % unsigned(hp < maximum / 2 ? 35 : 60) == 0)
+      if (stageTick % unsigned(hazardInterval(hp < maximum / 2 ? 35 : 60)) == 0)
         for (int i = -2; i <= 2; ++i)
-          projectile(hostile, bx + i * 13, 65, i * .35f, 2 + options.difficulty * .2f);
+          projectile(hostile, bx + i * 13, 65, i * .35f, 2 + challenge() * .2f);
     }
     moveProjectiles(shots);
     moveProjectiles(hostile);

@@ -81,7 +81,7 @@ class TankArena final : public TickGame {
           loseLife();
           grace = 90;
         }
-        if (tick % unsigned(level % 4 == 0 ? 45 : 120) == 0)
+        if (tick % unsigned(hazardInterval(level % 4 == 0 ? 45 : 120)) == 0)
           shoot(e.x + 6, e.y + 6,
                 std::abs(x - e.x) > std::abs(y - e.y) ? (x > e.x ? 1 : 3) : (y > e.y ? 2 : 0),
                 true);

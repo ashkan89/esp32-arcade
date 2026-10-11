@@ -43,7 +43,7 @@ class BugBlaster final : public CampaignGame {
     moveProjectiles(shots);
     for (auto &s : bugs.items)
       if (s.active) {
-        float nx = s.x + s.dir * (.5f + level * .07f + options.difficulty * .12f);
+        float nx = s.x + s.dir * (.5f + level * .07f + challenge() * .12f);
         int cell = clamp((int(s.y) - 35) / 15, 0, 11) * 10 + clamp(int(nx) / 18, 0, 9);
         if (nx < 5 || nx > 171 || mushrooms[cell]) {
           s.dir = -s.dir;

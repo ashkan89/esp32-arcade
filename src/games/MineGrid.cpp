@@ -17,7 +17,7 @@ class MineGrid final : public TickGame {
     cursor = 40;
   }
   void plant(int first) {
-    int count = 10 + options.difficulty * 3 + std::min(8, int(level));
+    int count = 10 + challenge() * 3 + std::min(8, int(level));
     int placed = 0;
     while (placed < count) {
       int p = rng.range(0, 81);
@@ -122,6 +122,21 @@ GameEntry describeMineGrid() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyMineGrid() {
   MineGrid g;
+  int previous = 0;
+  for (uint8_t mode = 0; mode < DifficultyCount; ++mode) {
+    GameOptions o;
+    o.difficulty = mode;
+    g.start(o);
+    g.plant(40);
+    int count = 0;
+    for (int p = 0; p < 81; ++p) {
+      count += g.mines[p];
+      if (std::abs(p % 9 - 4) <= 1 && std::abs(p / 9 - 4) <= 1)
+        HOST_CHECK(!g.mines[p]);
+    }
+    HOST_CHECK(count > previous && g.remaining == 81 - count);
+    previous = count;
+  }
   g.start({});
   g.level = 12;
   g.planted = true;

@@ -47,7 +47,7 @@ class PinballNova final : public CampaignGame {
     // Four substeps prevent the ball tunneling through flippers or bumpers.
     for (int step = 0; step < 4; ++step) {
       float oldY = y;
-      vy = clamp(vy + .025f, -5.5f, 5.5f);
+      vy = clamp(vy + hazardSpeed(.025f), -5.5f, 5.5f);
       x += vx / 4;
       y += vy / 4;
       if (x < 8) {

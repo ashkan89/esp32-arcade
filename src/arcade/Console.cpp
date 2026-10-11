@@ -229,7 +229,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
         settings.sound ^= 1;
         break;
       case 1:
-        settings.difficulty = (settings.difficulty + 1) % 3;
+        settings.difficulty = (settings.difficulty + 1) % DifficultyCount;
         break;
       case 2:
         settings.effects ^= 1;
@@ -327,7 +327,9 @@ void Console::render(Canvas &c) const {
     header(c, i.title, i.accent);
     icon(c, selection, 12, 32);
     c.text(46, 36, "HOW TO PLAY", i.accent);
-    c.text(46, 47, "12 STAGE CAMPAIGN", visual::Muted);
+    char mode[28];
+    std::snprintf(mode, sizeof(mode), "%s / 12 STAGES", difficultyName(settings.difficulty));
+    c.text(46, 47, mode, visual::Muted);
     visual::card(c, 4, 62, 168, 122, i.accent, false);
     for (int row = 0; row < 6; row++) {
       c.rect(10, 71 + row * 18, 2, 7, i.accent);
@@ -426,10 +428,7 @@ void Console::render(Canvas &c) const {
     header(c, "SETTINGS");
     char rows[9][28];
     std::snprintf(rows[0], 28, "SOUND: %s", settings.sound ? "ON" : "OFF");
-    std::snprintf(rows[1], 28, "DIFFICULTY: %s",
-                  settings.difficulty == 0   ? "EASY"
-                  : settings.difficulty == 1 ? "NORMAL"
-                                             : "HARD");
+    std::snprintf(rows[1], 28, "DIFFICULTY: %s", difficultyName(settings.difficulty));
     std::snprintf(rows[2], 28, "EFFECTS: %s", settings.effects ? "ON" : "REDUCED");
     std::snprintf(rows[3], 28, "SNAKE BOARD: %u", unsigned(settings.layout) + 1);
     std::snprintf(rows[4], 28, "ATTRACT: %s", settings.attract ? "ON" : "OFF");

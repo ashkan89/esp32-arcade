@@ -57,7 +57,7 @@ class MazeRunner final : public TickGame {
       add(10);
       sound(Sound::Move);
     }
-    if (tick % uint32_t(std::max(8, 25 - int(level) - options.difficulty * 3)) == 0) {
+    if (tick % uint32_t(std::max(8, 25 - int(level) - challenge() * 3)) == 0) {
       // BFS distances give pursuers a route through the generated corridors.
       std::array<int, 323> distance{}, queue{};
       distance.fill(-1);
@@ -130,7 +130,7 @@ GameEntry describeMazeRunner() {
       {"MAZE RUNNER",
        "OUTRUN THE RED HUNTERS",
        {"D-PAD MOVES IN CORRIDORS", "COLLECT EVERY GOLD DOT", "HUNTERS FOLLOW THE MAZE",
-        "NEW MAZE AFTER EACH CLEAR", "RESPAWN GIVES BRIEF GRACE", "THREE CATCHES END RUN"},
+        "NEW MAZE AFTER EACH CLEAR", "RESPAWN GIVES BRIEF GRACE", "LIVES DEPEND ON MODE"},
        Green,
        11,
        Left | Right | Up | Down});

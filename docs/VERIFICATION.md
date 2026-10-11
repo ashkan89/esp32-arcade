@@ -12,8 +12,8 @@ Both complete-feature `release` and `debug` firmware builds pass. The applicatio
 The debug build adds runtime profiling output. TFT_eSPI emits its expected no-touch-CS warning;
 this hardware has button input and no touch controller.
 
-Host tests pass more than **1.6 million assertions**, including **1,500,000 simulation ticks** across
-50 games at all three difficulties and thousands of game-over/restart cycles. Tests cover collision geometry,
+Host coverage includes **2,000,000 simulation ticks** across 50 games at all four difficulties
+and thousands of game-over/restart cycles. Tests cover collision geometry,
 fixed-step timing, rollover, input suppression/repeats, CRC corruption at every saved byte,
 settings/score migration, favorites, menu/pause lifecycle, shooter weapons/boss/rock splitting,
 brick collisions, snake movement/food placement, safe road rows, flap edge behavior, grid merging,
@@ -23,7 +23,10 @@ The graphical refresh also checks that reduced effects freeze menu decoration, e
 effects animate without changing selection, and procedural artwork respects RGB332 guard bytes.
 Focused checks cover all fifty campaign terminal states, twelve-stage lifecycle/pause behavior
 for the new games, actual boss damage and objective rules, consumable recovery, armor/guard
-behavior and 270 generated warehouse solution replays (30 seeds × nine later stages).
+behavior and 1,080 generated warehouse solution replays (four difficulties × 30 seeds × nine later stages).
+Difficulty regression checks cover all four saved modes, settings cycling and wraparound,
+Nightmare run initialization, increasing shooter/road pressure, faster snake movement,
+decreasing invulnerability windows, mine density with first-open safety, and puzzle move budgets.
 These use controlled states to test rules; they are not fifty human playthroughs or a claim
 that all difficulty settings have been tuned on physical hardware.
 Host compilation uses real pure C++ modules, not Arduino mocks. Logs are retained in

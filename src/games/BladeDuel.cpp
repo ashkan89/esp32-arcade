@@ -13,7 +13,7 @@ class BladeDuel final : public CampaignGame {
     stamina = 100;
     enemyHP = maximum = bossRound() ? 18 : 6 + level;
     attack = enemyAttack = windup = cool = 0;
-    roundTime = 60 * 90;
+    roundTime = hazardInterval(60 * 90);
   }
   void play() override {
     bool guard = input.down(Special);
@@ -44,8 +44,8 @@ class BladeDuel final : public CampaignGame {
     }
     if (!windup && !enemyAttack) {
       enemyX = clamp(enemyX + clamp(x + 29 - enemyX, -.6f, .6f), x + 14, 168.f);
-      if (stageTick % unsigned(std::max(40, 110 - int(level) * 4)) == 0)
-        windup = bossRound() ? 18 : 30;
+      if (stageTick % unsigned(std::max(28, 110 - int(level) * 4 - challenge() * 6)) == 0)
+        windup = hazardInterval(bossRound() ? 18 : 30);
     }
     if (windup && --windup == 0) {
       enemyAttack = 12;
@@ -64,7 +64,7 @@ class BladeDuel final : public CampaignGame {
     if (--roundTime <= 0) {
       grace = 0;
       hit();
-      roundTime = 60 * 90;
+      roundTime = hazardInterval(60 * 90);
     }
     if (enemyHP <= 0)
       clearStage();

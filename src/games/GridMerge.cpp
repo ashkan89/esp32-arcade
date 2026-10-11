@@ -21,7 +21,7 @@ class GridMerge final : public TickGame {
       if (!cells[i])
         empty[n++] = i;
     if (n)
-      cells[empty[rng.range(0, n)]] = rng.range(0, 10) ? 1 : 2;
+      cells[empty[rng.range(0, n)]] = rng.range(0, 20) >= challenge() + 2 ? 1 : 2;
   }
   bool possible() const {
     for (int y = 0; y < 4; y++)

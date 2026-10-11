@@ -92,7 +92,7 @@ class BubbleQuest final : public CampaignGame {
             e.y = 194;
           }
         } else {
-          e.x += e.dir * (.45f + level * .035f);
+          e.x += e.dir * hazardSpeed(.45f + level * .035f);
           if (e.x < 8 || e.x > 168) {
             e.dir = -e.dir;
             e.x = clamp(e.x, 8.f, 168.f);
@@ -100,7 +100,7 @@ class BubbleQuest final : public CampaignGame {
           for (auto &p : bubbles.items)
             if (p.active && near(p.x, p.y, e.x, e.y, 9)) {
               p.active = false;
-              e.trap = 300;
+              e.trap = hazardInterval(300);
               break;
             }
           if (!e.trap && near(x, y, e.x, e.y, 11)) {

@@ -104,7 +104,7 @@ class BurgerWorks final : public CampaignGame {
           --e.stun;
           continue;
         }
-        if (stageTick % unsigned(std::max(2, 6 - int(level) / 4)) == 0)
+        if (stageTick % unsigned(std::max(2, 6 - int(level) / 4 - challenge() / 2)) == 0)
           e.x += x > e.x ? 1 : -1;
         if (stageTick % 60 == 0 && e.floor != floor && (e.x < 20 || e.x > 150))
           e.floor += floor > e.floor ? 1 : -1;

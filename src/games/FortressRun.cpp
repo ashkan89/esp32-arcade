@@ -74,14 +74,14 @@ class FortressRun final : public CampaignGame {
           e.x = ex;
         if (!cover(e.x, ey))
           e.y = ey;
-        if (stageTick % unsigned(std::max(45, 120 - int(level) * 4)) == 0) {
+        if (stageTick % unsigned(std::max(30, 120 - int(level) * 4 - challenge() * 6)) == 0) {
           float a = std::atan2(y - e.y, x - e.x);
           projectile(hostile, e.x, e.y, std::cos(a) * 1.8f, std::sin(a) * 1.8f);
         }
         if (near(e.x, e.y, x, y, 10))
           hit();
       }
-    if (hp && stageTick % 70 == 0)
+    if (hp && stageTick % unsigned(hazardInterval(70)) == 0)
       for (int i = -2; i <= 2; ++i)
         projectile(hostile, 88, 63, i * .5f, 2);
     moveProjectiles(shots);

@@ -60,7 +60,7 @@ public:
     slabs[0] = {42, 92};
     moving = 0;
     direction = 1;
-    speed = 1.4f + o.difficulty * 0.2f;
+    speed = 1.4f + challenge() * 0.2f;
     health = 1;
   }
   size_t activeEntities() const override {

@@ -58,7 +58,7 @@ class BarrelClimb final : public CampaignGame {
         burst(144, 45);
       }
     }
-    if (stageTick % unsigned(std::max(30, 100 - int(level) * 5)) == 0)
+    if (stageTick % unsigned(std::max(24, 100 - int(level) * 5 - challenge() * 4)) == 0)
       if (auto *b = barrels.acquire()) {
         b->x = 155;
         b->floor = 4;

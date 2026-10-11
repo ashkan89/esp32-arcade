@@ -79,8 +79,8 @@ void Input::suppress() {
     k.blocked = k.stable || k.raw;
 }
 bool Settings::valid() const {
-  return difficulty <= 2 && sound <= 1 && effects <= 1 && lastGame < 64 && invert <= 1 &&
-         layout < 3 && attract <= 1 && (fps == 30 || fps == 60);
+  return difficulty < DifficultyCount && sound <= 1 && effects <= 1 && lastGame < 64 &&
+         invert <= 1 && layout < 3 && attract <= 1 && (fps == 30 || fps == 60);
 }
 bool Settings::record(unsigned g, uint32_t s) {
   if (g >= best.size())

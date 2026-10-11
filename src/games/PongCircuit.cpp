@@ -9,13 +9,12 @@ class PongCircuit final : public TickGame {
   void serve() {
     x = 88;
     y = 110;
-    vx = (serves++ % 2 ? 1 : -1) * (2.0f + std::min(1.5f, level * 0.1f));
+    vx = (serves++ % 2 ? 1 : -1) * hazardSpeed(2.0f + std::min(1.5f, level * 0.1f));
     vy = rng.range(-15, 16) * 0.1f;
   }
   void simulate() override {
     player = clamp(player + (int(input.down(Down)) - int(input.down(Up))) * 3.2f, 24.0f, 178.0f);
-    ai = clamp(ai + clamp(y - (ai + 18), -1.3f - options.difficulty * 0.3f,
-                          1.3f + options.difficulty * 0.3f),
+    ai = clamp(ai + clamp(y - (ai + 18), -1.3f - challenge() * 0.3f, 1.3f + challenge() * 0.3f),
                24.0f, 178.0f);
     float old = x;
     x += vx;
@@ -71,7 +70,7 @@ GameEntry describePongCircuit() {
       {"PONG CIRCUIT",
        "OUTPLAY THE RIVAL",
        {"UP/DOWN MOVE PADDLE", "EDGE HITS CHANGE ANGLE", "SCORE 100 PER GOAL",
-        "FIVE GOALS RAISE SPEED", "THREE MISSES END RUN", "MENU PAUSES THE MATCH"},
+        "FIVE GOALS RAISE SPEED", "LIVES DEPEND ON MODE", "MENU PAUSES THE MATCH"},
        Cyan,
        8,
        Up | Down});

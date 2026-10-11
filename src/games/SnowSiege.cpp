@@ -64,7 +64,7 @@ class SnowSiege final : public CampaignGame {
     for (auto &e : foes.items)
       if (e.active) {
         if (e.snow < 3) {
-          e.x += e.dir * (.5f + level * .04f);
+          e.x += e.dir * hazardSpeed(.5f + level * .04f);
           if (e.x < 8 || e.x > 168)
             e.dir = -e.dir;
           for (auto &p : shots.items)
@@ -74,7 +74,7 @@ class SnowSiege final : public CampaignGame {
               sound(Sound::Hit);
               break;
             }
-          if (stageTick % 240 == 0 && e.snow)
+          if (stageTick % unsigned(hazardInterval(240)) == 0 && e.snow)
             e.snow--;
           if (near(x, y, e.x, e.y, 12))
             hit();

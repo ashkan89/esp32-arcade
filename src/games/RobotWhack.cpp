@@ -19,11 +19,11 @@ class RobotWhack final : public TickGame {
   void simulate() override {
     cursor = gridMove(input, cursor, 3, 3);
     if (--spawn <= 0) {
-      spawn = std::max(18, 55 - int(level) * 2);
+      spawn = std::max(18, 55 - int(level) * 2 - challenge() * 2);
       int p = rng.range(0, 9);
       if (life[p] == 0 &&
           (!bossHP || std::all_of(life.begin(), life.end(), [](int v) { return v == 0; }))) {
-        life[p] = std::max(35, 95 - int(level) * 2 - options.difficulty * 8);
+        life[p] = std::max(35, 95 - int(level) * 2 - challenge() * 8);
         decoy[p] = bossHP ? false : rng.range(0, 5) == 0;
       }
     }

@@ -23,8 +23,8 @@ void FlapEscape::update() {
     return;
   vy = std::min(3.2f, vy + 0.085f);
   y += vy;
-  float speed = 1.0f + std::min(0.6f, level * 0.04f) + options.difficulty * 0.08f;
-  int gap = 78 - options.difficulty * 4 - std::min(10, int(level));
+  float speed = 1.0f + std::min(0.6f, level * 0.04f) + challenge() * 0.08f;
+  int gap = 78 - challenge() * 4 - std::min(10, int(level));
   if (--spawn <= 0) {
     spawn = int(104 / speed);
     if (auto *g = gates.acquire()) {
@@ -58,7 +58,7 @@ void FlapEscape::update() {
   }
 }
 void FlapEscape::render(Canvas &c) const {
-  int gap = 78 - options.difficulty * 4 - std::min(10, int(level));
+  int gap = 78 - challenge() * 4 - std::min(10, int(level));
   for (auto &g : gates.items)
     if (g.active) {
       c.rect(int(g.x), Top, 20, g.gapY - Top, Green);

@@ -35,7 +35,7 @@ class NightRacer final : public CampaignGame {
     distance += speed * .035f;
     if (collision)
       --collision;
-    if (stageTick % unsigned(std::max(45, 130 - int(level) * 5)) == 0)
+    if (stageTick % unsigned(std::max(34, 130 - int(level) * 5 - challenge() * 6)) == 0)
       if (auto *e = cars.acquire()) {
         e->lane = rng.range(-7, 8) * .1f;
         e->depth = .05f;

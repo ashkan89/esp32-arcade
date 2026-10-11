@@ -50,7 +50,7 @@ class SkyJoust final : public CampaignGame {
       if (e.active) {
         e.x += clamp(x - e.x, -.7f, .7f);
         e.vy = clamp(e.vy + .06f, -2.8f, 2.8f);
-        if (e.y > 175 || stageTick % unsigned(75 + int(e.x) % 30) == 0)
+        if (e.y > 175 || stageTick % unsigned(hazardInterval(75 + int(e.x) % 30)) == 0)
           e.vy = -2.2f - level * .035f;
         e.y = clamp(e.y + e.vy, 38.f, 202.f);
         if (near(x, y, e.x, e.y, 13)) {

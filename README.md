@@ -50,6 +50,11 @@ wrong memory hardware stops startup and rejects a pending OTA boot.
 | Back | System menu / back | Pause menu with exit option |
 
 Each game has its own controls screen. Scores and favorites save when outside gameplay.
+Choose **Easy, Medium, Hard, or Nightmare** in **Menu → Settings → Difficulty**.
+Medium is the previous Normal setting. All tiers now apply more pressure; Nightmare adds
+faster hazards, shorter attack/recovery windows and fewer lives where the game uses lives.
+Puzzles instead tighten mine density, move/undo budgets, board generation or deadlines.
+Difficulty takes effect when starting or restarting a run; existing scores and favorites remain saved.
 Attract mode starts after 20 seconds idle and never records scores.
 The last-run history holds up to 40 sampled frames (one every 250 ms), using banked PSRAM.
 It is a visual history, not a replay of game inputs.

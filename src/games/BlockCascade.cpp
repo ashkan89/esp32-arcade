@@ -96,7 +96,7 @@ class BlockCascade final : public TickGame {
       lock();
       return;
     }
-    if (++fall >= std::max(3, 38 - int(level) * 2 - options.difficulty * 4) || input.nav(Down)) {
+    if (++fall >= std::max(3, 38 - int(level) * 2 - challenge() * 4) || input.nav(Down)) {
       fall = 0;
       if (fits(px, py + 1, rotation))
         py++;

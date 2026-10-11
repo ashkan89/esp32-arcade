@@ -69,7 +69,7 @@ class CityShield final : public CampaignGame {
           p.y += dy / d * 4;
         }
       }
-    int interval = std::max(18, 65 - int(level) * 3 - options.difficulty * 5);
+    int interval = std::max(18, 65 - int(level) * 3 - challenge() * 5);
     if (stageTick % unsigned(interval) == 0 && (hp || spawned < quota())) {
       float xx = hp ? bx : float(rng.range(5, 171));
       int target = rng.range(0, 6);

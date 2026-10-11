@@ -51,7 +51,7 @@ class IronFront final : public CampaignGame {
       projectile(grenades, x, y - 8, facing * 1.8f, -2.7f);
       sound(Sound::Power);
     }
-    if (!bossRound() && spawned < 16 && stageTick % 75 == 0)
+    if (!bossRound() && spawned < 16 && stageTick % unsigned(hazardInterval(75)) == 0)
       if (auto *e = foes.acquire()) {
         e->x = 170;
         e->y = 188;
@@ -61,7 +61,7 @@ class IronFront final : public CampaignGame {
     for (auto &e : foes.items)
       if (e.active) {
         e.x -= .35f + level * .015f;
-        if (stageTick % 100 == 0)
+        if (stageTick % unsigned(hazardInterval(100)) == 0)
           projectile(hostile, e.x, e.y - 5, -2, 0);
         if (e.x < 2) {
           e.active = false;
@@ -70,7 +70,7 @@ class IronFront final : public CampaignGame {
         if (near(x, y, e.x, e.y, 12))
           hit();
       }
-    if (hp && stageTick % unsigned(hp < maximum / 2 ? 35 : 65) == 0) {
+    if (hp && stageTick % unsigned(hazardInterval(hp < maximum / 2 ? 35 : 65)) == 0) {
       projectile(hostile, 140, 173, -2.3f, 0);
       if (stageTick % 130 == 0)
         projectile(hostile, 140, 173, -1.3f, -1.2f);
