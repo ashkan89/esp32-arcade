@@ -95,6 +95,13 @@ public:
     ended = true;
   }
   virtual size_t activeEntities() const = 0;
+  // Zero denotes an ongoing score attack rather than a finite campaign.
+  virtual uint16_t stageLimit() const {
+    return 12;
+  }
+  virtual bool ownsHud() const {
+    return false;
+  }
   uint32_t score() const {
     return points;
   }

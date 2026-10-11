@@ -38,7 +38,7 @@ No display/audio worker tasks or BLE services exist.
    resources. Start must reset every state field and call `baseStart(options)`.
 2. Export `GameEntry describeMyGame()` returning `gameEntry<MyGame>({...})` with title, description,
    six short instruction lines (at most 27 characters), accent, icon ID, and required-button mask.
-3. Append `ARCADE_GAME(MyId, MyGame, 50)` to `include/games/Catalog.def`. Use the next unused ID.
+3. Append `ARCADE_GAME(MyId, MyGame, 52)` to `include/games/Catalog.def`. Use the next unused ID.
    Never reorder/renumber released IDs; scores/favorites use stable numeric slots. Current save
    capacity is 64 slots. The launcher/page count and both build environments update automatically.
 4. Add meaningful rule tests and run `python scripts/verify.py`. Raise the arena size deliberately
@@ -55,6 +55,11 @@ complete their normal objectives instead of an unrelated boss minigame.
 `campaignComplete()` distinguishes victory from failure; score-based games use `progressTo()`.
 Callers must stop immediately on `ended`, avoiding board generation after victory.
 Host-only named friend checks exercise private rules and compile out of firmware.
+Keystone Kapers and River Raid instead derive from `TickGame`, expose `stageLimit() == 0`
+and `ownsHud() == true`, and implement continued score play directly. The console
+preserves their full-frame HUDs; their fixed four starting lives override campaign tuning.
+The new IDs are 50 and 51. River Raid maintains two small player records for alternating
+play, restoring a player's checkpoint seed rather than retaining whole inactive simulations.
 Cargo Shift constructs later warehouses by reversing legal pushes from solved boards;
 host tests replay those constructive solution witnesses. Reset recreates the same warehouse.
 

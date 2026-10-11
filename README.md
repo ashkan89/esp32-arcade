@@ -1,6 +1,6 @@
 # Game Arcade — ESP32-WROVER N16R8
 
-50 native arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
+52 native arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
 favorites, saved scores, difficulty settings, pause/restart menus, and a PSRAM-backed frame history.
 Wi-Fi setup runs on demand; firmware updates come from
 [ashkan89/esp32-arcade releases](https://github.com/ashkan89/esp32-arcade/releases).
@@ -81,11 +81,20 @@ Canyon Strike, Solar Lance, Fortress Run, Ghoul Castle, Iron Front, Blade Duel,
 Elevator Heist, Alpine Rush, Wild Rails, Crystal Courier, Night Racer, Pinball Nova,
 and Rescue Wing. Each lives in its own source file with its own game rules.
 
-All 50 games have twelve stages and a **Campaign Complete** ending with a score bonus.
+The original 50 games have twelve stages and a **Campaign Complete** ending with a score bonus.
 Combat games include bosses; puzzle, territory and racing campaigns finish their own
 objectives. Read the [complete game guide](docs/GAMES.md) for stage objectives and boss
 schedules, and [web research](docs/GAME_REFERENCES.md) for the 25 classic inspirations.
 The additions use original code and procedural artwork, with their own titles and rules.
+
+**Keystone Kapers** and **River Raid** are now available as separate native recreations
+in slots 50 and 51. They use Atari-style pixel graphics and their own HUDs, and continue
+as score attacks beyond twelve rounds. Keystone includes the mall, lift, upward escalators,
+security map and timed chase. River Raid includes fuel, ships, helicopters, jets, bridges,
+checkpoint retries and 48 difficulty states. These are reconstructed ports, with known
+differences from the cartridges; see [research, controls and fidelity limits](docs/ATARI_RESEARCH.md).
+
+![Native Atari game previews](artifacts/atari-preview.png)
 
 ## Wi-Fi and firmware updates
 

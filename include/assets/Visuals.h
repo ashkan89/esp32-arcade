@@ -1,5 +1,6 @@
 #pragma once
 #include "arcade/Canvas.h"
+#include "assets/AtariPixels.h"
 namespace arcade {
 namespace visual {
 constexpr uint16_t Ink = 0x0844, Panel = 0x10a7, Edge = 0x21cc, Muted = 0x9d36;
@@ -140,6 +141,20 @@ inline int motif(int id) {
 }
 inline void thumbnail(Canvas &c, int id, int x, int y, uint16_t color, uint32_t frame) {
   c.rect(x, y, 26, 22, 0x0002);
+  if (id == 50) {
+    c.rect(x, y, 26, 22, atari::Grass);
+    c.rect(x + 11, y, 6, 20, atari::Concrete);
+    c.rect(x + 11, y + 8, 6, 11, atari::DarkGrass);
+    c.rect(x, y + 20, 26, 2, atari::Gold);
+    atari::person(c, x + 6, y + 20, true, false, false, frame / 8);
+    return;
+  }
+  if (id == 51) {
+    c.rect(x, y, 26, 22, atari::RiverGrass);
+    c.rect(x + 6, y, 14, 22, atari::RiverWater);
+    atari::jet(c, x + 13, y + 13);
+    return;
+  }
   c.pixel(x + 3, y + 3, Muted);
   c.pixel(x + 22, y + 17, Edge);
   switch (motif(id)) {

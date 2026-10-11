@@ -328,8 +328,13 @@ void Console::render(Canvas &c) const {
     icon(c, selection, 12, 32);
     c.text(46, 36, "HOW TO PLAY", i.accent);
     char mode[28];
-    std::snprintf(mode, sizeof(mode), "%s / 12 STAGES", difficultyName(settings.difficulty));
-    c.text(46, 47, mode, visual::Muted);
+    if (selection == int(GameId::Keystone))
+      std::snprintf(mode, sizeof(mode), "ORIGINAL / SCORE ATTACK");
+    else if (selection == int(GameId::Raid))
+      std::snprintf(mode, sizeof(mode), "%s / SCORE ATTACK", difficultyName(settings.difficulty));
+    else
+      std::snprintf(mode, sizeof(mode), "%s / 12 STAGES", difficultyName(settings.difficulty));
+    c.centered(47, mode, visual::Muted);
     visual::card(c, 4, 62, 168, 122, i.accent, false);
     for (int row = 0; row < 6; row++) {
       c.rect(10, 71 + row * 18, 2, 7, i.accent);
@@ -343,14 +348,16 @@ void Console::render(Canvas &c) const {
     visual::stars(c, settings.effects ? frame : 0);
     if (current)
       current->render(c);
-    c.rect(0, 0, W, Top, Navy);
-    c.line(0, Top - 1, W - 1, Top - 1, visual::Edge);
-    c.text(3, 6, "S", Cyan);
-    c.number(13, 6, current ? current->score() : 0, White);
-    c.text(98, 6, "L", Red);
-    c.number(109, 6, current ? uint32_t(std::max(0, current->lives())) : 0, White);
-    c.number(143, 6, current ? current->stage() : 1, Yellow);
-    c.text(157, 6, "/12", Grey);
+    if (!current || !current->ownsHud()) {
+      c.rect(0, 0, W, Top, Navy);
+      c.line(0, Top - 1, W - 1, Top - 1, visual::Edge);
+      c.text(3, 6, "S", Cyan);
+      c.number(13, 6, current ? current->score() : 0, White);
+      c.text(98, 6, "L", Red);
+      c.number(109, 6, current ? uint32_t(std::max(0, current->lives())) : 0, White);
+      c.number(143, 6, current ? current->stage() : 1, Yellow);
+      c.text(157, 6, "/12", Grey);
+    }
     if (screen == Screen::Attract) {
       c.rect(18, 103, 140, 21, Navy);
       c.centered(110, "PRESS ANY BUTTON", Yellow);

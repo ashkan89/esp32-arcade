@@ -58,6 +58,8 @@ bool verifyRobotWhack();
 bool verifyStackTower();
 bool verifyJumpQuest();
 bool verifyColorCascade();
+bool verifyKeystoneKapers();
+bool verifyRiverRaid();
 } // namespace arcade
 using namespace arcade;
 static int assertions = 0;
@@ -658,6 +660,33 @@ static void consoleRules() {
   c.update({0, Fire}, 240);
   c.update({0, Fire}, 260);
   CHECK(c.state() == Screen::Playing && c.active()->lives() == 1);
+  // Each classic owns its entire HUD and survives the regular pause/controls flow.
+  for (auto id : {GameId::Keystone, GameId::Raid}) {
+    Settings native;
+    native.lastGame = uint8_t(id);
+    Console console(native);
+    console.begin({}, 0);
+    console.update({0, Fire}, 25);
+    console.update({0, Fire}, 50);
+    console.update({0, Fire}, 75);
+    CHECK(console.state() == Screen::Playing && console.active()->stageLimit() == 0);
+    std::array<uint16_t, W * H> direct{}, integrated{};
+    Canvas a, b;
+    a.attach(direct.data());
+    b.attach(integrated.data());
+    console.active()->render(a);
+    console.render(b);
+    CHECK(direct == integrated);
+    console.update({0, Pause}, 100);
+    CHECK(console.state() == Screen::Paused);
+    console.update({0, Special}, 125);
+    CHECK(console.state() == Screen::Playing);
+    CHECK(native.record(unsigned(id), 12345));
+    native.favorites |= uint64_t(1) << unsigned(id);
+    Settings restored;
+    CHECK(decode(encode(native), restored));
+    CHECK(restored.best[unsigned(id)] == 12345 && restored.favorites == native.favorites);
+  }
 }
 static void lifecycle() {
   std::array<uint16_t, W * H + 2> pixels{};
@@ -800,8 +829,10 @@ static void preview() {
     }
     c.clear();
     g.render(c);
-    c.rect(0, 0, W, Top, Navy);
-    c.centered(5, registry()[i].title, registry()[i].accent);
+    if (!g.ownsHud()) {
+      c.rect(0, 0, W, Top, Navy);
+      c.centered(5, registry()[i].title, registry()[i].accent);
+    }
     write(int(i) + 1);
     g.cleanup();
   }
@@ -984,6 +1015,8 @@ int main() {
   CHECK(verifyStackTower());
   CHECK(verifyJumpQuest());
   CHECK(verifyColorCascade());
+  CHECK(verifyKeystoneKapers());
+  CHECK(verifyRiverRaid());
   std::printf(
       "Focused campaign checks: %u assertions plus legacy endings and solvable warehouses\n",
       campaignAssertions);

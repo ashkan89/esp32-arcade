@@ -1,7 +1,7 @@
 # Game Arcade game guide
 
 Difficulty is selected under Menu → Settings: Easy, Medium, Hard and Nightmare.
-Medium retains the saved index of the former Normal mode. All fifty games use the selected
+Medium retains the saved index of the former Normal mode. The original fifty games use the selected
 mode, through hazard tuning, lives, puzzle rules or a combination. Player input and the
 60 Hz simulation clock do not speed up with difficulty.
 
@@ -81,3 +81,10 @@ of individually authored narrative levels. The controls screen explains each gam
 | 47 | Night Racer | Perspective road, curves and traffic | Timed checkpoints |
 | 48 | Pinball Nova | Launch, flippers, nudge; 24 bumper hits | Hit red reactor bumper at 4, 8, 12 |
 | 49 | Rescue Wing | Carry five people to dock in wrapping world | Mothership at 4, 8, 12 |
+
+## Atari 2600 score attacks
+
+Keystone Kapers and River Raid are added alongside the existing campaigns. Their
+progression does not stop at twelve stages. Controls, researched mechanics, full native
+hazard schedule, river difficulty progression and fidelity limits are documented in
+[ATARI_RESEARCH.md](ATARI_RESEARCH.md).

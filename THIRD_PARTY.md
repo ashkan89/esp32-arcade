@@ -19,6 +19,12 @@ project. No original license was supplied; their ownership/rights are preserved.
 procedural art, menus, font, scripts, tests and documentation use `LICENSE-new-code.txt`.
 No downloaded commercial game graphics or audio recordings are included.
 
+Keystone Kapers and River Raid are native recreations with newly authored pixel masks.
+Activision's manuals and the annotated River Raid disassembly were consulted for rules
+and feedback-generator behavior. No cartridge ROM or disassembly is shipped. Their names
+refer to the original games; these additions are not represented as licensed commercial
+ports. See `docs/ATARI_RESEARCH.md` for sources and remaining fidelity differences.
+
 The 25 v3 additions use original names, native rules and procedural graphics. Classic title
 references and researched sources are in `docs/GAME_REFERENCES.md`; they do not confer rights
 to those original games or imply that Game Arcade contains licensed commercial ports.
