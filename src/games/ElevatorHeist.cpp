@@ -80,7 +80,7 @@ class ElevatorHeist final : public CampaignGame {
     for (auto &p : shots.items)
       if (p.active)
         for (auto &e : agents.items)
-          if (e.active && near(p.x, p.y, e.x, float(ground(e.floor) - 10), 8)) {
+          if (e.active && projectileNear(p, e.x, float(ground(e.floor) - 10), 8)) {
             p.active = false;
             if (--e.hp == 0) {
               e.active = false;
@@ -90,7 +90,7 @@ class ElevatorHeist final : public CampaignGame {
             break;
           }
     for (auto &p : hostile.items)
-      if (p.active && near(p.x, p.y, x, float(ground(floor) - 10), 8)) {
+      if (p.active && projectileNear(p, x, float(ground(floor) - 10), 8)) {
         p.active = false;
         hit();
       }

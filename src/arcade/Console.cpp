@@ -1,4 +1,5 @@
 #include "arcade/Console.h"
+#include "arcade/AudioSequencer.h"
 #include "assets/Visuals.h"
 #include <cstdio>
 namespace arcade {
@@ -7,11 +8,12 @@ void Console::transition(Screen s, uint32_t now) {
   entered = now;
   cursor = 0;
   suppressNeeded = true;
-  pending = Sound::None;
+  pending = s == Screen::Launcher || s == Screen::Utilities ? Sound::BackCue : Sound::Select;
 }
 void Console::begin(GameOptions o, uint32_t now) {
   visualTime = now;
   options = o;
+  runSeeds.state = derivedSeed(o.seed, 1);
   selection = settings.lastGame < GameCount ? settings.lastGame : 0;
   lastAction = now;
   transition(Screen::Boot, now);
@@ -30,7 +32,8 @@ void Console::start(uint32_t now) {
   options.difficulty = settings.difficulty;
   options.layout = settings.layout;
   options.effects = settings.effects;
-  options.seed ^= now + 0x9e3779b9;
+  options.seed = nextSeed();
+  options.enhanced = settings.enhanced && selection >= int(GameId::Keystone);
   current->start(options);
   newRun = true;
   recorded = false;
@@ -39,10 +42,12 @@ void Console::start(uint32_t now) {
     dirty = true;
   }
   transition(Screen::Playing, now);
+  pending = Sound::Start;
 }
 void Console::record() {
   if (current && !recorded) {
-    dirty |= settings.record(unsigned(selection), current->score());
+    dirty |= settings.record(unsigned(selection), current->score(), current->runDifficulty(),
+                             current->enhancedMode());
     recorded = true;
   }
 }
@@ -79,7 +84,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
     current->update();
     if (current->gameOver()) {
       GameOptions o = options;
-      o.seed = now | 1;
+      o.seed = nextSeed();
       current->start(o);
     }
     return;
@@ -94,9 +99,14 @@ void Console::update(const InputFrame &f, uint32_t now) {
     current->update();
     pending = current->takeSound();
     if (current->gameOver()) {
+      bool newBest =
+          current->score() > settings.comparableBest(unsigned(selection), current->runDifficulty(),
+                                                     current->enhancedMode());
       record();
       transition(Screen::Over, now);
-      pending = current->campaignComplete() ? Sound::Wave : Sound::Over;
+      pending = current->campaignComplete() ? Sound::Victory
+                : newBest                   ? Sound::HighScore
+                                            : Sound::Over;
     }
     return;
   }
@@ -127,7 +137,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
     else if (settings.attract && elapsed(now, lastAction) > 20000) {
       current = &gameFor(GameId::Invaders);
       GameOptions o = options;
-      o.seed = now | 1;
+      o.seed = nextSeed();
       current->start(o);
       transition(Screen::Attract, now);
     }
@@ -216,7 +226,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
   }
   if (screen == Screen::Settings) {
     if (nav) {
-      cursor = (cursor + nav + 9) % 9;
+      cursor = (cursor + nav + 13) % 13;
       pending = Sound::Move;
     }
     if (back) {
@@ -249,6 +259,21 @@ void Console::update(const InputFrame &f, uint32_t now) {
       case 7:
         transition(Screen::System, now);
         return;
+      case 8:
+        transition(Screen::Utilities, now);
+        return;
+      case 9:
+        settings.music ^= 1;
+        break;
+      case 10:
+        settings.sfx ^= 1;
+        break;
+      case 11:
+        settings.enhanced ^= 1;
+        break;
+      case 12:
+        transition(Screen::SoundPreview, now);
+        return;
       default:
         transition(Screen::Utilities, now);
         return;
@@ -258,11 +283,24 @@ void Console::update(const InputFrame &f, uint32_t now) {
     }
     return;
   }
+  if (screen == Screen::SoundPreview) {
+    if (nav)
+      cursor = (cursor + nav + int(GameCount) + 1) % (int(GameCount) + 1);
+    if (back)
+      transition(Screen::Settings, now);
+    else if (ok)
+      pending = Sound::Power;
+    return;
+  }
   if (screen == Screen::Scores) {
     constexpr int pages = (GameCount + 3) / 4 + 1;
+    if (f.hit(Special)) {
+      legacyScores = !legacyScores;
+      pending = Sound::Select;
+    }
     if (nav)
       cursor = (cursor + nav + pages) % pages;
-    if (back || ok)
+    if (f.hit(Back) || f.hit(Pause) || ok)
       transition(Screen::Utilities, now);
     return;
   }
@@ -311,7 +349,10 @@ void Console::render(Canvas &c) const {
       icon(c, id, 9, y);
       c.text(40, y + 2, registry()[id].title, active ? White : visual::Muted);
       c.text(40, y + 13, "BEST", visual::Muted);
-      c.number(70, y + 13, settings.best[id], active ? registry()[id].accent : visual::Muted);
+      c.number(70, y + 13,
+               settings.comparableBest(id, settings.difficulty,
+                                       settings.enhanced && id >= int(GameId::Keystone)),
+               active ? registry()[id].accent : visual::Muted);
       if (settings.favorites & (uint64_t(1) << id))
         visual::favorite(c, 162, y + 16, Yellow);
     }
@@ -329,9 +370,11 @@ void Console::render(Canvas &c) const {
     c.text(46, 36, "HOW TO PLAY", i.accent);
     char mode[28];
     if (selection == int(GameId::Keystone))
-      std::snprintf(mode, sizeof(mode), "ORIGINAL / SCORE ATTACK");
+      std::snprintf(mode, sizeof(mode), "%s / SCORE ATTACK",
+                    settings.enhanced ? "ENHANCED" : "CLASSIC");
     else if (selection == int(GameId::Raid))
-      std::snprintf(mode, sizeof(mode), "%s / SCORE ATTACK", difficultyName(settings.difficulty));
+      std::snprintf(mode, sizeof(mode), "%s / %s", settings.enhanced ? "ENHANCED" : "CLASSIC",
+                    difficultyName(settings.difficulty));
     else
       std::snprintf(mode, sizeof(mode), "%s / 12 STAGES", difficultyName(settings.difficulty));
     c.centered(47, mode, visual::Muted);
@@ -387,8 +430,11 @@ void Console::render(Canvas &c) const {
     char text[16];
     std::snprintf(text, sizeof(text), "%lu", (unsigned long)(current ? current->score() : 0));
     c.centered(96, text, Yellow, 2);
-    c.centered(134, "PERSONAL BEST", Grey);
-    std::snprintf(text, sizeof(text), "%lu", (unsigned long)settings.best[selection]);
+    c.centered(134, "MODE BEST", Grey);
+    std::snprintf(text, sizeof(text), "%lu",
+                  (unsigned long)settings.comparableBest(
+                      selection, current ? current->runDifficulty() : settings.difficulty,
+                      current && current->enhancedMode()));
     c.centered(151, text, Green, 2);
     c.centered(195, "A REPLAY  B LAUNCHER", White);
     return;
@@ -433,7 +479,7 @@ void Console::render(Canvas &c) const {
   }
   if (screen == Screen::Settings) {
     header(c, "SETTINGS");
-    char rows[9][28];
+    char rows[13][28];
     std::snprintf(rows[0], 28, "SOUND: %s", settings.sound ? "ON" : "OFF");
     std::snprintf(rows[1], 28, "DIFFICULTY: %s", difficultyName(settings.difficulty));
     std::snprintf(rows[2], 28, "EFFECTS: %s", settings.effects ? "ON" : "REDUCED");
@@ -443,16 +489,34 @@ void Console::render(Canvas &c) const {
     std::snprintf(rows[6], 28, "FPS REQUEST: %u", unsigned(settings.fps));
     std::snprintf(rows[7], 28, "SYSTEM INFORMATION");
     std::snprintf(rows[8], 28, "BACK");
-    for (int i = 0; i < 9; i++) {
-      visual::card(c, 5, 31 + i * 18, 166, 16, Cyan, cursor == i);
-      c.text(12, 36 + i * 18, rows[i], cursor == i ? Cyan : White);
+    std::snprintf(rows[9], 28, "MUSIC: %s", settings.music ? "ON" : "OFF");
+    std::snprintf(rows[10], 28, "SFX: %s", settings.sfx ? "ON" : "OFF");
+    std::snprintf(rows[11], 28, "ATARI: %s", settings.enhanced ? "ENHANCED" : "CLASSIC");
+    std::snprintf(rows[12], 28, "SOUND PREVIEW");
+    int first = clamp(cursor - 4, 0, 4);
+    for (int row = 0; row < 9; ++row) {
+      int i = first + row;
+      visual::card(c, 5, 31 + row * 18, 166, 16, Cyan, cursor == i);
+      c.text(12, 36 + row * 18, rows[i], cursor == i ? Cyan : White);
     }
     c.centered(208, cursor < 7 ? "A CHANGE  B BACK" : "A OPEN  B BACK", visual::Muted);
     return;
   }
+  if (screen == Screen::SoundPreview) {
+    header(c, "SOUND PREVIEW");
+    c.centered(65, cursor == int(GameCount) ? "MENU" : registry()[cursor].title, Cyan);
+    c.centered(90, audioTrackName(unsigned(cursor)), Yellow);
+    c.centered(130, "L/R SELECT THEME", White);
+    c.centered(152, "A PICKUP CUE", White);
+    c.centered(182, "SOUND SETTINGS APPLY", Grey);
+    c.centered(208, "B BACK", White);
+    return;
+  }
   if (screen == Screen::Scores) {
     bool leaders = cursor == int((GameCount + 3) / 4);
-    header(c, leaders ? "SKY TOP FIVE" : "HIGH SCORES");
+    header(c, leaders        ? "LEGACY SKY TOP FIVE"
+              : legacyScores ? "ALL-TIME / MIXED RULES"
+                             : "MODE HIGH SCORES");
     if (leaders) {
       for (unsigned i = 0; i < 5; i++) {
         visual::card(c, 7, 36 + int(i) * 30, 162, 25, Yellow, i == 0);
@@ -468,9 +532,18 @@ void Console::render(Canvas &c) const {
         visual::card(c, 5, y, 166, 34, registry()[id].accent, false);
         icon(c, int(id), 10, y + 5);
         c.text(42, y + 6, registry()[id].title, White);
-        c.number(42, y + 20, settings.best[id], registry()[id].accent);
+        c.number(42, y + 20,
+                 legacyScores ? settings.best[id]
+                              : settings.comparableBest(id, settings.difficulty,
+                                                        settings.enhanced &&
+                                                            id >= unsigned(GameId::Keystone)),
+                 registry()[id].accent);
       }
-    c.centered(205, "L/R PAGE  A BACK", Grey);
+    char category[32];
+    std::snprintf(category, sizeof(category), "%s / ATARI %s", difficultyName(settings.difficulty),
+                  settings.enhanced ? "ENH" : "CLASSIC");
+    c.centered(195, category, Grey);
+    c.centered(208, "L/R PAGE B LEGACY MENU BACK", Grey);
     return;
   }
   if (screen == Screen::System) {

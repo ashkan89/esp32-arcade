@@ -18,13 +18,15 @@ class MineGrid final : public TickGame {
   }
   void plant(int first) {
     int count = 10 + challenge() * 3 + std::min(8, int(level));
-    int placed = 0;
-    while (placed < count) {
-      int p = rng.range(0, 81);
-      if (!mines[p] && (std::abs(p % 9 - first % 9) > 1 || std::abs(p / 9 - first / 9) > 1)) {
-        mines[p] = 1;
-        placed++;
-      }
+    std::array<int, 81> candidates{};
+    int available = 0;
+    for (int p = 0; p < 81; ++p)
+      if (std::abs(p % 9 - first % 9) > 1 || std::abs(p / 9 - first / 9) > 1)
+        candidates[available++] = p;
+    for (int placed = 0; placed < count; ++placed) {
+      int pick = rng.range(placed, available);
+      std::swap(candidates[placed], candidates[pick]);
+      mines[candidates[placed]] = 1;
     }
     remaining = 81 - count;
     planted = true;

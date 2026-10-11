@@ -11,6 +11,10 @@ void Shooter::start(const GameOptions &o) {
   particles.clear();
   powers.clear();
   px = 80;
+  observedX = px;
+  observedVx = 0;
+  lastAttack = 0;
+  lastPattern = 0;
   py = 198;
   dir = 1;
   weapon = 0;
@@ -47,6 +51,7 @@ void Shooter::wave() {
     e->y = 34;
     e->hp = 40 + std::min(200, int(level) * 5);
     e->vx = hazardSpeed(1.0f);
+    e->actionTimer = 100;
     return;
   }
   if (mode == ShooterMode::Invaders || mode == ShooterMode::Star) {
@@ -61,6 +66,8 @@ void Shooter::wave() {
   }
 }
 void Shooter::enemyFire(float x, float y, float vx, float vy) {
+  if (y < Top || y > py - 24 || hostile.count() >= unsigned(12 + challenge() * 2))
+    return;
   if (auto *b = hostile.acquire()) {
     b->x = b->oldX = x;
     b->y = b->oldY = y;
@@ -88,9 +95,9 @@ void Shooter::explode(float x, float y, uint16_t c) {
     if (auto *p = particles.acquire()) {
       p->x = x;
       p->y = y;
-      p->vx = rng.range(-20, 21) * 0.1f;
-      p->vy = rng.range(-20, 21) * 0.1f;
-      p->life = 18 + rng.range(0, 12);
+      p->vx = cosmeticRng.range(-20, 21) * 0.1f;
+      p->vy = cosmeticRng.range(-20, 21) * 0.1f;
+      p->life = 18 + cosmeticRng.range(0, 12);
       p->color = c;
     }
 }
@@ -156,13 +163,17 @@ bool Shooter::barrier(float x, float y, int damage) {
 }
 void Shooter::spawnSky() {
   int n = std::min(3, 24 - spawned);
-  int pattern = (spawned / 3) % 3;
+  int pattern = variedChoice(rng, 3, lastPattern);
+  lastPattern = pattern;
   for (int i = 0; i < n; i++)
     if (auto *e = enemies.acquire()) {
       e->x = 24 + i * 52;
       e->homeX = e->x;
       e->y = -12 - i * 18;
       e->kind = uint8_t(pattern);
+      e->actionTimer = hazardInterval(90) + rng.range(0, 35);
+      e->homeX += rng.range(-8, 9);
+      e->x = e->homeX;
       e->hp = 1 + int(level) / 5;
       e->vy = hazardSpeed(0.7f + std::min(1.8f, level * 0.08f));
       e->vx = pattern == 2 ? (i % 2 ? -0.7f : 0.7f) : 0;
@@ -209,18 +220,44 @@ void Shooter::updateBoss(Enemy &e) {
     e.x = clamp(e.x, 4.0f, float(W - 76));
     e.vx = -e.vx;
   }
-  if (e.age % uint32_t(hazardInterval(e.hp < 20 ? 38 : 65)) == 0) {
-    int p = int(e.age / 65) % 3;
+  if (--e.actionTimer == 24) {
+    e.pattern = variedChoice(rng, 3, e.pattern);
+    e.cue = 24;
+    sound(Sound::Warning);
+  }
+  if (e.cue)
+    --e.cue;
+  if (e.actionTimer <= 0) {
+    int p = e.pattern;
+    e.actionTimer = hazardInterval(e.hp < 20 ? 110 : 140);
     if (p == 0) {
       for (int k = -2; k <= 2; k++)
         enemyFire(e.x + 36, e.y + 26, k * 0.7f, 2.0f + challenge() * 0.3f);
     } else if (p == 1) {
+      int safe = rng.range(0, 5);
       for (int k = 0; k < 5; k++)
-        enemyFire(12 + k * 34, e.y + 26, 0, 2.5f);
+        if (k != safe)
+          enemyFire(12 + k * 34, e.y + 26, 0, 2.5f);
     } else
       for (int k = -1; k <= 1; k++)
-        enemyFire(e.x + 36, e.y + 26, clamp((px - e.x - 28) / 60, -1.5f, 1.5f) + k * 0.4f, 2.5f);
+        enemyFire(e.x + 36, e.y + 26,
+                  leadAim(e.x + 36, e.y + 26, observedX + 8, py, observedVx, 2.5f,
+                          float(rng.range(-10, 11))) +
+                      k * 0.4f,
+                  2.5f);
   }
+}
+bool Shooter::aimedFire(Enemy &e) {
+  if (elapsed(tick, lastAttack) < unsigned(std::max(12, 28 - challenge() * 2)) || e.y < Top ||
+      e.y > py - 40)
+    return false;
+  float speed = 2.f + challenge() * .25f;
+  enemyFire(
+      e.x + 7, e.y + 10,
+      leadAim(e.x + 7, e.y + 10, observedX + 8, py, observedVx, speed, float(rng.range(-12, 13))),
+      speed);
+  lastAttack = tick;
+  return true;
 }
 void Shooter::formationFire() {
   if (!bossStage && --shotTimer <= 0) {
@@ -325,6 +362,10 @@ void Shooter::update() {
   if (paused || ended)
     return;
   tick++;
+  if (tick % 12 == 0) {
+    observedVx = (px - observedX) / 12;
+    observedX = px;
+  }
   if (clearTimer > 0) {
     if (--clearTimer == 0) {
       advanceStage();
@@ -495,6 +536,8 @@ void Shooter::render(Canvas &c) const {
                       : e.kind == 1 ? Pink
                                     : Orange,
                       options.effects ? tick / 18 : 0);
+      if (e.cue || e.kind == 6)
+        c.line(x + 2, y + 12, x + 11, y + 12, Yellow);
     }
   if (ufoActive) {
     c.bitmap(int(ufoX), 24, ufoSprite, 24, 10);

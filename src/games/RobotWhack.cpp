@@ -6,7 +6,7 @@ class RobotWhack final : public TickGame {
 #endif
   std::array<int, 9> life{};
   std::array<bool, 9> decoy{};
-  int cursor = 4, spawn = 0, combo = 0;
+  int cursor = 4, spawn = 0, combo = 0, previousTarget = -1;
   int bossHP = 0;
   uint32_t stageStarted = 0;
   void wave() {
@@ -20,10 +20,16 @@ class RobotWhack final : public TickGame {
     cursor = gridMove(input, cursor, 3, 3);
     if (--spawn <= 0) {
       spawn = std::max(18, 55 - int(level) * 2 - challenge() * 2);
-      int p = rng.range(0, 9);
-      if (life[p] == 0 &&
+      int p = rng.range(0, previousTarget < 0 ? 9 : 8);
+      if (p >= previousTarget && previousTarget >= 0)
+        ++p;
+      unsigned occupied =
+          unsigned(std::count_if(life.begin(), life.end(), [](int v) { return v > 0; }));
+      if (life[p] == 0 && occupied < 2 &&
           (!bossHP || std::all_of(life.begin(), life.end(), [](int v) { return v == 0; }))) {
-        life[p] = std::max(35, 95 - int(level) * 2 - challenge() * 8);
+        int distance = std::abs(p % 3 - cursor % 3) + std::abs(p / 3 - cursor / 3);
+        life[p] = std::max(30 + distance * 10, 95 - int(level) * 2 - challenge() * 8);
+        previousTarget = p;
         decoy[p] = bossHP ? false : rng.range(0, 5) == 0;
       }
     }
@@ -70,6 +76,7 @@ public:
     life.fill(0);
     decoy.fill(false);
     cursor = 4;
+    previousTarget = -1;
     spawn = combo = 0;
     wave();
   }
@@ -110,6 +117,19 @@ GameEntry describeRobotWhack() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyRobotWhack() {
   RobotWhack g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.level = 12;
+  g.options.difficulty = 3;
+  for (int p = 0; p < 9; ++p) {
+    g.life.fill(0);
+    g.cursor = p;
+    g.spawn = 1;
+    g.simulate();
+    for (int q = 0; q < 9; ++q)
+      if (g.life[q])
+        HOST_CHECK(g.life[q] >= 29 + 10 * (std::abs(q % 3 - p % 3) + std::abs(q / 3 - p / 3)));
+  }
   g.start({});
   g.level = 12;
   g.wave();

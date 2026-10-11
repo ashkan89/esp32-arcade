@@ -64,7 +64,12 @@ class PinballNova final : public CampaignGame {
       }
       for (int i = 0; i < 5; ++i)
         if (near(x, y, float(bx(i)), float(by(i)), 14)) {
-          float dx = x - bx(i), dy = y - by(i), d = std::max(.1f, std::sqrt(dx * dx + dy * dy));
+          float dx = x - bx(i), dy = y - by(i);
+          if (dx * dx + dy * dy < .01f) {
+            dx = 0;
+            dy = -1;
+          }
+          float d = std::sqrt(dx * dx + dy * dy);
           x = bx(i) + dx / d * 14;
           y = by(i) + dy / d * 14;
           vx = dx / d * 3.5f;
@@ -153,6 +158,15 @@ GameEntry describePinballNova() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyPinballNova() {
   PinballNova g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.served = true;
+  g.x = float(g.bx(0));
+  g.y = float(g.by(0));
+  g.vx = g.vy = 0;
+  g.play();
+  HOST_CHECK(std::isfinite(g.x) && std::isfinite(g.y));
+  HOST_CHECK(std::abs(g.vx) + std::abs(g.vy) > 1);
   g.start({});
   for (int stage = 1; stage <= 12; ++stage) {
     HOST_CHECK(g.stage() == stage && !g.gameOver());

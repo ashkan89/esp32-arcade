@@ -44,6 +44,15 @@ struct Random {
     return lo + int(next() % uint32_t(hi - lo));
   }
 };
+inline uint32_t derivedSeed(uint32_t seed, uint32_t stream) {
+  uint32_t v = seed ^ (stream * 0x9e3779b9u);
+  v ^= v >> 16;
+  v *= 0x7feb352du;
+  v ^= v >> 15;
+  v *= 0x846ca68bu;
+  v ^= v >> 16;
+  return v ? v : 1;
+}
 template <class T, size_t N> struct Pool {
   std::array<T, N> items{};
   T *acquire() {
@@ -132,17 +141,41 @@ public:
     return n;
   }
 };
-enum class Sound : uint8_t { None, Move, Shot, Hit, Explosion, Power, Wave, Over, Select };
+enum class Sound : uint8_t {
+  None,
+  Move,
+  Shot,
+  Hit,
+  Explosion,
+  Power,
+  Wave,
+  Over,
+  Select,
+  BackCue,
+  Start,
+  Warning,
+  Victory,
+  HighScore
+};
+uint8_t soundPriority(Sound sound);
 struct Settings {
   uint8_t difficulty = 1, sound = 1, effects = 1, lastGame = 0, invert = 0, layout = 0, attract = 1,
           fps = 30;
   std::array<uint32_t, 64> best{}; // Stable catalog IDs; spare slots allow expansion.
   uint64_t favorites = 0;
   std::array<uint32_t, 5> skyLeaders{};
+  uint8_t music = 1, sfx = 1, enhanced = 0;
+  // Aggregate best/leaderboard remains historical; comparable records start fresh.
+  std::array<std::array<uint32_t, 64>, 8> modeBest{};
   bool valid() const;
-  bool record(unsigned game, uint32_t score);
+  bool record(unsigned game, uint32_t score, unsigned difficulty = 1, bool enhanced = false);
+  uint32_t comparableBest(unsigned game, unsigned difficulty, bool enhanced) const {
+    return game < 64 && difficulty < DifficultyCount
+               ? modeBest[difficulty + (enhanced ? 4 : 0)][game]
+               : 0;
+  }
 };
-constexpr size_t SaveSize = 304;
+constexpr size_t SaveSize = 2356;
 using SaveBytes = std::array<uint8_t, SaveSize>;
 SaveBytes encode(const Settings &s);
 bool decode(const SaveBytes &bytes, Settings &out);

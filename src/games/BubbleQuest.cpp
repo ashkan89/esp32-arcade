@@ -7,6 +7,7 @@ class BubbleQuest final : public CampaignGame {
   struct Foe {
     bool active = false;
     float x = 0, y = 0;
+    float vy = 0;
     int dir = 1, trap = 0, hp = 1;
   };
   Pool<Foe, 12> foes;
@@ -76,7 +77,7 @@ class BubbleQuest final : public CampaignGame {
       if (e.active) {
         if (e.trap) {
           --e.trap;
-          e.y -= .3f;
+          e.y = std::max(float(Top + 12), e.y - .3f);
           if (near(x, y, e.x, e.y, 15)) {
             e.trap = 0;
             if (--e.hp == 0) {
@@ -84,21 +85,29 @@ class BubbleQuest final : public CampaignGame {
               add(150);
               burst(e.x, e.y);
             } else {
-              e.x = 145;
-              e.y = 194;
+              e.x = clamp(e.x + facing * 22, 8.f, 168.f);
+              e.vy = 0;
               grace = 60;
             }
-          } else if (!e.trap) {
-            e.y = 194;
           }
         } else {
+          float oldY = e.y;
+          e.vy = std::min(4.f, e.vy + .13f);
+          e.y += e.vy;
+          for (int r = 0; r < 5; ++r) {
+            int yy = platform(e.x, r);
+            if (oldY + 10 <= yy && e.y + 10 >= yy) {
+              e.y = float(yy - 10);
+              e.vy = 0;
+            }
+          }
           e.x += e.dir * hazardSpeed(.45f + level * .035f);
           if (e.x < 8 || e.x > 168) {
             e.dir = -e.dir;
             e.x = clamp(e.x, 8.f, 168.f);
           }
           for (auto &p : bubbles.items)
-            if (p.active && near(p.x, p.y, e.x, e.y, 9)) {
+            if (p.active && projectileNear(p, e.x, e.y, 9)) {
               p.active = false;
               e.trap = hazardInterval(300);
               break;

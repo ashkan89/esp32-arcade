@@ -20,9 +20,13 @@ void SkyFighters::updateEnemies() {
         if (e.x < 5 || e.x > W - 19)
           e.vx = -e.vx;
       }
-      if (e.age % uint32_t(std::max(40, 130 - int(level) * 4 - challenge() * 6)) == 0 && e.y > Top)
-        enemyFire(e.x + 7, e.y + 10, clamp((px - e.x) / 120, -0.8f, 0.8f),
-                  2.0f + challenge() * 0.4f);
+      if (e.cue) {
+        if (--e.cue == 0)
+          aimedFire(e);
+      } else if (--e.actionTimer <= 0 && e.y > Top && e.y < py - 50) {
+        e.cue = 18;
+        e.actionTimer = hazardInterval(130) + rng.range(0, 45);
+      }
       if (e.y > H)
         e.active = false;
     }

@@ -1,6 +1,34 @@
 #include "arcade/Core.h"
 #include <cstring>
 namespace arcade {
+uint8_t soundPriority(Sound s) {
+  switch (s) {
+  case Sound::None:
+    return 0;
+  case Sound::Move:
+    return 1;
+  case Sound::Shot:
+    return 2;
+  case Sound::Select:
+  case Sound::BackCue:
+    return 3;
+  case Sound::Power:
+  case Sound::Start:
+    return 4;
+  case Sound::Hit:
+  case Sound::Explosion:
+    return 5;
+  case Sound::Warning:
+    return 6;
+  case Sound::Wave:
+    return 7;
+  case Sound::Over:
+  case Sound::Victory:
+  case Sound::HighScore:
+    return 8;
+  }
+  return 0;
+}
 bool segmentCircle(float x0, float y0, float x1, float y1, float cx, float cy, float radius) {
   float dx = x1 - x0, dy = y1 - y0, length = dx * dx + dy * dy;
   float t = length > 0 ? clamp(((cx - x0) * dx + (cy - y0) * dy) / length, 0.0f, 1.0f) : 0;
@@ -80,12 +108,18 @@ void Input::suppress() {
 }
 bool Settings::valid() const {
   return difficulty < DifficultyCount && sound <= 1 && effects <= 1 && lastGame < 64 &&
-         invert <= 1 && layout < 3 && attract <= 1 && (fps == 30 || fps == 60);
+         invert <= 1 && layout < 3 && attract <= 1 && music <= 1 && sfx <= 1 && enhanced <= 1 &&
+         (fps == 30 || fps == 60);
 }
-bool Settings::record(unsigned g, uint32_t s) {
-  if (g >= best.size())
+bool Settings::record(unsigned g, uint32_t s, unsigned difficulty, bool enhancedMode) {
+  if (g >= best.size() || difficulty >= DifficultyCount)
     return false;
   bool changed = false;
+  auto &mode = modeBest[difficulty + (enhancedMode ? 4 : 0)][g];
+  if (s > mode) {
+    mode = s;
+    changed = true;
+  }
   if (s > best[g]) {
     best[g] = s;
     changed = true;
@@ -115,7 +149,7 @@ static void put(SaveBytes &b, size_t o, uint32_t v) {
   for (unsigned k = 0; k < 4; k++)
     b[o + k] = uint8_t(v >> (8 * k));
 }
-static uint32_t get(const SaveBytes &b, size_t o) {
+static uint32_t get(const uint8_t *b, size_t o) {
   uint32_t v = 0;
   for (unsigned k = 0; k < 4; k++)
     v |= uint32_t(b[o + k]) << (8 * k);
@@ -124,7 +158,7 @@ static uint32_t get(const SaveBytes &b, size_t o) {
 SaveBytes encode(const Settings &s) {
   SaveBytes b{};
   put(b, 0, 0x41435244);
-  put(b, 4, 2);
+  put(b, 4, 3);
   b[8] = s.difficulty;
   b[9] = s.sound;
   b[10] = s.effects;
@@ -139,11 +173,21 @@ SaveBytes encode(const Settings &s) {
     put(b, 272 + 4 * i, s.skyLeaders[i]);
   put(b, 292, uint32_t(s.favorites));
   put(b, 296, uint32_t(s.favorites >> 32));
-  put(b, 300, checksum(b.data(), 300));
+  b[300] = s.music;
+  b[301] = s.sfx;
+  b[302] = s.enhanced;
+  for (unsigned mode = 0; mode < 8; ++mode)
+    for (unsigned g = 0; g < 64; ++g)
+      put(b, 304 + mode * 256 + g * 4, s.modeBest[mode][g]);
+  put(b, SaveSize - 4, checksum(b.data(), SaveSize - 4));
   return b;
 }
-bool decode(const SaveBytes &b, Settings &out) {
-  if (get(b, 0) != 0x41435244 || get(b, 4) != 2 || get(b, 300) != checksum(b.data(), 300))
+bool decodeStored(const uint8_t *b, size_t length, Settings &out) {
+  if (!b || (length != SaveSize && length != 304 && length != 72))
+    return false;
+  unsigned version = length == SaveSize ? 3 : length == 304 ? 2 : 1;
+  if (get(b, 0) != 0x41435244 || get(b, 4) != version ||
+      get(b, length - 4) != checksum(b, length - 4))
     return false;
   Settings s;
   s.difficulty = b[8];
@@ -154,44 +198,30 @@ bool decode(const SaveBytes &b, Settings &out) {
   s.layout = b[13];
   s.attract = b[14];
   s.fps = b[15];
-  for (unsigned i = 0; i < 64; i++)
-    s.best[i] = get(b, 16 + 4 * i);
-  for (unsigned i = 0; i < 5; i++)
-    s.skyLeaders[i] = get(b, 272 + 4 * i);
-  s.favorites = uint64_t(get(b, 292)) | (uint64_t(get(b, 296)) << 32);
+  for (unsigned i = 0; i < (version == 1 ? 8u : 64u); ++i)
+    s.best[i] = get(b, 16 + i * 4);
+  unsigned leaders = version == 1 ? 48 : 272;
+  for (unsigned i = 0; i < 5; ++i)
+    s.skyLeaders[i] = get(b, leaders + i * 4);
+  if (version >= 2)
+    s.favorites = uint64_t(get(b, 292)) | (uint64_t(get(b, 296)) << 32);
+  if (version == 3) {
+    s.music = b[300];
+    s.sfx = b[301];
+    s.enhanced = b[302];
+    for (unsigned mode = 0; mode < 8; ++mode)
+      for (unsigned g = 0; g < 64; ++g)
+        s.modeBest[mode][g] = get(b, 304 + mode * 256 + g * 4);
+  }
   if (!s.valid())
     return false;
-  for (unsigned i = 1; i < 5; i++)
+  for (unsigned i = 1; i < 5; ++i)
     if (s.skyLeaders[i] > s.skyLeaders[i - 1])
       return false;
   out = s;
   return true;
 }
-bool decodeStored(const uint8_t *data, size_t length, Settings &out) {
-  SaveBytes bytes{};
-  if (length == SaveSize) {
-    std::memcpy(bytes.data(), data, length);
-    return decode(bytes, out);
-  }
-  if (length != 72)
-    return false;
-  std::memcpy(bytes.data(), data, length);
-  if (get(bytes, 0) != 0x41435244 || get(bytes, 4) != 1 || get(bytes, 68) != checksum(data, 68))
-    return false;
-  Settings migrated;
-  migrated.difficulty = bytes[8];
-  migrated.sound = bytes[9];
-  migrated.effects = bytes[10];
-  migrated.lastGame = bytes[11];
-  migrated.invert = bytes[12];
-  migrated.layout = bytes[13];
-  migrated.attract = bytes[14];
-  migrated.fps = bytes[15];
-  for (unsigned i = 0; i < 8; i++)
-    migrated.best[i] = get(bytes, 16 + i * 4);
-  for (unsigned i = 0; i < 5; i++)
-    migrated.skyLeaders[i] = get(bytes, 48 + i * 4);
-  auto encoded = encode(migrated);
-  return decode(encoded, out);
+bool decode(const SaveBytes &b, Settings &out) {
+  return decodeStored(b.data(), b.size(), out);
 }
 } // namespace arcade

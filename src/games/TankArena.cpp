@@ -8,6 +8,7 @@ class TankArena final : public TickGame {
     bool active = false;
     float x = 0, y = 0;
     int hp = 2;
+    int attackTimer = 90, aim = 2, detour = 1, detourAxis = 0, detourTicks = 0;
   };
   struct Shell {
     bool active = false;
@@ -37,8 +38,18 @@ class TankArena final : public TickGame {
         e->x = 8 + i % 4 * 46;
         e->y = 28 + i / 4 * 22;
         e->hp = level % 4 == 0 ? 20 + int(level) : 2;
+        e->attackTimer = 70 + i * 17;
+        e->detour = i % 2 ? 1 : -1;
       }
     grace = 90;
+  }
+  bool enemyFree(const Tank &tank, Rect box) const {
+    if (!free(box))
+      return false;
+    for (const auto &other : enemies.items)
+      if (&other != &tank && other.active && overlaps(box, {other.x, other.y, 12, 12}))
+        return false;
+    return true;
   }
   void shoot(float xx, float yy, int dir, bool hostile) {
     static const int dx[] = {0, 1, 0, -1}, dy[] = {-1, 0, 1, 0};
@@ -72,19 +83,40 @@ class TankArena final : public TickGame {
     }
     for (auto &e : enemies.items)
       if (e.active) {
-        float nx = e.x + clamp(x - e.x, -0.35f, 0.35f), ny = e.y + clamp(y - e.y, -0.35f, 0.35f);
-        if (free({nx, e.y, 12, 12}))
-          e.x = nx;
-        if (free({e.x, ny, 12, 12}))
-          e.y = ny;
+        float sx = clamp(x - e.x, -.35f, .35f), sy = clamp(y - e.y, -.35f, .35f);
+        if (e.detourTicks) {
+          --e.detourTicks;
+          if (e.detourAxis == 1)
+            sx = e.detour * .35f;
+          else
+            sy = e.detour * .35f;
+        }
+        bool canX = enemyFree(e, {e.x + sx, e.y, 12, 12});
+        if (canX)
+          e.x += sx;
+        bool canY = enemyFree(e, {e.x, e.y + sy, 12, 12});
+        if (canY)
+          e.y += sy;
+        if (!canX && !canY)
+          e.detour = -e.detour;
+        if (!canX) {
+          e.detourAxis = 2;
+          e.detourTicks = 90;
+        } else if (!canY) {
+          e.detourAxis = 1;
+          e.detourTicks = 90;
+        }
         if (overlaps({x, y, 12, 12}, {e.x, e.y, 12, 12}) && !grace) {
           loseLife();
           grace = 90;
         }
-        if (tick % unsigned(hazardInterval(level % 4 == 0 ? 45 : 120)) == 0)
-          shoot(e.x + 6, e.y + 6,
-                std::abs(x - e.x) > std::abs(y - e.y) ? (x > e.x ? 1 : 3) : (y > e.y ? 2 : 0),
-                true);
+        if (--e.attackTimer == 18)
+          e.aim = std::abs(x - e.x) > std::abs(y - e.y) ? (x > e.x ? 1 : 3) : (y > e.y ? 2 : 0);
+        if (e.attackTimer <= 0) {
+          if (shells.count() < 16)
+            shoot(e.x + 6, e.y + 6, e.aim, true);
+          e.attackTimer = hazardInterval(level % 4 == 0 ? 65 : 130) + rng.range(0, 30);
+        }
       }
     for (auto &b : shells.items)
       if (b.active) {
@@ -158,6 +190,11 @@ public:
     for (const auto &e : enemies.items)
       if (e.active) {
         c.rect(int(e.x), int(e.y), 12, 12, Red);
+        if (e.attackTimer <= 18) {
+          static const int dx[] = {0, 15, 0, -15}, dy[] = {-15, 0, 15, 0};
+          c.line(int(e.x) + 6, int(e.y) + 6, int(e.x) + 6 + dx[e.aim], int(e.y) + 6 + dy[e.aim],
+                 Yellow);
+        }
         if (level % 4 == 0)
           c.rect(int(e.x) - 2, int(e.y) - 2, 16, 16, Pink, false);
       }
@@ -185,6 +222,26 @@ GameEntry describeTankArena() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyTankArena() {
   TankArena g;
+  g.start({});
+  g.enemies.clear();
+  auto *pursuer = g.enemies.acquire();
+  pursuer->x = 30;
+  pursuer->y = 50;
+  pursuer->detour = 1;
+  auto *neighbor = g.enemies.acquire();
+  neighbor->x = 60;
+  neighbor->y = 50;
+  HOST_CHECK(!g.enemyFree(*pursuer, {neighbor->x, neighbor->y, 12, 12}));
+  neighbor->active = false;
+  g.x = 30;
+  g.y = 180;
+  for (int t = 0; t < 600; ++t) {
+    g.grace = 100;
+    ++g.tick;
+    g.simulate();
+    HOST_CHECK(g.free({pursuer->x, pursuer->y, 12, 12}));
+  }
+  HOST_CHECK(pursuer->y > 90);
   g.start({});
   g.level = 12;
   g.wave();

@@ -61,6 +61,15 @@ Medium is the previous Normal setting. All tiers now apply more pressure; Nightm
 faster hazards, shorter attack/recovery windows and fewer lives where the game uses lives.
 Puzzles instead tighten mine density, move/undo budgets, board generation or deadlines.
 Difficulty takes effect when starting or restarting a run; existing scores and favorites remain saved.
+Settings also provide independent **Music** and **SFX** switches and a **Sound Preview** for all
+52 game tracks plus the menu theme. Atari games default to **Classic**; select **Enhanced**
+for committed thief reactions, timed floor navigation and validated river routes. New personal bests are separated
+by difficulty and Atari mode. In High Scores, **B** toggles the preserved all-time mixed records;
+**Menu/Back** returns.
+
+The [52-game audit](docs/GAMEPLAY_AUDIT.md), [audio guide and track map](docs/AUDIO_GUIDE.md),
+[research notes](docs/RESEARCH_NOTES.md), and [build/test results](docs/BUILD_AND_TEST.md)
+document these gameplay and audio changes and the physical checks still pending.
 Attract mode starts after 20 seconds idle and never records scores.
 The last-run history holds up to 40 sampled frames (one every 250 ms), using banked PSRAM.
 It is a visual history, not a replay of game inputs.

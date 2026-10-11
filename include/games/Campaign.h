@@ -1,4 +1,5 @@
 #pragma once
+#include "arcade/Behavior.h"
 #include "assets/Visuals.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -52,8 +53,8 @@ protected:
         if (auto *s = sparks.acquire()) {
           s->x = x;
           s->y = y;
-          s->vx = rng.range(-18, 19) * 0.1f;
-          s->vy = rng.range(-18, 19) * 0.1f;
+          s->vx = cosmeticRng.range(-18, 19) * 0.1f;
+          s->vy = cosmeticRng.range(-18, 19) * 0.1f;
           s->ttl = 24;
         }
   }
@@ -111,6 +112,7 @@ public:
 struct Projectile {
   bool active = false;
   float x = 0, y = 0, vx = 0, vy = 0;
+  float oldX = 0, oldY = 0;
   int life = 180, damage = 1, owner = -1;
 };
 template <size_t N>
@@ -119,6 +121,8 @@ inline void projectile(Pool<Projectile, N> &pool, float x, float y, float vx, fl
   if (auto *p = pool.acquire()) {
     p->x = x;
     p->y = y;
+    p->oldX = x;
+    p->oldY = y;
     p->vx = vx;
     p->vy = vy;
     p->damage = damage;
@@ -128,6 +132,8 @@ inline void projectile(Pool<Projectile, N> &pool, float x, float y, float vx, fl
 template <size_t N> inline void moveProjectiles(Pool<Projectile, N> &pool) {
   for (auto &p : pool.items)
     if (p.active) {
+      p.oldX = p.x;
+      p.oldY = p.y;
       p.x += p.vx;
       p.y += p.vy;
       if (--p.life <= 0 || p.x < 0 || p.x >= W || p.y < Top || p.y >= H)
@@ -142,5 +148,8 @@ inline void drawProjectiles(Canvas &c, const Pool<Projectile, N> &pool, uint16_t
 }
 inline bool near(float x, float y, float xx, float yy, float radius) {
   return (x - xx) * (x - xx) + (y - yy) * (y - yy) < radius * radius;
+}
+inline bool projectileNear(const Projectile &p, float x, float y, float radius) {
+  return segmentCircle(p.oldX, p.oldY, p.x, p.y, x, y, radius);
 }
 } // namespace arcade

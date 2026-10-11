@@ -9,8 +9,8 @@ import sys
 root = Path(__file__).resolve().parents[1]
 out = root / "test-results"
 out.mkdir(exist_ok=True)
-sources = [root / "tests/rules.cpp", *sorted((root / "src/games").glob("*.cpp")),
-           root / "src/arcade/Core.cpp", root / "src/arcade/Canvas.cpp", root / "src/arcade/Console.cpp"]
+sources = [root / "tests/rules.cpp", root / "tests/improvements.cpp", *sorted((root / "src/games").glob("*.cpp")),
+           root / "src/arcade/AudioSequencer.cpp", root / "src/arcade/Core.cpp", root / "src/arcade/Canvas.cpp", root / "src/arcade/Console.cpp"]
 json_headers = next((root / ".pio/libdeps").glob("*/ArduinoJson/src"), None)
 if json_headers is None:
     sys.exit("Run pio pkg install -e release first to install the pinned ArduinoJson test dependency.")

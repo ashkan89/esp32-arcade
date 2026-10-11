@@ -171,7 +171,7 @@ GameEntry describeBubbleBurst() {
       {"BUBBLE BURST",
        "POP THE COLOR CLUSTERS",
        {"L/R AIMS - A FIRES", "THREE MATCHING COLORS POP", "WALLS REFLECT THE SHOT",
-        "LOOSE CLUSTERS FALL AWAY", "FIVE MISSES ADD A ROW", "CLEAR ALL BUBBLES TO LEVEL"},
+        "LOOSE CLUSTERS FALL AWAY", "2-4 MISSES ADD A ROW", "CLEAR ALL BUBBLES TO LEVEL"},
        Pink,
        17,
        Fire | Left | Right});

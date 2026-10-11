@@ -101,7 +101,7 @@ class IronFront final : public CampaignGame {
           --hp;
         } else
           for (auto &e : foes.items)
-            if (e.active && near(p.x, p.y, e.x, e.y - 5, 10)) {
+            if (e.active && projectileNear(p, e.x, e.y - 5, 10)) {
               p.active = false;
               if (--e.hp == 0) {
                 e.active = false;
@@ -112,7 +112,7 @@ class IronFront final : public CampaignGame {
             }
       }
     for (auto &p : hostile.items)
-      if (p.active && near(p.x, p.y, x, y - 5, 9)) {
+      if (p.active && projectileNear(p, x, y - 5, 9)) {
         p.active = false;
         hit();
       }

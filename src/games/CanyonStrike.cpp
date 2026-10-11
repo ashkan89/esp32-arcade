@@ -8,6 +8,7 @@ class CanyonStrike final : public CampaignGame {
     bool active = false;
     float x = 0, y = 0, vx = 0;
     int hp = 1;
+    FirePlan fire;
   };
   Pool<Plane, 16> planes;
   Pool<Projectile, 32> shots, hostile;
@@ -54,6 +55,7 @@ class CanyonStrike final : public CampaignGame {
         e->y = 35;
         e->vx = spawned % 2 ? .4f : -.4f;
         e->hp = 1 + level / 6;
+        e->fire.timer = 50 + (spawned % 4) * 17;
         ++spawned;
       }
     for (auto &e : planes.items)
@@ -62,8 +64,9 @@ class CanyonStrike final : public CampaignGame {
         e.y += .75f + level * .06f;
         if (e.x < 8 || e.x > 168)
           e.vx = -e.vx;
-        if (stageTick % unsigned(hazardInterval(90)) == 0)
-          projectile(hostile, e.x, e.y, clamp((x - e.x) / 90, -1.f, 1.f), 1.9f);
+        if (e.y < y - 35 && e.fire.step(e.x, e.y, x, y, 1.9f, rng, hazardInterval(110)) &&
+            hostile.count() < 12)
+          projectile(hostile, e.x, e.y, e.fire.vx, e.fire.vy);
         if (near(x, y, e.x, e.y, 12))
           hit();
         if (e.y > 215)
@@ -89,7 +92,7 @@ class CanyonStrike final : public CampaignGame {
           continue;
         }
         for (auto &e : planes.items)
-          if (e.active && near(p.x, p.y, e.x, e.y, 9)) {
+          if (e.active && projectileNear(p, e.x, e.y, 9)) {
             p.active = false;
             if (--e.hp == 0) {
               e.active = false;
@@ -129,6 +132,8 @@ public:
       if (e.active) {
         c.rect(int(e.x) - 3, int(e.y) - 8, 6, 16, Pink);
         c.rect(int(e.x) - 10, int(e.y) - 2, 20, 4, Orange);
+        if (e.fire.cue())
+          c.line(int(e.x), int(e.y), int(e.x + e.fire.vx * 12), int(e.y + e.fire.vy * 12), Yellow);
       }
     if (!grace || tick % 10 < 5)
       ship(c, x, y, Green);

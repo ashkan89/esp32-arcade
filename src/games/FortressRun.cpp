@@ -8,6 +8,8 @@ class FortressRun final : public CampaignGame {
     bool active = false;
     float x = 0, y = 0;
     int hp = 1;
+    FirePlan fire;
+    int detour = 1, detourAxis = 0, detourTicks = 0;
   };
   Pool<Guard, 12> guards;
   Pool<Projectile, 32> shots, hostile;
@@ -33,6 +35,8 @@ class FortressRun final : public CampaignGame {
         e->x = 18 + i % 4 * 46;
         e->y = 45 + i / 4 * 26;
         e->hp = 1 + level / 6;
+        e->fire.timer = 70 + i * 19;
+        e->detour = i % 2 ? 1 : -1;
       }
   }
   void play() override {
@@ -69,15 +73,33 @@ class FortressRun final : public CampaignGame {
     }
     for (auto &e : guards.items)
       if (e.active) {
-        float ex = e.x + clamp(x - e.x, -.25f, .25f), ey = e.y + clamp(y - e.y, -.25f, .25f);
-        if (!cover(ex, e.y))
-          e.x = ex;
-        if (!cover(e.x, ey))
-          e.y = ey;
-        if (stageTick % unsigned(std::max(30, 120 - int(level) * 4 - challenge() * 6)) == 0) {
-          float a = std::atan2(y - e.y, x - e.x);
-          projectile(hostile, e.x, e.y, std::cos(a) * 1.8f, std::sin(a) * 1.8f);
+        float sx = clamp(x - e.x, -.25f, .25f), sy = clamp(y - e.y, -.25f, .25f);
+        if (e.detourTicks) {
+          --e.detourTicks;
+          if (e.detourAxis == 1)
+            sx = e.detour * .25f;
+          else
+            sy = e.detour * .25f;
         }
+        float ex = clamp(e.x + sx, 6.f, 170.f);
+        bool canX = !cover(ex, e.y);
+        if (canX)
+          e.x = ex;
+        float ey = clamp(e.y + sy, 40.f, 208.f);
+        bool canY = !cover(e.x, ey);
+        if (canY)
+          e.y = ey;
+        if (!canX && !canY)
+          e.detour = -e.detour;
+        if (!canX) {
+          e.detourAxis = 2;
+          e.detourTicks = 180;
+        } else if (!canY) {
+          e.detourAxis = 1;
+          e.detourTicks = 180;
+        }
+        if (e.fire.step(e.x, e.y, x, y, 1.8f, rng, hazardInterval(130)) && hostile.count() < 12)
+          projectile(hostile, e.x, e.y, e.fire.vx, e.fire.vy);
         if (near(e.x, e.y, x, y, 10))
           hit();
       }
@@ -97,7 +119,7 @@ class FortressRun final : public CampaignGame {
           --hp;
         } else
           for (auto &e : guards.items)
-            if (e.active && near(p.x, p.y, e.x, e.y, 8)) {
+            if (e.active && projectileNear(p, e.x, e.y, 8)) {
               p.active = false;
               if (--e.hp == 0) {
                 e.active = false;
@@ -111,7 +133,7 @@ class FortressRun final : public CampaignGame {
       if (p.active) {
         if (cover(p.x, p.y))
           p.active = false;
-        else if (near(p.x, p.y, x, y, 8)) {
+        else if (projectileNear(p, x, y, 8)) {
           p.active = false;
           hit();
         }
@@ -141,6 +163,8 @@ public:
       if (e.active) {
         c.circle(int(e.x), int(e.y) - 3, 4, Pink, true);
         c.rect(int(e.x) - 4, int(e.y), 8, 7, Orange);
+        if (e.fire.cue())
+          c.line(int(e.x), int(e.y), int(e.x + e.fire.vx * 12), int(e.y + e.fire.vy * 12), Yellow);
       }
     if (!grace || tick % 10 < 5) {
       c.circle(int(x), int(y) - 4, 4, White, true);
@@ -172,6 +196,18 @@ GameEntry describeFortressRun() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyFortressRun() {
   FortressRun g;
+  g.start({});
+  g.guards.clear();
+  auto *guard = g.guards.acquire();
+  guard->x = 88;
+  guard->y = 146;
+  guard->detour = 1;
+  for (int t = 0; t < 600; ++t) {
+    g.grace = 100;
+    g.play();
+    HOST_CHECK(!g.cover(guard->x, guard->y));
+  }
+  HOST_CHECK(guard->y > 165);
   g.start({});
   for (int stage = 1; stage <= 12; ++stage) {
     HOST_CHECK(g.stage() == stage && !g.gameOver());

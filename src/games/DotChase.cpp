@@ -1,3 +1,4 @@
+#include "arcade/Behavior.h"
 #include "games/Campaign.h"
 namespace arcade {
 class DotChase final : public CampaignGame {
@@ -8,6 +9,7 @@ class DotChase final : public CampaignGame {
   std::array<int, 4> ghosts{};
   int player = 14, remaining = 0, power = 0, movement = 0;
   int hp = 0, maximum = 0;
+  int observedPlayer = 14;
   bool wall(int p) const {
     return p < 0 || p >= 221 || cells[p] == 1;
   }
@@ -18,6 +20,7 @@ class DotChase final : public CampaignGame {
     remaining = 0;
     power = movement = 0;
     player = 14;
+    observedPlayer = player;
     for (int y = 0; y < 17; ++y)
       for (int x = 0; x < 13; ++x) {
         int p = y * 13 + x;
@@ -61,18 +64,19 @@ class DotChase final : public CampaignGame {
     }
     if (stageTick % unsigned(std::max(8, 20 - int(level) / 2 - challenge() * 2)) == 0) {
       for (int i = 0; i < 4; ++i) {
-        int best = ghosts[i], distance = power ? -1 : 9999;
-        const int ds[] = {-1, 1, -13, 13};
-        for (int d : ds) {
-          int p = ghosts[i] + d;
-          if (wall(p) || !adjacent(p, ghosts[i]))
-            continue;
-          int score = std::abs(p % 13 - player % 13) + std::abs(p / 13 - player / 13);
-          if ((power && score > distance) || (!power && score < distance)) {
-            best = p;
-            distance = score;
-          }
+        int target = player;
+        if (!power && i == 1) {
+          int projected = player + (player - observedPlayer);
+          if (!wall(projected) && adjacent(projected, player))
+            target = projected;
         }
+        if (!power && i == 2 &&
+            std::abs(ghosts[i] % 13 - player % 13) + std::abs(ghosts[i] / 13 - player / 13) < 5)
+          target = 206;
+        if (!power && i == 3 && (stageTick / 240) % 2 == 0)
+          target = 24;
+        int best = routeStep<221>(ghosts[i], target, 13, [&](int p) { return wall(p); }, power);
+        const int ds[] = {-1, 1, -13, 13};
         if (i == 3 && rng.range(0, 3) == 0) {
           int p = ghosts[i] + ds[rng.range(0, 4)];
           if (!wall(p) && adjacent(p, ghosts[i]))
@@ -80,6 +84,7 @@ class DotChase final : public CampaignGame {
         }
         ghosts[i] = best;
       }
+      observedPlayer = player;
     }
     for (int i = 0; i < 4; ++i)
       if (ghosts[i] == player) {

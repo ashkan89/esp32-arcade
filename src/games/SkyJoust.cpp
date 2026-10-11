@@ -60,8 +60,8 @@ class SkyJoust final : public CampaignGame {
               add(150);
               ++eggs;
             } else {
-              e.y = 65;
-              e.x = 20;
+              e.y = clamp(e.y + 26, 38.f, 202.f);
+              e.vy = .5f;
             }
             vy = -2.5f;
             grace = 35;

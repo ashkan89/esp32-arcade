@@ -1,4 +1,5 @@
 #pragma once
+#include "arcade/Behavior.h"
 #include "arcade/Game.h"
 namespace arcade {
 enum class ShooterMode : uint8_t { Invaders, Sky, Star, Meteor };
@@ -17,6 +18,7 @@ protected:
     int hp = 1;
     uint8_t kind = 0, size = 0;
     uint32_t age = 0;
+    int cue = 0, actionTimer = 0, pattern = 0;
   };
   struct Particle {
     bool active = false;
@@ -37,6 +39,9 @@ protected:
   Pool<Power, 4> powers;
   std::array<std::array<uint8_t, 20 * 12>, 3> barriers{};
   float px = 80, py = 198;
+  float observedX = 80, observedVx = 0;
+  uint32_t lastAttack = 0;
+  int lastPattern = 0;
   int weapon = 0, invincible = 0, shield = 0, rapid = 0, dual = 0, combo = 1;
   int cooldown = 0, shotTimer = 0, spawnTimer = 0, moveTimer = 0, dir = 1, clearTimer = 0,
       spawned = 0, bombs = 1;
@@ -60,6 +65,7 @@ protected:
   virtual void updateEnemies() = 0;
   void updateBoss(Enemy &e);
   void formationFire();
+  bool aimedFire(Enemy &e);
   void collisions();
 
 public:

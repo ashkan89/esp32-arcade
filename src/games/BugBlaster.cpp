@@ -7,7 +7,7 @@ class BugBlaster final : public CampaignGame {
   struct Segment {
     bool active = false;
     float x = 0, y = 0;
-    int dir = 1, hp = 1;
+    int dir = 1, hp = 1, vertical = 1;
   };
   Pool<Segment, 24> bugs;
   Pool<Projectile, 24> shots;
@@ -47,9 +47,15 @@ class BugBlaster final : public CampaignGame {
         int cell = clamp((int(s.y) - 35) / 15, 0, 11) * 10 + clamp(int(nx) / 18, 0, 9);
         if (nx < 5 || nx > 171 || mushrooms[cell]) {
           s.dir = -s.dir;
-          s.y += 15;
-          if (s.y > 205)
+          s.y += 15 * s.vertical;
+          if (s.y > 205) {
+            s.y = 205;
+            s.vertical = -1;
+          }
+          if (s.y < 178 && s.vertical < 0) {
             s.y = 178;
+            s.vertical = 1;
+          }
         } else
           s.x = nx;
         if (bossRound() && stageTick % 240 < 60)
@@ -57,7 +63,7 @@ class BugBlaster final : public CampaignGame {
         if (near(s.x, s.y, x, y, 10))
           hit();
         for (auto &p : shots.items)
-          if (p.active && near(s.x, s.y, p.x, p.y, 7)) {
+          if (p.active && projectileNear(p, s.x, s.y, 7)) {
             p.active = false;
             if (--s.hp == 0) {
               s.active = false;

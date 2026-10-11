@@ -8,6 +8,7 @@ class PrismRider final : public CampaignGame {
     bool active = false;
     int lane = 0, hp = 1;
     float depth = 0;
+    int cue = 0;
   };
   Pool<Climber, 24> foes;
   Pool<Projectile, 24> bolts;
@@ -71,7 +72,9 @@ class PrismRider final : public CampaignGame {
     for (auto &e : foes.items)
       if (e.active) {
         e.depth += .0018f + level * .00012f + challenge() * .0002f;
-        if (level >= 5 && stageTick % 150 == 0)
+        if (level >= 5 && e.depth < .7f && stageTick % 150 == 0)
+          e.cue = 18;
+        if (e.cue && --e.cue == 0)
           e.lane = (e.lane + 1) % 12;
         for (auto &p : bolts.items)
           if (p.active && int(p.x) == e.lane && std::abs(p.y - e.depth) < .055f) {
@@ -85,12 +88,7 @@ class PrismRider final : public CampaignGame {
           }
         if (e.active && e.depth >= 1) {
           e.active = false;
-          if (e.lane == lane)
-            hit();
-          else {
-            loseLife();
-            grace = 90;
-          }
+          hit();
         }
       }
     if (!bossRound() && spawned >= 16 + level * 2 && !foes.count())
@@ -113,8 +111,12 @@ public:
       c.line(px(l, 1), py(l, 1), px((l + 1) % 12, 1), py((l + 1) % 12, 1), Cyan);
     }
     for (const auto &e : foes.items)
-      if (e.active)
+      if (e.active) {
+        if (e.cue)
+          c.line(px(e.lane, e.depth), py(e.lane, e.depth), px((e.lane + 1) % 12, e.depth),
+                 py((e.lane + 1) % 12, e.depth), Yellow);
         c.circle(px(e.lane, e.depth), py(e.lane, e.depth), 4, e.hp > 1 ? Pink : Green, true);
+      }
     for (const auto &p : bolts.items)
       if (p.active)
         c.circle(px(int(p.x), p.y), py(int(p.x), p.y), 2, Yellow, true);
@@ -142,6 +144,26 @@ GameEntry describePrismRider() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyPrismRider() {
   PrismRider g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.foes.clear();
+  auto *foe = g.foes.acquire();
+  foe->lane = 3;
+  foe->depth = .9f;
+  g.level = 6;
+  g.stageTick = 150;
+  g.play();
+  HOST_CHECK(foe->lane == 3 && !foe->cue);
+  g.foes.clear();
+  g.health = 3;
+  g.grace = 0;
+  for (int i = 0; i < 3; ++i) {
+    auto *e = g.foes.acquire();
+    e->depth = 1;
+    e->lane = 3;
+  }
+  g.play();
+  HOST_CHECK(g.health == 2);
   g.start({});
   for (int stage = 1; stage <= 12; ++stage) {
     HOST_CHECK(g.stage() == stage && !g.gameOver());

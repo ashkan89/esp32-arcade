@@ -126,6 +126,71 @@ class RiverRaid final : public TickGame {
     edge = std::floor((s.bank[block] * (1 - t) + s.bank[block + 1] * t) / 4) * 4;
     isle = std::floor((s.island[block] * (1 - t) + s.island[block + 1] * t) / 4) * 4;
   }
+  // Conservative fast-flight reachability through the left route. Fuel depots
+  // constrain the route; enemies occupy the other branch in Enhanced mode.
+  static bool feasible(const Section &s) {
+    int previousDepot = 0, depots = 0;
+    for (int i = 0; i < 15; ++i)
+      if (s.objects[i].kind == Fuel) {
+        int position = i * 32 + 16;
+        if (position - previousDepot > 160)
+          return false;
+        previousDepot = position;
+        ++depots;
+      }
+    // At .75 units/tick, 160 units costs < 6,827 fuel. Even a partial
+    // 16-tick depot contact restores 7,680 net fuel; faster flight costs less.
+    if (depots < 3 || 512 - previousDepot > 160)
+      return false;
+    float low = 80, high = 80;
+    for (int pos = 0; pos <= 512; pos += 4) {
+      float edge, isle;
+      profile(s, float(pos), edge, isle);
+      low = std::max(edge + 4, low - 1.46f);
+      high = std::min(isle ? 76 - isle : 156 - edge, high + 1.46f);
+      if (pos >= 488 && pos <= 504) {
+        low = std::max(low, 68.f);
+        high = std::min(high, 92.f);
+      }
+      for (int i = 0; i < 15; ++i)
+        if (s.objects[i].kind == Fuel && pos == i * 32 + 16) {
+          low = std::max(low, s.objects[i].x - 7);
+          high = std::min(high, s.objects[i].x + 7);
+        }
+      if (low > high)
+        return false;
+    }
+    return true;
+  }
+  void buildSection(Section &s, uint16_t seed, uint8_t difficulty) {
+    generate(s, seed, difficulty);
+    if (!options.enhanced)
+      return;
+    Random layout{derivedSeed(options.seed, uint32_t(seed) | (uint32_t(difficulty) << 16))};
+    for (unsigned attempt = 0; attempt < 4; ++attempt) {
+      for (int i = 0; i <= 16; ++i) {
+        s.bank[i] = uint8_t(16 + layout.range(0, 5) * 4);
+        s.island[i] = (i >= 3 && i <= 11) ? uint8_t(layout.range(0, 4) * 4) : 0;
+      }
+      s.bank[0] = s.bank[16] = 32;
+      for (int i = 0; i < 15; ++i) {
+        auto &o = s.objects[i];
+        if (i == 2 || i == 6 || i == 10 || i == 13)
+          o = {52, Fuel, 1, true};
+        else if (o.kind != House) {
+          if (o.kind == Fuel)
+            o.kind = Helicopter;
+          o.x = 108;
+        }
+      }
+      if (feasible(s))
+        return;
+    }
+    // Fixed bounded fallback has a connected approach to the bridge and depots.
+    s.bank.fill(24);
+    s.bank[0] = s.bank[16] = 32;
+    s.island.fill(0);
+  }
   static bool water(const Section &s, float position, float px, float radius) {
     if (std::abs(position - 496.f) < 7)
       return !s.objects[15].alive && px - radius >= 64 && px + radius <= 96;
@@ -145,8 +210,8 @@ class RiverRaid final : public TickGame {
     }
   }
   void restartSection() {
-    generate(current, current.seed, current.difficulty);
-    generate(next, current.after, followingDifficulty(current.difficulty));
+    buildSection(current, current.seed, current.difficulty);
+    buildSection(next, current.after, followingDifficulty(current.difficulty));
     travel = 0;
     x = 80;
     speed = 1.5f;
@@ -157,7 +222,7 @@ class RiverRaid final : public TickGame {
   }
   void enterNext() {
     current = next;
-    generate(next, current.after, followingDifficulty(current.difficulty));
+    buildSection(next, current.after, followingDifficulty(current.difficulty));
     ++sectionNumber;
     level = uint16_t(std::min(sectionNumber, 65535u));
     bridgeCleared = !current.objects[15].alive;
@@ -181,7 +246,7 @@ class RiverRaid final : public TickGame {
         health = p.lives;
         sectionNumber = p.section;
         level = uint16_t(std::min(sectionNumber, 65535u));
-        generate(current, p.seed, p.difficulty);
+        buildSection(current, p.seed, p.difficulty);
       }
     }
     if (health <= 0) {
@@ -211,7 +276,8 @@ class RiverRaid final : public TickGame {
       if (o.kind == EnemyJet || ((o.kind == Tanker || o.kind == Helicopter) && tick % 120 < 70)) {
         float step = o.kind == EnemyJet ? 1.25f : o.kind == Helicopter ? .36f : .20f;
         float nx = o.x + o.direction * step;
-        if (!water(s, objectY(i), nx, halfWidth(o.kind)))
+        if ((options.enhanced && nx < 96 + halfWidth(o.kind)) ||
+            !water(s, objectY(i), nx, halfWidth(o.kind)))
           o.direction *= -1;
         else
           o.x = nx;
@@ -283,7 +349,7 @@ class RiverRaid final : public TickGame {
     }
     fuel -= 32;
     if (fuel < 16384 && tick % 30 == 0)
-      sound(Sound::Hit);
+      sound(Sound::Warning);
     if (!water(current, travel, x, 3) || !water(current, travel + 6, x, 2)) {
       crash();
       return;
@@ -391,7 +457,7 @@ public:
     bursts = {};
     player = 0;
     twoPlayers = started = false;
-    generate(current, 0xa814, 1);
+    buildSection(current, options.enhanced ? uint16_t((options.seed & 65535) | 1) : 0xa814, 1);
     restartSection();
   }
   uint16_t stageLimit() const override {
@@ -483,6 +549,72 @@ GameEntry describeRiverRaid() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyRiverRaid() {
   RiverRaid g;
+  g.start({});
+  for (unsigned seed = 1; seed <= 16; ++seed)
+    for (unsigned difficulty = 0; difficulty < 4; ++difficulty)
+      for (bool fast : {false, true}) {
+        GameOptions o;
+        o.seed = seed;
+        o.difficulty = uint8_t(difficulty);
+        o.enhanced = true;
+        g.start(o);
+        g.started = true;
+        g.awaitingTakeoff = false;
+        g.speed = fast ? 3.f : .75f;
+        unsigned ticks = 0;
+        while (g.sectionNumber <= 10 && ticks++ < 8000) {
+          float target = g.travel > 440 ? 80.f : 52.f;
+          InputFrame f;
+          f.held = fast ? Up : Down;
+          if (g.x < target - .6f)
+            f.held |= Right;
+          if (g.x > target + .6f)
+            f.held |= Left;
+          if (g.travel > 450 && g.x >= 65 && !g.bridgeCleared)
+            f.held |= Fire;
+          g.handle(f);
+          g.update();
+          if (g.health != 4 || g.crashTimer)
+            std::fprintf(stderr, "River pilot seed=%u fast=%u tick=%u travel=%.2f x=%.2f fuel=%u\n",
+                         seed, unsigned(fast), ticks, g.travel, g.x, g.fuel);
+          HOST_CHECK(g.health == 4 && !g.crashTimer && g.fuel > 32);
+        }
+        HOST_CHECK(g.sectionNumber == 11);
+      }
+  g.start({});
+  // Regression checks for the gameplay audit.
+  for (unsigned seed = 1; seed <= 128; ++seed) {
+    GameOptions o;
+    o.seed = seed;
+    o.enhanced = true;
+    g.start(o);
+    for (unsigned d = 1; d <= 48; ++d) {
+      RiverRaid::Section section;
+      g.buildSection(section, uint16_t(seed * 317u), uint8_t(d));
+      HOST_CHECK(g.feasible(section));
+      HOST_CHECK(section.bank.front() == 32 && section.bank.back() == 32 &&
+                 !section.island.front() && !section.island.back());
+      unsigned fuelCount = 0;
+      for (int i = 0; i < 15; ++i) {
+        const auto &o = section.objects[i];
+        if (o.kind == RiverRaid::Fuel) {
+          ++fuelCount;
+          HOST_CHECK(o.x == 52);
+        } else if (o.kind != RiverRaid::House)
+          HOST_CHECK(o.x >= 96);
+      }
+      HOST_CHECK(fuelCount >= 3);
+      section.objects[15].alive = false;
+      HOST_CHECK(g.water(section, 496, 80, 3));
+    }
+    auto saved = g.current.bank;
+    auto objects = g.current.objects;
+    g.restartSection();
+    HOST_CHECK(saved == g.current.bank);
+    for (unsigned i = 0; i < objects.size(); ++i)
+      HOST_CHECK(objects[i].kind == g.current.objects[i].kind &&
+                 objects[i].x == g.current.objects[i].x);
+  }
   g.start({});
   HOST_CHECK(g.lives() == 4 && g.stageLimit() == 0 && g.ownsHud());
   uint16_t r = 0xa814;

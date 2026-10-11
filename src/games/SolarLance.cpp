@@ -81,7 +81,7 @@ class SolarLance final : public CampaignGame {
             --hp;
         } else
           for (auto &e : drones.items)
-            if (e.active && near(p.x, p.y, e.x, e.y, 8)) {
+            if (e.active && projectileNear(p, e.x, e.y, 8)) {
               p.active = false;
               if (--e.hp == 0) {
                 e.active = false;

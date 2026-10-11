@@ -33,11 +33,18 @@ void SkyInvaders::updateEnemies() {
         updateBoss(e);
         continue;
       }
-      if (level >= 3 && e.kind != 3 && rng.range(0, 10000) < 2) {
-        e.kind = 3;
-        e.vx = (px - e.x) / 85;
+      unsigned diving = 0;
+      for (auto &other : enemies.items)
+        diving += other.active && (other.kind == 3 || other.kind == 6);
+      if (level >= 3 && diving < 1 && e.kind != 3 && e.kind != 6 && e.age % 60 == 0 &&
+          rng.range(0, 100) < 3) {
+        e.kind = 6;
+        e.cue = 24;
+        e.vx = clamp((observedX - e.x) / 85, -1.f, 1.f);
         e.vy = 1.7f;
       }
+      if (e.kind == 6 && --e.cue == 0)
+        e.kind = 3;
       if (e.kind == 3) {
         e.x += e.vx + std::sin(e.age * 0.07f) * 0.6f;
         e.y += e.vy;

@@ -9,12 +9,23 @@ class ColorCascade final : public TickGame {
   int cursor = 0, chosen = -1, moves = 30, combo = 0, wait = 0;
   uint64_t clearing = 0;
   void fill() {
-    for (int p = 0; p < 64; p++) {
-      do {
-        cells[p] = uint8_t(rng.range(1, 6));
-      } while ((p % 8 >= 2 && cells[p] == cells[p - 1] && cells[p] == cells[p - 2]) ||
-               (p >= 16 && cells[p] == cells[p - 8] && cells[p] == cells[p - 16]));
+    for (int attempt = 0; attempt < 8; ++attempt) {
+      for (int p = 0; p < 64; ++p) {
+        std::array<uint8_t, 5> candidates{};
+        int n = 0;
+        for (uint8_t v = 1; v <= 5; ++v)
+          if (!(p % 8 >= 2 && cells[p - 1] == v && cells[p - 2] == v) &&
+              !(p >= 16 && cells[p - 8] == v && cells[p - 16] == v))
+            candidates[n++] = v;
+        cells[p] = candidates[rng.range(0, n)];
+      }
+      if (legalMove())
+        return;
     }
+    for (int p = 0; p < 64; ++p)
+      cells[p] = uint8_t((p % 8 + 2 * (p / 8)) % 5 + 1);
+    cells[0] = cells[2] = cells[9] = 1;
+    cells[1] = 2; // Swap 1 and 9 creates a legal row.
   }
   bool legalMove() const {
     for (int p = 0; p < 64; p++)
@@ -137,6 +148,12 @@ GameEntry describeColorCascade() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyColorCascade() {
   ColorCascade g;
+  for (unsigned seed = 1; seed <= 100; ++seed) {
+    GameOptions o;
+    o.seed = seed;
+    g.start(o);
+    HOST_CHECK(!matchRuns(g.cells) && g.legalMove());
+  }
   int previous = 100;
   for (uint8_t mode = 0; mode < DifficultyCount; ++mode) {
     GameOptions o;

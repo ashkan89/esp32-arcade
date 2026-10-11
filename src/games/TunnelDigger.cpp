@@ -23,7 +23,7 @@ class TunnelDigger final : public CampaignGame {
     direction = 1;
     for (int i = 0; i < std::min(12, 3 + int(level) / 2); ++i)
       if (auto *e = enemies.acquire()) {
-        e->p = 13 + i * 17;
+        e->p = 13 + (i % 3) * 3 + (i / 3) * 33;
         dug[e->p] = true;
         e->hp = bossRound() && i == 0 ? 5 : 1;
       }
@@ -165,6 +165,15 @@ GameEntry describeTunnelDigger() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyTunnelDigger() {
   TunnelDigger g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  for (int stage = 1; stage <= 12; ++stage) {
+    g.level = uint16_t(stage);
+    g.setupStage();
+    for (const auto &e : g.enemies.items)
+      if (e.active)
+        HOST_CHECK(e.p >= 0 && e.p < int(g.dug.size()));
+  }
   g.start({});
   for (int stage = 1; stage <= 12; ++stage) {
     HOST_CHECK(g.stage() == stage && !g.gameOver());

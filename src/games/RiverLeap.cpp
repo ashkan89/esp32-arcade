@@ -53,6 +53,8 @@ class RiverLeap final : public TickGame {
     bool carried = false;
     for (auto &m : movers.items)
       if (m.active) {
+        bool supported =
+            m.row == row && row >= 5 && !carried && x - 5 >= m.x && x + 5 <= m.x + m.width;
         m.x += speed(m.row);
         if (m.x > W + 60)
           m.x = -60;
@@ -62,7 +64,7 @@ class RiverLeap final : public TickGame {
           if (row <= 3 && overlaps({x - 5, float(198 - row * 20), 10, 10},
                                    {m.x, float(196 - row * 20), float(m.width), 14}))
             crash();
-          if (row >= 5 && x >= m.x && x <= m.x + m.width) {
+          if (supported) {
             carried = true;
             x += speed(row);
           }
@@ -132,6 +134,22 @@ GameEntry describeRiverLeap() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyRiverLeap() {
   RiverLeap g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.movers.clear();
+  g.row = 6;
+  g.x = 95;
+  g.grace = 0;
+  auto *log = g.movers.acquire();
+  log->row = 6;
+  log->x = 50;
+  log->width = 50;
+  auto *overlap = g.movers.acquire();
+  *overlap = *log;
+  float before = g.x;
+  g.input = {};
+  g.simulate();
+  HOST_CHECK(g.row == 6 && std::abs(g.x - before - g.speed(6)) < .001f);
   g.start({});
   g.level = 12;
   g.homes.fill(true);

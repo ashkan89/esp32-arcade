@@ -1,0 +1,20 @@
+# Research notes
+
+Accessed during planning/implementation on 2026-10-11. SDK facts were also checked against installed Arduino-ESP32 2.0.17 / ESP-IDF 4.4.7 headers and source. URLs below support the stated facts; behavior tuning, seeds, route validation and melodies are our design decisions. A later repeat fetch of the web references failed with a connector connection error; no additional facts are attributed to that failed fetch.
+
+| Primary source | Supported fact | Implementation informed |
+| --- | --- | --- |
+| [ESP-IDF 4.4.7 LEDC](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/peripherals/ledc.html) | Timers and channels configure pitched PWM. APIs must match the installed version. | Single LEDC owner in Hardware.cpp; transport isolated in pure C++. Installed `esp32-hal-ledc.c::ledcWriteTone` selects 10-bit duty and writes 0x1FF, so the previous 128 override was removed. |
+| [ESP-IDF 4.4.7 RNG](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/system/random.html) | True hardware randomness requires entropy conditions; temporary bootloader entropy must be disabled before conflicting RF/ADC/I2S use. | Brief startup sampling window, then deterministic independent run/game/cosmetic streams. No gameplay radio dependency. |
+| [ESP-IDF 4.4.7 external RAM](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-guides/external-ram.html) | Classic ESP32 mapping and DMA/cache limitations distinguish physical from ordinary usable PSRAM. | Existing internal SPI staging and mapped/banked RAM architecture retained. No flash-backed ISR audio callback. |
+| [Game AI Pro: What is Game AI?](https://www.gameaipro.com/papers/what-is-game-ai.html) | Game AI serves gameplay and player experience, rather than maximal adversarial strength. | Imperfect sampled Pong prediction, committed attacks, explicit response windows. |
+| [Game AI Pro chapter 9: utility theory](https://www.gameaipro.com/GameAIPro/GameAIPro_Chapter09_An_Introduction_to_Utility_Theory.pdf) | Context-dependent scoring can select lightweight actions. | Bomb-aware legal-neighbor scoring and contextual duel distance; seeded recent-action avoidance for shooter bosses. We use compact heuristics, not the full chapter’s framework. |
+| [Game AI Pro chapter 4: behavior selection](https://www.gameaipro.com/GameAIPro/GameAIPro_Chapter04_Behavior_Selection_Algorithms.pdf) | State/behavior selection can be separated from execution. | Cue/commit/recover shooter and duelist states; bounded route and role decisions. |
+| [Keystone Kapers original manual, archived by AtariAge](https://www.atariage.com/manual_html_page.php?SoftwareLabelID=261) | Lift serves the lower floors; upward escalators reach the roof; obstacle classes, timer penalties and capture define the chase. | Classic behavior preserved. Enhanced reuses the verified lift/escalator geometry; thief lift routing and cabin capture are new design choices, not claims about cartridge AI. Existing original-manual research is in ATARI_RESEARCH.md. |
+| [River Raid original manual, archived by AtariAge](https://www.atariage.com/manual_html_page.php?SoftwareLabelID=409) | Speed control, fuel depots, destroyable bridges and score attack define the flight. | Classic scoring/checkpoints retained; Enhanced fuel/bridge route and low-fuel warning. |
+
+## Design choices and fidelity limits
+
+18–24 tick cues, imperfect aim, pressure caps, seven-piece bags, platform/gap constraints and the bounded Enhanced river validator are new tuning decisions. The manuals do not prescribe these algorithms. The games are original firmware interpretations, not cycle-accurate cartridge emulation. No ROM, proprietary melody or soundtrack was imported.
+
+Arduino 3.x migration documentation was listed in the supplied prompt, but migration is unnecessary for this pinned 2.x project. We verified the installed API directly and did not convert to 3.x channel semantics. Physical GPIO27 circuit details come from docs/HARDWARE.md and BoardConfig.h; the actual fitted component has not been measured.

@@ -7,6 +7,7 @@ class NightRacer final : public CampaignGame {
   struct Car {
     bool active = false;
     float lane = 0, depth = 0;
+    float targetLane = 0;
   };
   Pool<Car, 16> cars;
   float position = 0, speed = 0, distance = 0;
@@ -39,10 +40,14 @@ class NightRacer final : public CampaignGame {
       if (auto *e = cars.acquire()) {
         e->lane = rng.range(-7, 8) * .1f;
         e->depth = .05f;
+        e->targetLane = clamp(e->lane + float(rng.range(-2, 3)) * .15f, -.7f, .7f);
       }
     for (auto &e : cars.items)
       if (e.active) {
         e.depth += speed * .0035f;
+        // Opponents commit early; their lane is stable throughout the collision band.
+        if (e.depth < .65f)
+          e.lane += clamp(e.targetLane - e.lane, -.004f, .004f);
         if (e.depth > .92f && e.depth < 1.02f && std::abs(position - e.lane) < .23f && !collision) {
           hit();
           speed = .4f;

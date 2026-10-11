@@ -86,7 +86,7 @@ class VectorDrift final : public CampaignGame {
         if (near(x, y, r.x, r.y, 6 + r.size * 4))
           hit();
         for (auto &p : shots.items)
-          if (p.active && near(p.x, p.y, r.x, r.y, 5 + r.size * 4)) {
+          if (p.active && projectileNear(p, r.x, r.y, 5 + r.size * 4)) {
             float xx = r.x, yy = r.y;
             int size = r.size;
             r.active = p.active = false;
@@ -105,7 +105,7 @@ class VectorDrift final : public CampaignGame {
         for (int i = -1; i <= 1; ++i)
           projectile(hostile, bx, 65, clamp((x - bx) / 65, -1.4f, 1.4f) + i * .5f, 1.8f);
       for (auto &p : shots.items)
-        if (p.active && near(p.x, p.y, bx, 52, 19)) {
+        if (p.active && projectileNear(p, bx, 52, 19)) {
           p.active = false;
           if (--hp == 0) {
             burst(bx, 52);

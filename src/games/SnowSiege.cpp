@@ -57,6 +57,8 @@ class SnowSiege final : public CampaignGame {
     moveProjectiles(shots);
     for (auto &p : balls.items)
       if (p.active) {
+        p.oldX = p.x;
+        p.oldY = p.y;
         p.x += p.vx;
         if (--p.life <= 0)
           p.active = false;
@@ -68,7 +70,7 @@ class SnowSiege final : public CampaignGame {
           if (e.x < 8 || e.x > 168)
             e.dir = -e.dir;
           for (auto &p : shots.items)
-            if (p.active && near(e.x, e.y, p.x, p.y, 9)) {
+            if (p.active && projectileNear(p, e.x, e.y, 9)) {
               p.active = false;
               ++e.snow;
               sound(Sound::Hit);
@@ -84,13 +86,14 @@ class SnowSiege final : public CampaignGame {
           if (--e.hp == 0)
             e.active = false;
           else {
-            e.x = 150;
+            e.x = clamp(e.x + facing * 22, 8.f, 168.f);
             grace = 60;
           }
           add(100);
         }
         for (auto &p : balls.items)
-          if (p.active && p.owner != int(&e - foes.items.data()) && near(p.x, p.y, e.x, e.y, 12)) {
+          if (p.active && p.owner != int(&e - foes.items.data()) &&
+              projectileNear(p, e.x, e.y, 12)) {
             e.snow = 3;
             p.active = false;
             burst(e.x, e.y);

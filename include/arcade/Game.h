@@ -5,11 +5,13 @@ struct GameOptions {
   uint8_t difficulty = 1, layout = 0;
   bool effects = true;
   uint32_t seed = 1;
+  bool enhanced = false;
 };
 class Game {
 protected:
   GameOptions options;
   Random rng;
+  Random cosmeticRng;
   InputFrame input;
   bool paused = false, ended = false, victorious = false;
   uint32_t points = 0, tick = 0;
@@ -56,13 +58,15 @@ protected:
     points = UINT32_MAX - points < n ? UINT32_MAX : points + n;
   }
   void sound(Sound s) {
-    if (uint8_t(s) > uint8_t(pending))
+    if (soundPriority(s) > soundPriority(pending))
       pending = s;
   }
   void baseStart(const GameOptions &o) {
     options = o;
     options.difficulty = std::min(uint8_t(DifficultyCount - 1), o.difficulty);
     rng.state = o.seed ? o.seed : 1;
+    options.seed = rng.state;
+    cosmeticRng.state = derivedSeed(options.seed, 2);
     input = {};
     paused = ended = victorious = false;
     points = tick = 0;
@@ -104,6 +108,18 @@ public:
   }
   uint32_t score() const {
     return points;
+  }
+  uint32_t runSeed() const {
+    return options.seed;
+  }
+  uint32_t gameplayRandomState() const {
+    return rng.state;
+  }
+  unsigned runDifficulty() const {
+    return options.difficulty;
+  }
+  bool enhancedMode() const {
+    return options.enhanced;
   }
   uint16_t stage() const {
     return level;

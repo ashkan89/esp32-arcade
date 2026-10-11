@@ -7,12 +7,16 @@ class BladeDuel final : public CampaignGame {
   float x = 35, enemyX = 135;
   int stamina = 100, enemyHP = 0, maximum = 0, attack = 0, enemyAttack = 0, windup = 0, cool = 0,
       roundTime = 0;
+  int enemyRecover = 0, decision = 90, approach = 29;
   void setupStage() override {
     x = 35;
     enemyX = 135;
     stamina = 100;
     enemyHP = maximum = bossRound() ? 18 : 6 + level;
     attack = enemyAttack = windup = cool = 0;
+    enemyRecover = 0;
+    decision = 90;
+    approach = 29;
     roundTime = hazardInterval(60 * 90);
   }
   void play() override {
@@ -25,6 +29,8 @@ class BladeDuel final : public CampaignGame {
       --attack;
     if (enemyAttack)
       --enemyAttack;
+    if (enemyRecover)
+      --enemyRecover;
     if (cool)
       --cool;
     if (input.hit(Fire) && stamina >= 20 && !cool) {
@@ -42,13 +48,18 @@ class BladeDuel final : public CampaignGame {
           sound(Sound::Hit);
       }
     }
-    if (!windup && !enemyAttack) {
-      enemyX = clamp(enemyX + clamp(x + 29 - enemyX, -.6f, .6f), x + 14, 168.f);
-      if (stageTick % unsigned(std::max(28, 110 - int(level) * 4 - challenge() * 6)) == 0)
-        windup = hazardInterval(bossRound() ? 18 : 30);
+    if (!windup && !enemyAttack && !enemyRecover) {
+      enemyX = clamp(enemyX + clamp(x + approach - enemyX, -.6f, .6f), x + 14, 168.f);
+      if (--decision <= 0) {
+        if (enemyX - x < 55)
+          windup = std::max(20, hazardInterval(bossRound() ? 28 : 36));
+        decision = hazardInterval(85) + rng.range(0, 50);
+        approach = rng.range(0, 3) == 0 ? 45 : 29;
+      }
     }
     if (windup && --windup == 0) {
       enemyAttack = 12;
+      enemyRecover = 45 + rng.range(0, 30);
       if (enemyX - x < 42) {
         if (guard && stamina >= 15) {
           stamina -= 15;
@@ -96,6 +107,8 @@ public:
       c.line(int(x) + 10, 145, int(x) + 10, 177, Green);
     if (windup)
       c.centered(112, "STRIKE INCOMING", Red);
+    else if (enemyRecover)
+      c.centered(112, "RIVAL RECOVERING", Green);
     c.text(5, 34, "RIVAL", Pink);
     c.rect(42, 34, std::max(0, enemyHP) * 126 / maximum, 5, Red);
     c.text(5, 206, "STAMINA", Grey);

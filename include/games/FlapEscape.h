@@ -12,6 +12,7 @@ class FlapEscape final : public Game {
   Pool<Gate, 4> gates;
   float y = 110, vy = 0;
   int spawn = 0;
+  int lastGap = 85;
   bool flying = false;
 
 public:

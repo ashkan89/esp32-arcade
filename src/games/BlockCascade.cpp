@@ -7,6 +7,18 @@ class BlockCascade final : public TickGame {
 #endif
   std::array<uint8_t, 200> cells{};
   int px = 3, py = 0, rotation = 0, kind = 0, next = 0, fall = 0, lines = 0;
+  std::array<int, 7> bag{};
+  unsigned bagPosition = 7;
+  int drawPiece() {
+    if (bagPosition == 7) {
+      for (int i = 0; i < 7; ++i)
+        bag[i] = i;
+      for (int i = 6; i > 0; --i)
+        std::swap(bag[i], bag[rng.range(0, i + 1)]);
+      bagPosition = 0;
+    }
+    return bag[bagPosition++];
+  }
   uint16_t shape(int k, int r) const {
     static const uint16_t pieces[7] = {0x00f0, 0x0066, 0x0072, 0x0036, 0x0063, 0x0071, 0x0074};
     uint16_t mask = pieces[k];
@@ -37,7 +49,7 @@ class BlockCascade final : public TickGame {
   }
   void spawn() {
     kind = next;
-    next = rng.range(0, 7);
+    next = drawPiece();
     px = 3;
     py = rotation = fall = 0;
     if (!fits(px, py, rotation)) {
@@ -111,7 +123,8 @@ public:
     cells.fill(0);
     health = 1;
     lines = 0;
-    next = rng.range(0, 7);
+    bagPosition = 7;
+    next = drawPiece();
     spawn();
   }
   size_t activeEntities() const override {
@@ -158,6 +171,23 @@ GameEntry describeBlockCascade() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyBlockCascade() {
   BlockCascade g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  for (unsigned seed = 1; seed <= 100; ++seed) {
+    GameOptions o;
+    o.seed = seed;
+    g.start(o);
+    g.bagPosition = 7;
+    for (int b = 0; b < 20; ++b) {
+      unsigned mask = 0;
+      for (int i = 0; i < 7; ++i) {
+        int piece = g.drawPiece();
+        HOST_CHECK(!(mask & (1u << piece)));
+        mask |= 1u << piece;
+      }
+      HOST_CHECK(mask == 127);
+    }
+  }
   g.start({});
   g.level = 12;
   g.lines = 119;

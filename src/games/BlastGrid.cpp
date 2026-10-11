@@ -11,6 +11,23 @@ class BlastGrid final : public TickGame {
   bool blocked(int p) const {
     return p < 0 || p >= 99 || wall[p] != 0;
   }
+  bool threatened(int p) const {
+    if (flame[p])
+      return true;
+    if (bomb < 0 || fuse > 50)
+      return false;
+    if (p == bomb)
+      return true;
+    for (int d : {-1, 1, -9, 9})
+      for (int n = 1; n <= 2; ++n) {
+        int q = bomb + d * n;
+        if (q < 0 || q >= 99 || wall[q])
+          break;
+        if (q == p)
+          return true;
+      }
+    return false;
+  }
   void board() {
     for (int y = 0; y < 11; y++)
       for (int x = 0; x < 9; x++) {
@@ -63,9 +80,20 @@ class BlastGrid final : public TickGame {
     if (tick % uint32_t(std::max(10, 28 - int(level) - challenge() * 4)) == 0)
       for (auto &bot : bots)
         if (bot >= 0) {
-          int d = std::array<int, 4>{{-1, 1, -9, 9}}[rng.range(0, 4)], q = bot + d;
-          if (!blocked(q) && q != bomb)
-            bot = q;
+          int best = bot, value = threatened(bot) ? -1000 : -100;
+          for (int d : {-1, 1, -9, 9}) {
+            int q = bot + d;
+            if (blocked(q) || q == bomb ||
+                std::abs(q % 9 - bot % 9) + std::abs(q / 9 - bot / 9) != 1)
+              continue;
+            int score = (threatened(q) ? -1000 : 0) + rng.range(0, 12) -
+                        std::abs(q % 9 - player % 9) - std::abs(q / 9 - player / 9);
+            if (score > value) {
+              best = q;
+              value = score;
+            }
+          }
+          bot = best;
         }
     bool danger = flame[player] != 0;
     int left = 0;
@@ -152,6 +180,15 @@ GameEntry describeBlastGrid() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyBlastGrid() {
   BlastGrid g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.wall.fill(0);
+  g.bomb = 40;
+  g.fuse = 20;
+  g.flame.fill(0);
+  HOST_CHECK(g.threatened(40) && g.threatened(41) && !g.threatened(43));
+  g.wall[41] = 2;
+  HOST_CHECK(!g.threatened(42));
   g.start({});
   g.level = 12;
   g.board();

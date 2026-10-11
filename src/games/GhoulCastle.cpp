@@ -14,6 +14,7 @@ class GhoulCastle final : public CampaignGame {
   float x = 15, y = 190, vy = 0;
   int facing = 1, cool = 0, armor = 1, hp = 0, maximum = 0;
   float bx = 140, by = 80;
+  int jumpBuffer = 0, coyote = 0;
   bool ground(float xx) const {
     return xx < 58 || xx > 88;
   }
@@ -24,6 +25,7 @@ class GhoulCastle final : public CampaignGame {
     x = 15;
     y = 190;
     vy = 0;
+    jumpBuffer = coyote = 0;
     facing = 1;
     cool = 0;
     armor = 1;
@@ -39,8 +41,17 @@ class GhoulCastle final : public CampaignGame {
     int dx = int(input.down(Right)) - int(input.down(Left));
     if (dx)
       facing = dx;
+    if (ground(x) && y == 190 && vy == 0)
+      coyote = 6;
+    else if (coyote)
+      --coyote;
+    if (input.hit(Special))
+      jumpBuffer = 6;
+    else if (jumpBuffer)
+      --jumpBuffer;
     x = clamp(x + dx * 1.6f, 6.f, 170.f);
-    if (input.hit(Special) && vy == 0 && y == 190) {
+    if (jumpBuffer && coyote) {
+      jumpBuffer = coyote = 0;
       vy = -4.4f;
       sound(Sound::Move);
     }
@@ -67,9 +78,9 @@ class GhoulCastle final : public CampaignGame {
     }
     for (auto &e : ghouls.items)
       if (e.active) {
-        e.x += clamp(x - e.x, -.35f, .35f);
-        if (!ground(e.x))
-          e.x = x < 58 ? 50 : 100;
+        float nx = e.x + clamp(x - e.x, -.35f, .35f);
+        if (ground(nx))
+          e.x = nx;
         if (near(x, y, e.x, e.y, 11) && !grace) {
           if (armor) {
             armor = 0;
@@ -92,12 +103,12 @@ class GhoulCastle final : public CampaignGame {
     moveProjectiles(hostile);
     for (auto &p : spears.items)
       if (p.active) {
-        if (hp && near(p.x, p.y, bx, by, 20)) {
+        if (hp && projectileNear(p, bx, by, 20)) {
           p.active = false;
           --hp;
         } else
           for (auto &e : ghouls.items)
-            if (e.active && near(p.x, p.y, e.x, e.y, 9)) {
+            if (e.active && projectileNear(p, e.x, e.y, 9)) {
               p.active = false;
               if (--e.hp == 0) {
                 e.active = false;
@@ -174,6 +185,21 @@ GameEntry describeGhoulCastle() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyGhoulCastle() {
   GhoulCastle g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.x = 57;
+  g.y = 190;
+  g.vy = 0;
+  g.input = {Right | Special, Special};
+  g.play();
+  HOST_CHECK(g.x > 58 && g.vy < 0);
+  g.input = {};
+  g.x = 30;
+  g.y = 190;
+  g.vy = 0;
+  g.jumpBuffer = 4;
+  g.play();
+  HOST_CHECK(g.vy < 0 && g.jumpBuffer == 0);
   g.start({});
   for (int stage = 1; stage <= 12; ++stage) {
     HOST_CHECK(g.stage() == stage && !g.gameOver());

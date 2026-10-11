@@ -13,9 +13,11 @@ class JumpQuest final : public TickGame {
   float x = 88, y = 180, vx = 0, vy = -3;
   void reset() {
     platforms.clear();
+    float previousX = 65;
     for (int i = 0; i < 8; i++)
       if (auto *p = platforms.acquire()) {
-        p->x = float(i == 0 ? 65 : rng.range(4, 134));
+        p->x = i == 0 ? 65 : clamp(previousX + rng.range(-50, 51), 4.f, 133.f);
+        previousX = p->x;
         p->y = float(205 - i * 25);
         p->width = 42 - challenge() * 2;
       }
@@ -54,14 +56,19 @@ class JumpQuest final : public TickGame {
       if (p.active && p.y > H + 10)
         p.active = false;
     float top = H;
+    float topX = 65;
     for (const auto &p : platforms.items)
       if (p.active)
-        top = std::min(top, p.y);
+        if (p.y < top) {
+          top = p.y;
+          topX = p.x;
+        }
     while (top > 25) {
       if (auto *p = platforms.acquire()) {
         p->y = top - 25;
         top = p->y;
-        p->x = float(rng.range(3, 135));
+        p->x = clamp(topX + rng.range(-50, 51), 3.f, 134.f);
+        topX = p->x;
         p->width = 38 - challenge() * 2;
       } else
         break;

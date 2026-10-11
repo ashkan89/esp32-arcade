@@ -115,6 +115,8 @@ void Display::present(bool force) {
               for (int i = 0; i < 16; i++)
                 strip[j * 16 + i] = uint16_t(canvas.pixel(x + i, y + j) ^ (inverted ? 0xffff : 0));
             tft.pushImage(x, y, 16, rows, strip);
+            if (service)
+              service();
             for (int j = 0; j < rows; j++)
               std::memcpy(old + ((y + j) * W + x) * bpp, current + ((y + j) * W + x) * bpp,
                           16 * bpp);
@@ -135,6 +137,8 @@ void Display::present(bool force) {
     uint32_t hash = checksum(reinterpret_cast<uint8_t *>(strip), size_t(W * rows * 2));
     if (force || invalid || hash != hashes[unsigned(index)]) {
       tft.pushImage(0, y, W, rows, strip);
+      if (service)
+        service();
       hashes[unsigned(index)] = hash;
     }
   }
@@ -152,79 +156,26 @@ void Audio::begin() {
     Serial.println("Audio LEDC initialization failed");
 }
 void Audio::stop() {
-  length = index = priority = 0;
-  active = false;
+  sequencer.stop(millis());
+  pitch = 0;
   if (ready)
     ledcWrite(0, 0);
 }
-void Audio::next(uint32_t now) {
-  if (index >= length) {
-    stop();
-    return;
-  }
-  auto n = sequence[index++];
-  deadline = now + n.ms;
-  active = true;
-  ledcWriteTone(0, n.hz);
-  ledcWrite(0, n.hz ? 128 : 0); // passive transducer, fixed 50% duty, no pretend volume
-}
 void Audio::play(Sound s, uint32_t now) {
-  if (!ready || !enabled || s == Sound::None)
-    return;
-  uint8_t p = uint8_t(s);
-  if (active && p < priority)
-    return;
-  stop();
-  priority = p;
-  switch (s) {
-  case Sound::Move:
-    sequence[0] = {1200, 12};
-    length = 1;
-    break;
-  case Sound::Shot:
-    sequence[0] = {1800, 16};
-    length = 1;
-    break;
-  case Sound::Hit:
-    sequence[0] = {900, 20};
-    length = 1;
-    break;
-  case Sound::Explosion:
-    sequence[0] = {1200, 18};
-    sequence[1] = {800, 18};
-    sequence[2] = {400, 28};
-    length = 3;
-    break;
-  case Sound::Power:
-  case Sound::Wave:
-  case Sound::Select:
-    sequence[0] = {900, 20};
-    sequence[1] = {1200, 20};
-    sequence[2] = {1800, 35};
-    length = 3;
-    break;
-  case Sound::Over:
-    sequence[0] = {700, 70};
-    sequence[1] = {500, 80};
-    sequence[2] = {300, 100};
-    length = 3;
-    break;
-  default:
-    break;
-  }
-  next(now);
+  sequencer.play(s, now);
 }
 void Audio::update(uint32_t now) {
-  if (active && reached(now, deadline))
-    next(now);
-  if (ready && enabled && music && !active && elapsed(now, musicTick) >= 180) {
-    static constexpr uint16_t notes[] = {262, 330, 392, 330, 294, 349, 440, 349};
-    musicTick = now;
-    sequence[0] = {notes[musicStep++ % 8], 35};
-    length = 1;
-    index = priority = 0;
-    next(now);
+  uint32_t start = micros();
+  uint16_t hz = sequencer.update(now);
+  if (ready && hz != pitch) {
+    pitch = hz;
+    // Arduino 2.0.17 ledcWriteTone uses 10 bits and supplies approximately 50% duty.
+    if (hz)
+      ledcWriteTone(0, hz);
+    else
+      ledcWrite(0, 0);
   }
+  maxCostUs = std::max(maxCostUs, elapsed(micros(), start));
 }
 void Storage::begin() {
   ready = prefs.begin("skyarcade", false);
@@ -234,7 +185,8 @@ void Storage::begin() {
   }
   SaveBytes bytes{};
   size_t len = prefs.isKey("state") ? prefs.getBytesLength("state") : 0;
-  if ((len == SaveSize || len == 72) && prefs.getBytes("state", bytes.data(), len) == len &&
+  if ((len == SaveSize || len == 304 || len == 72) &&
+      prefs.getBytes("state", bytes.data(), len) == len &&
       decodeStored(bytes.data(), len, settings)) {
     Serial.println("Settings and records loaded");
     if (len != SaveSize)
@@ -250,7 +202,7 @@ void Storage::begin() {
     nvs_close(historicalHandle);
   if (historicalExists && previous.begin(historicalNamespace, true)) {
     len = previous.isKey("state") ? previous.getBytesLength("state") : 0;
-    bool migrated = (len == SaveSize || len == 72) &&
+    bool migrated = (len == SaveSize || len == 304 || len == 72) &&
                     previous.getBytes("state", bytes.data(), len) == len &&
                     decodeStored(bytes.data(), len, settings);
     previous.end();

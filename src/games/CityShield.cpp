@@ -42,10 +42,10 @@ class CityShield final : public CampaignGame {
         p->y = 205;
         p->vx = x;
         p->vy = y;
+        --ammo;
+        cool = 8;
+        sound(Sound::Shot);
       }
-      --ammo;
-      cool = 8;
-      sound(Sound::Shot);
     }
     if (input.hit(Special) && ammo >= 3) {
       if (auto *b = blasts.acquire()) {

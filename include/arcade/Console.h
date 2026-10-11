@@ -14,7 +14,8 @@ enum class Screen : uint8_t {
   Utilities,
   Attract,
   Updates,
-  History
+  History,
+  SoundPreview
 };
 enum class ConsoleAction : uint8_t { None, CheckUpdate, InstallUpdate, SetupNetwork, Rollback };
 class Console {
@@ -28,6 +29,11 @@ class Console {
   Sound pending = Sound::None;
   ConsoleAction action = ConsoleAction::None;
   bool newRun = false;
+  bool legacyScores = false;
+  Random runSeeds;
+  uint32_t nextSeed() {
+    return runSeeds.next();
+  }
   void transition(Screen s, uint32_t now);
   void start(uint32_t now);
   void leave(uint32_t now);
@@ -57,6 +63,9 @@ public:
     return result;
   }
   int historyOffset() const {
+    return cursor;
+  }
+  int previewTrack() const {
     return cursor;
   }
   bool consumeNewRun() {

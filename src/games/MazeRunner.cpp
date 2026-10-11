@@ -75,11 +75,16 @@ class MazeRunner final : public TickGame {
           queue[tail++] = q;
         }
       }
-      for (auto &e : enemies) {
+      for (unsigned index = 0; index < enemies.size(); ++index) {
+        auto &e = enemies[index];
+        if (index == 1 && (tick / unsigned(std::max(8, 25 - int(level) - challenge() * 3))) % 2)
+          continue;
         int best = e;
         for (int d : {-1, 1, -17, 17}) {
           int q = e + d;
-          if (q >= 0 && q < 323 && !maze[q] && distance[q] >= 0 && distance[q] < distance[best])
+          if (q >= 0 && q < 323 && std::abs(q % 17 - e % 17) + std::abs(q / 17 - e / 17) == 1 &&
+              !maze[q] && distance[q] >= 0 && distance[q] < distance[best] &&
+              std::find(enemies.begin(), enemies.end(), q) == enemies.end())
             best = q;
         }
         e = best;

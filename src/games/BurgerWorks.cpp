@@ -23,6 +23,7 @@ class BurgerWorks final : public CampaignGame {
     floor = 0;
     pepper = 3;
     delay = 0;
+    attackCooldown = 0;
     chefs.clear();
     for (int i = 0; i < 6; ++i)
       trays[i] = {1 + i / 2, 0, 0, 0, false};
@@ -105,13 +106,10 @@ class BurgerWorks final : public CampaignGame {
           continue;
         }
         if (stageTick % unsigned(std::max(2, 6 - int(level) / 4 - challenge() / 2)) == 0)
-          e.x += x > e.x ? 1 : -1;
+          e.x += (e.floor == floor ? x : (e.x < 88 ? 15 : 160)) > e.x ? 1 : -1;
+        e.x = clamp(e.x, 7, 168);
         if (stageTick % 60 == 0 && e.floor != floor && (e.x < 20 || e.x > 150))
           e.floor += floor > e.floor ? 1 : -1;
-        if (stageTick % 240 == 0 && e.floor != floor) {
-          e.x = e.x < 88 ? 15 : 160;
-          e.floor += floor > e.floor ? 1 : -1;
-        }
         if (e.floor == floor && std::abs(e.x - x) < 8) {
           hit();
           x = 15;

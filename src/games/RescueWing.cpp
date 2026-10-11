@@ -8,6 +8,7 @@ class RescueWing final : public CampaignGame {
     bool active = false;
     float x = 0, y = 0;
     int hp = 1;
+    FirePlan fire;
   };
   Pool<Alien, 12> aliens;
   Pool<Projectile, 24> shots, hostile;
@@ -46,6 +47,7 @@ class RescueWing final : public CampaignGame {
         e->x = 80 + i * 75;
         e->y = 45;
         e->hp = 1 + level / 6;
+        e->fire.timer = 70 + i * 23;
       }
   }
   void play() override {
@@ -53,6 +55,13 @@ class RescueWing final : public CampaignGame {
     if (dx)
       facing = dx;
     x = wrap(x + dx * 2.1f);
+    // Projectiles retain world motion while the camera follows the ship.
+    for (auto &p : shots.items)
+      if (p.active)
+        p.x -= dx * 2.1f;
+    for (auto &p : hostile.items)
+      if (p.active)
+        p.x -= dx * 2.1f;
     y = clamp(y + (int(input.down(Down)) - int(input.down(Up))) * 1.8f, 43.f, 193.f);
     if (cool)
       --cool;
@@ -81,8 +90,9 @@ class RescueWing final : public CampaignGame {
         float sx = screenX(e.x);
         e.y += e.y < 135 ? .15f : 0;
         e.x = wrap(e.x + clamp(88 - sx, -.45f, .45f));
-        if (stageTick % unsigned(hazardInterval(100)) == 0 && sx > 0 && sx < 176)
-          projectile(hostile, sx, e.y, clamp((88 - sx) / 70, -1.4f, 1.4f), 1.6f);
+        if (sx > 12 && sx < 164 && e.y < y - 25 &&
+            e.fire.step(sx, e.y, 88, y, 1.6f, rng, hazardInterval(120)) && hostile.count() < 10)
+          projectile(hostile, sx, e.y, e.fire.vx, e.fire.vy);
         if (near(sx, e.y, 88, y, 12))
           hit();
       }
@@ -91,7 +101,7 @@ class RescueWing final : public CampaignGame {
     for (auto &p : shots.items)
       if (p.active) {
         for (auto &e : aliens.items)
-          if (e.active && near(p.x, p.y, screenX(e.x), e.y, 9)) {
+          if (e.active && projectileNear(p, screenX(e.x), e.y, 9)) {
             p.active = false;
             if (--e.hp == 0) {
               e.active = false;
@@ -100,7 +110,7 @@ class RescueWing final : public CampaignGame {
             }
             break;
           }
-        if (p.active && hp && near(p.x, p.y, screenX(264), 90, 25)) {
+        if (p.active && hp && projectileNear(p, screenX(264), 90, 25)) {
           p.active = false;
           --hp;
         }
@@ -112,7 +122,7 @@ class RescueWing final : public CampaignGame {
           projectile(hostile, sx, 100, i * .6f, 2);
     }
     for (auto &p : hostile.items)
-      if (p.active && near(p.x, p.y, 88, y, 8)) {
+      if (p.active && projectileNear(p, 88, y, 8)) {
         p.active = false;
         hit();
       }
@@ -146,6 +156,8 @@ public:
         int xx = int(screenX(e.x));
         c.circle(xx, int(e.y), 7, Pink);
         c.rect(xx - 8, int(e.y) + 3, 16, 3, Red);
+        if (e.fire.cue())
+          c.line(xx, int(e.y), xx + int(e.fire.vx * 12), int(e.y + e.fire.vy * 12), Yellow);
       }
     if (!grace || tick % 10 < 5) {
       c.line(88 + facing * 9, int(y), 88 - facing * 7, int(y) - 6, Cyan);
@@ -180,6 +192,15 @@ GameEntry describeRescueWing() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyRescueWing() {
   RescueWing g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.aliens.clear();
+  g.shots.clear();
+  g.hostile.clear();
+  projectile(g.shots, 100, 100, 0, 0);
+  g.input = {Right, Right};
+  g.play();
+  HOST_CHECK(std::abs(g.shots.items[0].x - 97.9f) < .001f);
   g.start({});
   for (int stage = 1; stage <= 12; ++stage) {
     HOST_CHECK(g.stage() == stage && !g.gameOver());

@@ -1,7 +1,7 @@
 #include "arcade/Console.h"
+#include "arcade/HttpJson.h"
 #include "arcade/ReleasePolicy.h"
 #include "arcade/SetupKey.h"
-#include "arcade/HttpJson.h"
 #include "assets/Visuals.h"
 #include "games/FlapEscape.h"
 #include "games/MeteorPatrol.h"
@@ -18,6 +18,7 @@
 #include <string>
 namespace arcade {
 unsigned campaignAssertions = 0;
+void verifyImprovements();
 bool verifyVectorDrift();
 bool verifyBugBlaster();
 bool verifyCityShield();
@@ -883,12 +884,41 @@ static void preview() {
   menus.update({0, Fire}, 1700);
   menus.render(c);
   write(int(GameCount) + 8);
-  menus.update({0, Special}, 1800);
+  menus.update({0, Special}, 1750);
+  CHECK(menus.state() == Screen::Scores);
+  menus.render(c);
+  write(int(GameCount) + 12);
+  menus.update({0, Back}, 1800);
   menus.update({0, Fire}, 1900);
   menus.update({0, Down}, 2000);
   settings.difficulty = 3;
   menus.render(c);
   write(int(GameCount) + 9);
+  Console soundMenus(settings);
+  soundMenus.begin({}, 0);
+  soundMenus.update({}, 1200);
+  soundMenus.update({0, Back}, 1300);
+  soundMenus.update({0, Fire}, 1400);
+  CHECK(soundMenus.state() == Screen::Settings);
+  for (unsigned row = 0; row < 9; ++row)
+    soundMenus.update({0, Down}, 1500 + row * 100);
+  auto oldMusic = settings.music;
+  soundMenus.update({0, Fire}, 2500);
+  CHECK(settings.music != oldMusic && soundMenus.consumeDirty());
+  soundMenus.render(c);
+  write(int(GameCount) + 10);
+  for (unsigned row = 0; row < 3; ++row)
+    soundMenus.update({0, Down}, 2600 + row * 100);
+  soundMenus.update({0, Fire}, 3000);
+  CHECK(soundMenus.state() == Screen::SoundPreview);
+  soundMenus.render(c);
+  write(int(GameCount) + 11);
+  soundMenus.update({0, Left}, 3100);
+  CHECK(soundMenus.previewTrack() == int(GameCount));
+  soundMenus.update({0, Fire}, 3200);
+  CHECK(soundMenus.takeSound() == Sound::Power);
+  soundMenus.update({0, Back}, 3300);
+  CHECK(soundMenus.state() == Screen::Settings);
 }
 static void puzzleRules() {
   std::array<uint8_t, 4> line{{1, 1, 1, 1}};
@@ -970,12 +1000,15 @@ static void httpJson() {
       position += n;
       return int(n);
     }
-    bool complete() const { return !truncated && position == body.size(); }
+    bool complete() const {
+      return !truncated && position == body.size();
+    }
   };
   auto clock = []() -> uint32_t { return 0; };
   std::string body = "{\"tag_name\":\"v2.0.1\",\"draft\":false,\"prerelease\":false,\"body\":\"";
   body += std::string(90000, 'x');
-  body += "\",\"assets\":[{\"name\":\"arcade-esp32-wroom-n4.bin\",\"size\":123456,\"browser_download_url\":\"https://github.com/a/b/releases/download/v2.0.1/a.bin\"}]}\n";
+  body += "\",\"assets\":[{\"name\":\"arcade-esp32-wroom-n4.bin\",\"size\":123456,\"browser_"
+          "download_url\":\"https://github.com/a/b/releases/download/v2.0.1/a.bin\"}]}\n";
   DynamicJsonDocument doc(16384);
   Transport input{body};
   HttpJsonReader<Transport> reader(input, 131072, clock);
@@ -1086,6 +1119,7 @@ int main() {
       "Focused campaign checks: %u assertions plus legacy endings and solvable warehouses\n",
       campaignAssertions);
   lifecycle();
+  verifyImprovements();
   visualChecks();
   preview();
   std::printf(

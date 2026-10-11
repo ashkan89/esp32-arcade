@@ -19,6 +19,10 @@ class KeystoneKapers final : public TickGame {
   int facing = 1, thiefDirection = -1, seconds = 3000, grace = 0, transition = 0, ride = 0;
   uint32_t roundTick = 0;
   bool inLift = false, crouching = false, running = false, caught = false;
+  int thiefCommit = 0;
+  int thiefRide = 0;
+  uint8_t thiefTargetFloor = 0;
+  bool thiefInLift = false, thiefSeekLift = false;
   struct Lift {
     float floor = 0;
     bool open = false;
@@ -56,6 +60,10 @@ class KeystoneKapers final : public TickGame {
     grace = ride = 0;
     inLift = crouching = running = false;
     roundTick = 0;
+    thiefCommit = 0;
+    thiefRide = 0;
+    thiefTargetFloor = 0;
+    thiefInLift = thiefSeekLift = false;
     for (auto &h : hazards)
       h.active = false;
     int n = 0;
@@ -106,14 +114,82 @@ class KeystoneKapers final : public TickGame {
     transition = 90;
     caught = true;
   }
+  float thiefVisualFloor() const {
+    if (options.enhanced && thiefInLift)
+      return lift().floor;
+    if (options.enhanced && thiefRide)
+      return thiefFloor + (thiefTargetFloor - thiefFloor) * (60 - thiefRide) / 60.f;
+    return float(thiefFloor);
+  }
+  void enhancedThief() {
+    Lift elevator = lift();
+    if (thiefInLift) {
+      if (elevator.open && elevator.stop == thiefTargetFloor) {
+        thiefFloor = thiefTargetFloor;
+        thiefInLift = false;
+        thiefCommit = 0;
+      }
+      return;
+    }
+    if (thiefRide) {
+      --thiefRide;
+      int start = thiefFloor % 2 ? 32 : 448;
+      thiefX = start + (thiefFloor % 2 ? 32.f : -32.f) * (60 - thiefRide) / 60.f;
+      if (!thiefRide) {
+        thiefFloor = thiefTargetFloor;
+        thiefCommit = 0;
+      }
+      return;
+    }
+    if (--thiefCommit <= 0) {
+      float officerPath = inLift ? 240 + elevator.floor * 480 : path(x, floor);
+      bool intercepted = officerPath > path(thiefX, thiefFloor);
+      thiefSeekLift = intercepted && thiefFloor > 0 && thiefFloor < 3;
+      thiefDirection = thiefSeekLift                    ? (thiefX > 240 ? -1 : 1)
+                       : intercepted && thiefFloor == 3 ? 1
+                                                        : (thiefFloor % 2 ? -1 : 1);
+      thiefCommit = 36 + rng.range(0, 25);
+    }
+    float speed = .53f + std::min(15, int(level) - 1) * .012f;
+    if (thiefSeekLift) {
+      thiefX += clamp(240 - thiefX, -speed, speed);
+      if (thiefX == 240 && elevator.open && elevator.stop == thiefFloor) {
+        thiefX = 240;
+        thiefInLift = true;
+        thiefTargetFloor = thiefFloor - 1;
+        thiefSeekLift = false;
+      }
+      return;
+    }
+    thiefX += thiefDirection * speed;
+    if (thiefFloor < 3 && (thiefFloor % 2 ? thiefX <= 32 : thiefX >= 448)) {
+      thiefX = thiefFloor % 2 ? 32.f : 448.f;
+      thiefTargetFloor = thiefFloor + 1;
+      thiefRide = 60;
+    } else if (thiefFloor == 3 && thiefX < 12) {
+      lose();
+    } else if (thiefX > 468 || thiefX < 12) {
+      thiefX = clamp(thiefX, 12.f, 468.f);
+      thiefDirection = -thiefDirection;
+      thiefCommit = 36;
+    }
+  }
   void thief() {
+    if (options.enhanced) {
+      enhancedThief();
+      return;
+    }
     // Intercepting ahead of Harry sends him back toward the lower floors.
     float officerPath = inLift ? 240 + lift().floor * 480 : path(x, floor);
-    thiefDirection = officerPath > path(thiefX, thiefFloor) ? (thiefFloor % 2 ? 1 : -1)
-                                                            : (thiefFloor % 2 ? -1 : 1);
+    if (!options.enhanced || --thiefCommit <= 0) {
+      thiefDirection = officerPath > path(thiefX, thiefFloor) ? (thiefFloor % 2 ? 1 : -1)
+                                                              : (thiefFloor % 2 ? -1 : 1);
+      thiefCommit = options.enhanced ? 36 + rng.range(0, 25) : 0;
+    }
     float speed = .53f + std::min(15, int(level) - 1) * .012f;
     thiefX += thiefDirection * speed;
     if (thiefX < 12 || thiefX > 468) {
+      thiefCommit = 0;
       bool ascending = (thiefFloor % 2 ? thiefDirection < 0 : thiefDirection > 0);
       if (ascending) {
         if (thiefFloor == 3) {
@@ -192,7 +268,10 @@ class KeystoneKapers final : public TickGame {
     thief();
     if (transition || ended)
       return;
-    if (!inLift && !ride && floor == thiefFloor && std::abs(x - thiefX) < 8 && jump < 10) {
+    bool sameFloor = options.enhanced && thiefInLift
+                         ? inLift
+                         : !inLift && !ride && !thiefRide && floor == thiefFloor;
+    if (sameFloor && std::abs(x - thiefX) < 8 && jump < 10) {
       arrest();
       return;
     }
@@ -206,6 +285,8 @@ class KeystoneKapers final : public TickGame {
             h.x = 472;
           if (h.x > 472)
             h.x = 8;
+          if (h.floor == floor && h.kind == Biplane && std::abs(h.x - x) < 45 && tick % 45 == 0)
+            sound(Sound::Warning);
         }
         if (inLift || ride || h.floor != floor)
           continue;
@@ -381,8 +462,8 @@ public:
       if (h.active)
         drawHazard(c, h, camera);
     if (thiefX - camera >= -4 && thiefX - camera <= 164)
-      atari::person(c, int(thiefX) - camera + 8, ground(thiefFloor), false, false,
-                    thiefDirection < 0, roundTick / 8);
+      atari::person(c, int(thiefX) - camera + 8, int(ground(0) - 36 * thiefVisualFloor()), false,
+                    false, thiefDirection < 0, roundTick / 8);
     if (!inLift && (!grace || tick % 8 < 4)) {
       float feet = ground(floor) - jump;
       if (ride)
@@ -403,7 +484,7 @@ public:
     c.rect(86, int(197 - elevator.floor * 7) - 4, 5, 4, 0xce59);
     float mapFloor = inLift ? elevator.floor : floor + (ride ? (60 - ride) / 60.f : 0);
     c.rect(40 + int(x / 5), int(197 - mapFloor * 7) - 3, 2, 3, Black);
-    c.rect(40 + int(thiefX / 5), 197 - thiefFloor * 7 - 3, 2, 3, White);
+    c.rect(40 + int(thiefX / 5), int(197 - thiefVisualFloor() * 7) - 3, 2, 3, White);
     atari::credit(c, 207);
     if (transition)
       c.centered(99, caught ? "ARREST!" : "READY", White);
@@ -425,6 +506,76 @@ GameEntry describeKeystoneKapers() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyKeystoneKapers() {
   KeystoneKapers g;
+  g.start({});
+  GameOptions physical;
+  physical.enhanced = true;
+  physical.seed = 9;
+  g.start(physical);
+  g.thiefFloor = 2;
+  g.thiefX = 448;
+  g.thiefCommit = 0;
+  g.floor = 0;
+  g.x = 24;
+  g.thief();
+  HOST_CHECK(g.thiefRide == 60 && g.thiefFloor == 2);
+  for (int t = 0; t < 30; ++t)
+    g.thief();
+  HOST_CHECK(g.thiefFloor == 2 && g.thiefVisualFloor() == 2.5f && g.thiefX == 432);
+  for (int t = 0; t < 30; ++t)
+    g.thief();
+  HOST_CHECK(g.thiefFloor == 3 && g.thiefX == 416 && !g.thiefRide);
+  g.thiefFloor = 1;
+  g.thiefX = 240;
+  g.floor = 2;
+  g.x = 240;
+  g.roundTick = 192;
+  g.thiefCommit = 0;
+  g.thief();
+  HOST_CHECK(g.thiefInLift && g.thiefTargetFloor == 0);
+  g.roundTick = 348;
+  g.thief();
+  HOST_CHECK(g.thiefFloor == 1 && g.thiefVisualFloor() > 1);
+  g.roundTick = 768;
+  g.thief();
+  HOST_CHECK(!g.thiefInLift && g.thiefFloor == 0);
+  g.start(physical);
+  g.thiefInLift = true;
+  g.thiefTargetFloor = 0;
+  g.thiefX = 240;
+  g.inLift = true;
+  g.x = 240;
+  g.roundTick = 193;
+  g.update();
+  HOST_CHECK(g.caught && g.transition == 90 && g.level == 2);
+  g.start({});
+  // Regression checks for the gameplay audit.
+  GameOptions enhanced;
+  enhanced.enhanced = true;
+  enhanced.seed = 42;
+  g.start(enhanced);
+  g.thief();
+  int committed = g.thiefDirection;
+  g.floor = 3;
+  g.x = 460;
+  for (int t = 0; t < 20; ++t) {
+    g.thief();
+    HOST_CHECK(g.thiefDirection == committed);
+  }
+  for (int t = 0; t < 2400; ++t) {
+    float before = g.thiefX;
+    int beforeFloor = g.thiefFloor;
+    int previousRide = g.thiefRide;
+    bool previousLift = g.thiefInLift;
+    ++g.roundTick;
+    g.thief();
+    HOST_CHECK(g.thiefFloor < 4 && g.thiefX >= 12 && g.thiefX <= 468);
+    if (g.thiefFloor != beforeFloor)
+      HOST_CHECK(previousRide == 1 || previousLift || g.transition);
+    else
+      HOST_CHECK(std::abs(before - g.thiefX) < 1 || g.transition);
+    if (g.transition || g.ended)
+      break;
+  }
   g.start({});
   HOST_CHECK(g.health == 4 && g.seconds == 3000 && g.stageLimit() == 0 && g.ownsHud());
   auto time = g.seconds;

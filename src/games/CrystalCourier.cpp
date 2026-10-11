@@ -41,9 +41,16 @@ class CrystalCourier final : public CampaignGame {
     }
     if (stageTick % unsigned(std::max(10, 35 - int(level) - challenge() * 2)) == 0)
       for (int i = 0; i < 3; ++i) {
-        int p = hunters[i], dx = player % 9 - p % 9, dy = player / 9 - p / 9;
+        int target = player;
+        if (i == 1)
+          target = clamp(player + (player % 9 < 4 ? 2 : -2), 0, 80);
+        if (i == 2 && (stageTick / 180) % 2 == 0)
+          target = 8;
+        int p = hunters[i], dx = target % 9 - p % 9, dy = target / 9 - p / 9;
         int next = p + (std::abs(dx) > std::abs(dy) ? (dx > 0 ? 1 : -1) : (dy > 0 ? 9 : -9));
-        if (next >= 0 && next < 81 && std::abs(next % 9 - p % 9) + std::abs(next / 9 - p / 9) == 1)
+        if (next >= 0 && next < 81 &&
+            std::abs(next % 9 - p % 9) + std::abs(next / 9 - p / 9) == 1 &&
+            std::find(hunters.begin(), hunters.end(), next) == hunters.end())
           hunters[i] = next;
       }
     for (int i = 0; i < 3; ++i)

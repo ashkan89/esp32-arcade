@@ -6,6 +6,7 @@ void FlapEscape::start(const GameOptions &o) {
   y = 110;
   vy = 0;
   spawn = 35;
+  lastGap = 85;
   flying = false;
   health = 1;
 }
@@ -29,7 +30,8 @@ void FlapEscape::update() {
     spawn = int(104 / speed);
     if (auto *g = gates.acquire()) {
       g->x = W + 8;
-      g->gapY = rng.range(48, 124);
+      g->gapY = clamp(lastGap + rng.range(-26, 27), 48, 123);
+      lastGap = g->gapY;
     }
   }
   for (auto &g : gates.items) {

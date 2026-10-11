@@ -1,4 +1,5 @@
 #pragma once
+#include "AudioSequencer.h"
 #include "BoardConfig.h"
 #include "Canvas.h"
 #include "Core.h"
@@ -19,6 +20,7 @@ class Display {
 
 public:
   Canvas canvas;
+  void (*service)() = nullptr;
   uint32_t fullFrameUs = 0, tileUs = 0, lastTransferUs = 0;
   uint8_t maxFps = 30;
   bool begin();
@@ -30,31 +32,16 @@ public:
   void error(const char *message);
 };
 class Audio {
-  struct Tone {
-    uint16_t hz, ms;
-  };
-  std::array<Tone, 5> sequence{};
-  uint32_t deadline = 0;
-  uint8_t length = 0, index = 0, priority = 0;
-  bool enabled = true, ready = false, active = false;
-  bool music = false;
-  uint32_t musicTick = 0;
-  uint8_t musicStep = 0;
-  void next(uint32_t now);
+  bool ready = false;
+  uint16_t pitch = 0;
 
 public:
+  AudioSequencer sequencer;
+  uint32_t maxCostUs = 0;
   void begin();
   void update(uint32_t now);
   void play(Sound effect, uint32_t now);
   void stop();
-  void setMusic(bool value) {
-    music = value;
-  }
-  void setEnabled(bool value) {
-    enabled = value;
-    if (!value)
-      stop();
-  }
 };
 class Storage {
   Preferences prefs;
@@ -75,8 +62,8 @@ public:
 };
 struct Diagnostics {
   uint32_t chipFlash = 0, psramPhysical = 0, mappedPsram = 0, frames = 0, updates = 0;
-  uint32_t updateMax = 0, renderMax = 0, frameMax = 0, lastReport = 0, maxInputGap = 0,
-           pressToUpdateMax = 0;
+  uint32_t updateMax = 0, drawMax = 0, transferMax = 0, renderMax = 0, frameMax = 0, lastReport = 0,
+           maxInputGap = 0, pressToUpdateMax = 0;
   std::array<uint32_t, 6> frameBuckets{};
   void begin();
   void frame(uint32_t duration);

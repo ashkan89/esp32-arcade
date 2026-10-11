@@ -1,3 +1,4 @@
+#include "arcade/Behavior.h"
 #include "games/Registration.h"
 namespace arcade {
 class PongCircuit final : public TickGame {
@@ -6,6 +7,8 @@ class PongCircuit final : public TickGame {
 #endif
   float x = 88, y = 110, vx = 2, vy = 1.2f, player = 90, ai = 90;
   int serves = 0;
+  int reaction = 0;
+  float aiTarget = 110;
   void serve() {
     x = 88;
     y = 110;
@@ -14,8 +17,14 @@ class PongCircuit final : public TickGame {
   }
   void simulate() override {
     player = clamp(player + (int(input.down(Down)) - int(input.down(Up))) * 3.2f, 24.0f, 178.0f);
-    ai = clamp(ai + clamp(y - (ai + 18), -1.3f - challenge() * 0.3f, 1.3f + challenge() * 0.3f),
-               24.0f, 178.0f);
+    if (--reaction <= 0) {
+      reaction = std::max(8, 24 - challenge() * 3);
+      float arrival = vx > 0 ? std::min(45.f, (161 - x) / std::max(.1f, vx)) : 0;
+      aiTarget = vx > 0 ? reflectedHeight(y + vy * arrival, 24, 216) + rng.range(-14, 15) : 110;
+    }
+    ai = clamp(
+        ai + clamp(aiTarget - (ai + 18), -1.3f - challenge() * 0.3f, 1.3f + challenge() * 0.3f),
+        24.0f, 178.0f);
     float old = x;
     x += vx;
     y += vy;
@@ -52,6 +61,8 @@ public:
     baseStart(o);
     player = ai = 90;
     serves = 0;
+    reaction = 0;
+    aiTarget = 110;
     serve();
   }
   size_t activeEntities() const override {
@@ -79,6 +90,15 @@ GameEntry describePongCircuit() {
 #ifdef ARCADE_HOST_TESTS
 bool verifyPongCircuit() {
   PongCircuit g;
+  g.start({});
+  // Regression checks for the gameplay audit.
+  g.reaction = 5;
+  g.aiTarget = 100;
+  g.x = 80;
+  g.y = 200;
+  float oldAI = g.ai;
+  g.simulate();
+  HOST_CHECK(g.reaction == 4 && g.aiTarget == 100 && std::abs(g.ai - oldAI) <= 2.21f);
   g.start({});
   g.level = 12;
   g.points = 400;

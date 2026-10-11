@@ -16,7 +16,7 @@ class CargoShift final : public TickGame {
   std::array<Snapshot, 32> history{};
   int count = 0;
   void generatedPuzzle() {
-    rng.state = options.seed ^ (uint32_t(level) * 0x9e3779b9u);
+    rng.state = derivedSeed(options.seed, uint32_t(level));
     // Start solved, then reverse legal pushes. The reverse walk is a constructive solution.
     board.fill(0);
     goal.fill(false);
