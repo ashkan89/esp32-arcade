@@ -150,6 +150,7 @@ class RiverRaid final : public TickGame {
     travel = 0;
     x = 80;
     speed = 1.5f;
+    bank = 0;
     fuel = 65535;
     missile = bridgeCleared = false;
     awaitingTakeoff = true;
@@ -159,7 +160,7 @@ class RiverRaid final : public TickGame {
     generate(next, current.after, followingDifficulty(current.difficulty));
     ++sectionNumber;
     level = uint16_t(std::min(sectionNumber, 65535u));
-    bridgeCleared = false;
+    bridgeCleared = !current.objects[15].alive;
   }
   void crash() {
     if (crashTimer || ended)
@@ -205,7 +206,7 @@ class RiverRaid final : public TickGame {
       if (!o.alive)
         continue;
       float yy = 163 - (offset + objectY(i) - travel);
-      if (yy < 12 || yy > 180)
+      if (yy < 8 || yy > 192)
         continue;
       if (o.kind == EnemyJet || ((o.kind == Tanker || o.kind == Helicopter) && tick % 120 < 70)) {
         float step = o.kind == EnemyJet ? 1.25f : o.kind == Helicopter ? .36f : .20f;
@@ -298,13 +299,27 @@ class RiverRaid final : public TickGame {
       missileY -= 4;
       if (options.difficulty < 2)
         missileX = clamp(missileX + bank * 1.1f, 0.f, 160.f);
-      if (missileY < 20)
-        missile = false;
     }
     objects(current, 0, oldY);
     if (crashTimer || ended)
       return;
     objects(next, 512, oldY);
+    // A missile cannot pass through a bank or an island. Resolve targets first
+    // so an intact bridge remains shootable rather than absorbing the shot.
+    if (missile)
+      for (int yy = int(oldY); yy >= int(missileY); --yy) {
+        float pos = travel + 163 - yy;
+        const Section &s = pos >= 512 ? next : current;
+        if (pos >= 512)
+          pos -= 512;
+        float edge, isle;
+        profile(s, pos, edge, isle);
+        if (yy < 20 || missileX < edge || missileX >= 160 - edge ||
+            (isle && missileX >= 80 - isle && missileX < 80 + isle)) {
+          missile = false;
+          break;
+        }
+      }
   }
   static void drawObject(Canvas &c, const Object &o, int yy, unsigned frame) {
     int xx = int(o.x) + 8;
@@ -319,12 +334,14 @@ class RiverRaid final : public TickGame {
       break;
     case Fuel:
       c.rect(xx - 5, yy - 12, 10, 24, White);
-      c.rect(xx - 5, yy - 12, 10, 3, Red);
-      c.rect(xx - 5, yy + 9, 10, 3, Red);
-      atari::mask(c, xx - 4, yy - 7,
-                  std::array<uint8_t, 15>{{0x7c, 0x40, 0x70, 0x40, 0x40, 0, 0x44, 0x44, 0x44, 0x44,
-                                           0x7c, 0, 0x7c, 0x40, 0x70}},
-                  Red);
+      c.rect(xx - 5, yy - 12, 10, 2, Red);
+      c.rect(xx - 5, yy + 10, 10, 2, Red);
+      // Four complete stacked letters, like the cartridge's narrow depot.
+      atari::mask(c, xx - 4, yy - 10, std::array<uint8_t, 5>{{0x70, 0x40, 0x60, 0x40, 0}}, Red);
+      atari::mask(c, xx - 4, yy - 5,
+                  std::array<uint8_t, 15>{{0x50, 0x50, 0x50, 0x70, 0, 0x70, 0x40, 0x60, 0x70, 0,
+                                           0x40, 0x40, 0x40, 0x70, 0}},
+                  atari::RiverWater);
       break;
     case Tanker:
       atari::mask(c, xx - 8, yy - 4,
@@ -354,6 +371,12 @@ class RiverRaid final : public TickGame {
       for (int p = 8; p < 168; p += 12)
         c.rect(p, yy, 6, 1, Yellow);
       c.rect(xx - 16, yy - 7, 32, 14, o.alive ? 0xad45 : atari::RiverWater);
+      if (o.alive) {
+        for (int row = -5; row <= 5; row += 3)
+          c.rect(xx - 16, yy + row, 32, 1, atari::Gold);
+        c.rect(xx - 16, yy - 7, 32, 1, atari::Ink);
+        c.rect(xx - 16, yy + 6, 32, 1, atari::Ink);
+      }
       break;
     }
   }
@@ -402,7 +425,7 @@ public:
       const Section &s = pass ? next : current;
       for (int i = 0; i < 16; ++i) {
         int yy = int(163 - (pass * 512 + objectY(i) - travel));
-        if ((s.objects[i].alive || s.objects[i].kind == Bridge) && yy >= 32 && yy <= 166)
+        if ((s.objects[i].alive || s.objects[i].kind == Bridge) && yy >= 8 && yy <= 192)
           drawObject(c, s.objects[i], yy, tick / 5);
       }
     }
@@ -427,8 +450,11 @@ public:
       atari::digits(c, 52, 183, points, 6, Yellow);
     c.text(16, 201, "E", White);
     c.text(146, 201, "F", White);
-    c.rect(28, 200, 111, 9, atari::Concrete, false);
+    c.rect(28, 200, 111, 9, Black, false);
+    c.rect(30, 202, 107, 5, 0x632c);
     c.rect(30, 202, int(fuel * 107 / 65535), 5, fuel < 16384 && tick % 30 < 15 ? Red : Yellow);
+    for (int i = 1; i < 4; ++i)
+      c.rect(30 + i * 107 / 4, 200, 1, 2, Black);
     for (int i = 0; i < health - 1; ++i)
       c.rect(8 + i * 4, 185, 2, 9, Yellow);
     atari::credit(c, 213, Yellow);
@@ -440,6 +466,8 @@ public:
       c.centered(90, twoPlayers ? "B: 2 PLAYERS" : "B: 1 PLAYER", White);
     if (crashTimer)
       c.centered(88, "READY", Yellow);
+    c.rect(0, 20, 8, 160, Black);
+    c.rect(168, 20, 8, 160, Black);
   }
 };
 GameEntry describeRiverRaid() {
@@ -602,6 +630,69 @@ bool verifyRiverRaid() {
   HOST_CHECK(g.gameOver() && g.score() == 500);
   g.start({});
   HOST_CHECK(!g.twoPlayers && g.player == 0 && !g.started);
+  // Targets remain visible through the player's collision/refuelling band.
+  for (auto &o : g.current.objects)
+    o.alive = false;
+  auto &visibleDepot = g.current.objects[2];
+  visibleDepot = {80, RiverRaid::Fuel, 1, true};
+  g.travel = 88; // depot center is 171: previously culled while still refuelling
+  g.render(canvas);
+  HOST_CHECK(canvas.pixel(83, 175) == White);
+  g.travel = 0;
+  g.current.bank.fill(64);
+  g.current.island.fill(0);
+  g.x = 80;
+  g.missile = true;
+  g.missileX = 50;
+  g.missileY = 100;
+  g.handle({Fire, Fire});
+  g.update();
+  HOST_CHECK(!g.missile && g.health == 4);
+  g.start({});
+  for (auto &o : g.current.objects)
+    o.alive = false;
+  g.missile = true;
+  g.missileX = 80;
+  g.missileY = 100;
+  g.handle({Fire, Fire});
+  g.update();
+  HOST_CHECK(g.missile); // shots in open water continue
+  g.next.objects[15].alive = false;
+  g.enterNext();
+  HOST_CHECK(g.bridgeCleared); // pre-cleared upcoming section retains its checkpoint
+  g.start({});
+  g.started = true;
+  g.travel = 380;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_01_bridge"));
+  g.current.objects[15].alive = false;
+  g.fuel = 8000;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_02_gap_low_fuel"));
+  g.start({});
+  g.started = true;
+  g.generate(g.current, 0xa814, 8);
+  g.generate(g.next, g.current.after, 9);
+  g.travel = 260;
+  g.x = 48;
+  g.bank = -1;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_03_islands"));
+  g.travel = 500;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_04_section_seam"));
+  g.start({});
+  g.started = true;
+  g.travel = 50;
+  g.current.objects[1] = {60, RiverRaid::Tanker, -1, true};
+  g.current.objects[2] = {100, RiverRaid::Fuel, 1, true};
+  g.current.objects[3] = {64, RiverRaid::EnemyJet, -1, true};
+  g.current.objects[4] = {98, RiverRaid::Helicopter, 1, true};
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_05_sprites"));
+  g.crash();
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_06_retry"));
   return true;
 }
 #endif

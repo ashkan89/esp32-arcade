@@ -102,6 +102,7 @@ ROM-based emulator or a further validated port of both original kernels.
 ```sh
 python scripts/test_host.py
 python scripts/preview.py --atari
+python scripts/preview.py --atari-states
 python scripts/verify.py
 ```
 
@@ -119,3 +120,37 @@ Hardware frame timing, button feel, buzzer and physical-screen legibility requir
 device verification; host rendering alone does not establish these properties.
 
 ![Actual native game renders](../artifacts/atari-preview.png)
+
+## Gameplay and graphics polish — 2026-10-11
+
+Compared the native renderers with the linked Atari 2600 screenshots and rechecked
+Activision's manuals. River targets now remain drawn throughout their collision
+and refuelling band instead of disappearing below screen row 166. Missiles stop
+at banks and islands; a bridge destroyed in the upcoming section retains its
+checkpoint state. Depots have all four stacked FUEL letters, with a red F and blue
+UEL, bridge decks have crossbars, banking changes the jet silhouette, and the fuel
+gauge has a visible empty track and quarter marks.
+
+Keystone hazard rectangles now use the drawn radio/cart heights and aircraft
+width. Jumping onto an escalator preserves the boarding height and shortens the
+ride, as described in Garry Kitchen's manual tips. Escalator motion finishes at
+its drawn endpoint. Harry reacts to the officer's actual lift position; the map
+also follows lift and escalator travel. Idle officers no longer run in place,
+jumping has its own leg pose, and arrest text persists for the entire arrest
+transition. The three shop floors have equal spacing, with the top storey kept
+below the roof. Blue middle-floor windows, pillar edges, moving steps, lift frames,
+stop lights and door panels improve readability. Paged sprites are clipped to
+the playfield gutters.
+
+The host rule checks export twelve deterministic gameplay scenes, in filename
+order: Keystone hazards, moving lift, escalator, roof, ducking, jump/page boundary;
+River intact bridge, destroyed bridge/low fuel, islands, section seam, enemy/depot
+sprites, and checkpoint retry. They use the actual C++ renderer. These controlled
+scenes inspect otherwise hard-to-reach states; they are not recorded playthroughs.
+The same checks exercise the fixed gameplay cases and verify the roof and gutters.
+
+![Gameplay regression scenes](../artifacts/atari-states.png)
+
+These improvements remain a native reconstruction. Final production acceptance
+still requires testing button feel, audio, scrolling and frame timing on the
+physical LCD; no hardware upload or acceptance is implied by host captures.

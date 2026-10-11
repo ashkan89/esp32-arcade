@@ -9,8 +9,11 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--menus", action="store_true", help="Export only console screens for UI review")
 parser.add_argument("--atari", action="store_true", help="Export the two Atari game renderers")
+parser.add_argument("--atari-states", action="store_true", help="Export Atari gameplay regression scenes")
 args = parser.parse_args()
 panels = sorted((root / "test-results").glob("preview_*.ppm"))
+if args.atari_states:
+    panels = sorted((root / "test-results").glob("atari_*.ppm"))
 if args.menus:
     game_count = len(re.findall(r"^ARCADE_GAME\(", (root / "include/games/Catalog.def").read_text(), re.M))
     panels = [p for p in panels if int(p.stem.split("_")[1]) == 0 or int(p.stem.split("_")[1]) > game_count]
@@ -18,7 +21,7 @@ if args.atari:
     panels = [p for p in panels if int(p.stem.split("_")[1]) in (51, 52)]
 if len(panels) < (2 if args.atari else 3):
     raise SystemExit("Run python scripts/test_host.py first.")
-cols, scale = (2, 3) if args.atari else (5, 2)
+cols, scale = (4, 2) if args.atari_states else (2, 3) if args.atari else (5, 2)
 rows = (len(panels) + cols - 1) // cols
 width, height = (176 + 8) * cols * scale, (220 + 8) * rows * scale
 pixels = bytearray(bytes((18, 21, 32)) * width * height)
@@ -40,7 +43,7 @@ def chunk(kind, payload):
 raw = b"".join(b"\0" + pixels[y * width * 3:(y + 1) * width * 3] for y in range(height))
 png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
 png += chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
-artifact = root / ("artifacts/atari-preview.png" if args.atari else
+artifact = root / ("artifacts/atari-states.png" if args.atari_states else "artifacts/atari-preview.png" if args.atari else
                    "artifacts/menu-preview.png" if args.menus else "artifacts/console-preview.png")
 artifact.parent.mkdir(exist_ok=True)
 artifact.write_bytes(png)

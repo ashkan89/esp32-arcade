@@ -20,7 +20,8 @@ inline void mask(Canvas &c, int x, int y, const std::array<uint8_t, N> &rows, ui
       if (rows[row] & (0x80 >> col))
         c.rect(x + (flip ? 7 - col : col) * stretch, y + int(row), stretch, 1, color);
 }
-inline void person(Canvas &c, int x, int feet, bool cop, bool duck, bool flip, unsigned frame) {
+inline void person(Canvas &c, int x, int feet, bool cop, bool duck, bool flip, unsigned frame,
+                   bool airborne = false) {
   const uint16_t suit = cop ? 0x2199 : 0xaac6;
   if (duck) {
     mask(c, x - 4, feet - 9, std::array<uint8_t, 3>{{0x38, 0x7c, 0x7e}}, Ink, flip);
@@ -30,18 +31,23 @@ inline void person(Canvas &c, int x, int feet, bool cop, bool duck, bool flip, u
   }
   mask(c, x - 4, feet - 20, std::array<uint8_t, 4>{{0x18, 0x3c, 0x3c, 0x7e}}, Ink, flip);
   mask(c, x - 4, feet - 16, std::array<uint8_t, 4>{{0x3c, 0x3e, 0x3c, 0x18}}, Skin, flip);
+  c.pixel(x + (flip ? -2 : 1), feet - 15, Ink);
   mask(c, x - 4, feet - 12, std::array<uint8_t, 7>{{0x7c, 0xfe, 0xda, 0xdb, 0x7c, 0x3c, 0x3c}},
        suit, flip);
   c.pixel(x - 1, feet - 10, cop ? Yellow : White);
+  c.rect(x - 2, feet - 6, 4, 1, Ink);
   mask(c, x - 4, feet - 5,
-       frame & 1 ? std::array<uint8_t, 5>{{0x66, 0x66, 0xc3, 0xc3, 0xe7}}
-                 : std::array<uint8_t, 5>{{0x3c, 0x24, 0x24, 0x66, 0x66}},
+       airborne    ? std::array<uint8_t, 5>{{0x66, 0xc3, 0x81, 0xc3, 0x66}}
+       : frame & 1 ? std::array<uint8_t, 5>{{0x66, 0x66, 0xc3, 0xc3, 0xe7}}
+                   : std::array<uint8_t, 5>{{0x3c, 0x24, 0x24, 0x66, 0x66}},
        suit, flip);
 }
 inline void jet(Canvas &c, int x, int y, int bank = 0) {
   mask(c, x - 4, y - 7,
-       std::array<uint8_t, 15>{{0x18, 0x18, 0x18, 0x18, 0x3c, 0x7e, 0xff, 0xff, 0x18, 0x18, 0x3c,
-                                0x3c, 0x7e, 0x66, 0x42}},
+       bank ? std::array<uint8_t, 15>{{0x18, 0x18, 0x18, 0x18, 0x38, 0x78, 0xfe, 0x7e, 0x18, 0x18,
+                                       0x38, 0x3c, 0x7c, 0x64, 0x40}}
+            : std::array<uint8_t, 15>{{0x18, 0x18, 0x18, 0x18, 0x3c, 0x7e, 0xff, 0xff, 0x18, 0x18,
+                                       0x3c, 0x3c, 0x7e, 0x66, 0x42}},
        Yellow, bank < 0);
   if (bank)
     c.rect(x + (bank < 0 ? -4 : 2), y - 2, 2, 3, Gold);

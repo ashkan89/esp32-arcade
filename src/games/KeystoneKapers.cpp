@@ -18,14 +18,14 @@ class KeystoneKapers final : public TickGame {
   uint8_t floor = 0, thiefFloor = 1;
   int facing = 1, thiefDirection = -1, seconds = 3000, grace = 0, transition = 0, ride = 0;
   uint32_t roundTick = 0;
-  bool inLift = false, crouching = false;
+  bool inLift = false, crouching = false, running = false, caught = false;
   struct Lift {
     float floor = 0;
     bool open = false;
     int stop = 0;
   };
   static int ground(int f) {
-    static constexpr int rows[] = {162, 120, 78, 52};
+    static constexpr int rows[] = {162, 126, 90, 54};
     return rows[f];
   }
   static float path(float xx, int f) {
@@ -54,7 +54,7 @@ class KeystoneKapers final : public TickGame {
     thiefDirection = -1;
     seconds = 3000;
     grace = ride = 0;
-    inLift = crouching = false;
+    inLift = crouching = running = false;
     roundTick = 0;
     for (auto &h : hazards)
       h.active = false;
@@ -87,6 +87,7 @@ class KeystoneKapers final : public TickGame {
     if (ended || transition)
       return;
     sound(Sound::Hit);
+    caught = false;
     if (--health <= 0) {
       ended = true;
       sound(Sound::Over);
@@ -103,11 +104,13 @@ class KeystoneKapers final : public TickGame {
     sound(Sound::Wave);
     setupRound();
     transition = 90;
+    caught = true;
   }
   void thief() {
     // Intercepting ahead of Harry sends him back toward the lower floors.
-    thiefDirection = path(x, floor) > path(thiefX, thiefFloor) ? (thiefFloor % 2 ? 1 : -1)
-                                                               : (thiefFloor % 2 ? -1 : 1);
+    float officerPath = inLift ? 240 + lift().floor * 480 : path(x, floor);
+    thiefDirection = officerPath > path(thiefX, thiefFloor) ? (thiefFloor % 2 ? 1 : -1)
+                                                            : (thiefFloor % 2 ? -1 : 1);
     float speed = .53f + std::min(15, int(level) - 1) * .012f;
     thiefX += thiefDirection * speed;
     if (thiefX < 12 || thiefX > 468) {
@@ -135,6 +138,7 @@ class KeystoneKapers final : public TickGame {
     }
     if (grace)
       --grace;
+    running = false;
     Lift elevator = lift();
     if (inLift) {
       if (elevator.open && input.down(Down)) {
@@ -145,7 +149,8 @@ class KeystoneKapers final : public TickGame {
       }
     } else if (ride) {
       --ride;
-      x += floor % 2 ? .55f : -.55f;
+      int start = floor % 2 ? 32 : 448;
+      x = start + (floor % 2 ? 32.f : -32.f) * (60 - ride) / 60.f;
       if (!ride) {
         ++floor;
         jump = 0;
@@ -157,6 +162,7 @@ class KeystoneKapers final : public TickGame {
         facing = dx;
       if (!crouching)
         x = clamp(x + dx * 1.45f, 12.f, 468.f);
+      running = dx && !crouching && !jump;
       if (input.hit(Fire) && !jump && !crouching) {
         jumpVelocity = 2.9f;
         jump = .1f;
@@ -174,8 +180,12 @@ class KeystoneKapers final : public TickGame {
         x = 240;
       }
       if (floor < 3 && !inLift && (floor % 2 ? x <= 32 : x >= 448)) {
-        ride = 60;
+        int rise = ground(floor) - ground(floor + 1);
+        ride = clamp(60 - int(jump * 60 / rise), 1, 60);
+        int start = floor % 2 ? 32 : 448;
+        x = start + (floor % 2 ? 32.f : -32.f) * (60 - ride) / 60.f;
         jump = 0;
+        jumpVelocity = 0;
         crouching = false;
       }
     }
@@ -199,25 +209,9 @@ class KeystoneKapers final : public TickGame {
         }
         if (inLift || ride || h.floor != floor)
           continue;
-        float objectBottom = float(ground(floor));
-        int objectHeight = 9, width = 8;
-        if (h.kind == Ball) {
-          objectBottom -=
-              std::abs(std::sin((roundTick + h.floor * 40) * .055f)) * (level >= 6 ? 24 : 9);
-          objectHeight = 7;
-        }
-        if (h.kind == Biplane) {
-          objectBottom -= 13;
-          objectHeight = 6;
-          width = 13;
-        }
-        if (h.kind == Cart)
-          width = 12;
         float feet = ground(floor) - jump;
         int bodyHeight = crouching ? 9 : 20;
-        if (overlaps({x - 3, feet - bodyHeight, 6, float(bodyHeight)},
-                     {h.x - width / 2.f, objectBottom - objectHeight, float(width),
-                      float(objectHeight)})) {
+        if (overlaps({x - 3, feet - bodyHeight, 6, float(bodyHeight)}, hazardBounds(h))) {
           if (h.kind == Money || h.kind == Suitcase) {
             h.active = false;
             reward(50);
@@ -238,9 +232,18 @@ class KeystoneKapers final : public TickGame {
         }
       }
   }
+  Rect hazardBounds(const Hazard &h) const {
+    float bottom = float(ground(h.floor));
+    if (h.kind == Ball)
+      bottom -= int(std::abs(std::sin((roundTick + h.floor * 40) * .055f)) * (level >= 6 ? 24 : 9));
+    if (h.kind == Biplane)
+      return {h.x - 8, bottom - 19, 16, 7};
+    int height = h.kind == Ball ? 7 : h.kind == Money ? 9 : h.kind == Suitcase ? 10 : 12;
+    return {h.x - 4, bottom - height, 8, float(height)};
+  }
   void drawHazard(Canvas &c, const Hazard &h, int camera) const {
     int xx = int(h.x) - camera + 8, yy = ground(h.floor);
-    if (xx < 8 || xx > 168)
+    if (xx < 0 || xx > 176)
       return;
     switch (h.kind) {
     case Ball:
@@ -255,6 +258,7 @@ class KeystoneKapers final : public TickGame {
                       {0x18, 0x3c, 0x7e, 0x7e, 0xff, 0xff, 0xff, 0xdb, 0xdb, 0xff, 0xff, 0xff}},
                   0xa325);
       c.rect(xx - 2, yy - 5, 4, 3, Black);
+      c.pixel(xx + 2, yy - 7, atari::Gold);
       break;
     case Cart:
       atari::mask(c, xx - 4, yy - 12,
@@ -264,8 +268,10 @@ class KeystoneKapers final : public TickGame {
       break;
     case Biplane:
       atari::mask(c, xx - 8, yy - 19,
-                  std::array<uint8_t, 7>{{0x3c, 0x18, 0xff, 0x7e, 0xff, 0x18, 0x3c}}, White,
+                  std::array<uint8_t, 7>{{0x3c, 0x18, 0xff, 0x7e, 0xff, 0x18, 0x3c}}, atari::Gold,
                   h.direction < 0, 2);
+      c.line(xx + (h.direction < 0 ? -8 : 7), yy - 19 + int(roundTick % 3),
+             xx + (h.direction < 0 ? -8 : 7), yy - 13, White);
       break;
     case Money:
       atari::mask(c, xx - 4, yy - 9,
@@ -286,6 +292,7 @@ public:
     baseStart(o);
     health = 4;
     transition = 0;
+    caught = false;
     setupRound();
   }
   uint16_t stageLimit() const override {
@@ -310,17 +317,30 @@ public:
     for (int i = 0; i < health - 1; ++i)
       atari::mask(c, 16 + i * 12, 23, std::array<uint8_t, 5>{{0x18, 0x3c, 0x3c, 0x7e, 0x7e}},
                   Black);
-    c.rect(8, 33, 160, 20, 0x7370);
+    c.rect(8, 33, 160, ground(3) - 33, 0x7370);
     for (int i = 0; i < 10; ++i) {
       c.rect(8 + i * 16, 33, 8, 2, 0xb349);
       c.rect(12 + i * 16, 35, 8, 2, atari::Gold);
     }
+    c.rect(8, ground(3), 160, 4, atari::Gold);
     for (int f = 0; f < 3; ++f) {
       int yy = ground(f);
-      c.rect(8, yy - 38, 160, 38, atari::Grass);
-      for (int col = 0; col < 4; ++col)
-        c.rect(28 + col * 36, yy - 38, 9, 38, 0xce59);
+      int ceiling = ground(f + 1) + 4;
+      c.rect(8, ceiling, 160, yy - ceiling, atari::Grass);
+      if (f == 1) {
+        // Blue display windows distinguish the middle storey in the original.
+        for (int col = 0; col < 2; ++col) {
+          c.rect(24 + col * 80, yy - 17, 42, 9, atari::Blue);
+          c.rect(24 + col * 80, yy - 18, 42, 1, atari::DarkGrass);
+          c.rect(24 + col * 80, yy - 8, 42, 1, 0xce59);
+        }
+      } else
+        for (int col = 0; col < 4; ++col) {
+          c.rect(28 + col * 36, ceiling, 9, yy - ceiling, 0xce59);
+          c.rect(37 + col * 36, ceiling, 1, yy - ceiling, atari::DarkGrass);
+        }
       c.rect(8, yy, 160, 4, 0xb525);
+      c.rect(8, yy + 3, 160, 1, atari::DarkGrass);
     }
     // Escalators only lead upwards. The roof is deliberately outside the lift route.
     for (int f = 0; f < 3; ++f) {
@@ -330,33 +350,45 @@ public:
         c.line(xx, ground(f), ex, ground(f + 1), atari::Gold);
         c.line(xx + 3, ground(f), ex + 3, ground(f + 1), Black);
         for (int j = 0; j < 8; ++j) {
-          int sx = xx + (ex - xx) * j / 8;
-          int sy = ground(f) + (ground(f + 1) - ground(f)) * j / 8;
+          int phase = j * 8 + int(roundTick / 3 % 8);
+          int sx = xx + (ex - xx) * phase / 64;
+          int sy = ground(f) + (ground(f + 1) - ground(f)) * phase / 64;
           c.line(sx, sy, sx + 5, sy, atari::Gold);
         }
       }
     }
     Lift elevator = lift();
     if (camera == 160) {
-      c.rect(79, 58, 18, 104, 0xce59);
+      c.rect(79, ground(3) + 4, 18, ground(0) - ground(3) - 4, 0xce59);
+      for (int f = 0; f < 3; ++f) {
+        int yy = ground(f);
+        c.rect(78, yy - 24, 20, 24, atari::DarkGrass, false);
+        c.rect(99, yy - 17, 2, 3, elevator.open && elevator.stop == f ? Yellow : atari::Gold);
+      }
       int yy = int(ground(0) + (ground(2) - ground(0)) * elevator.floor / 2);
-      c.rect(79, yy - 30, 18, 30, elevator.open ? atari::DarkGrass : 0xad55);
-      if (!elevator.open)
-        c.line(88, yy - 30, 88, yy - 1, 0x5acb);
+      c.rect(79, yy - 24, 18, 24, elevator.open ? atari::DarkGrass : 0xad55);
+      c.rect(79, yy - 24, 18, 1, atari::Gold);
+      c.rect(79, yy - 1, 18, 1, atari::Gold);
+      if (!elevator.open) {
+        c.line(88, yy - 24, 88, yy - 1, 0x5acb);
+        c.rect(81, yy - 21, 5, 16, 0xce59);
+        c.rect(90, yy - 21, 5, 16, 0xce59);
+      }
       if (inLift)
-        atari::person(c, 88, yy, true, false, facing < 0, roundTick / 8);
+        atari::person(c, 88, yy, true, false, facing < 0, 0);
     }
     for (const auto &h : hazards)
       if (h.active)
         drawHazard(c, h, camera);
-    if (int(thiefX) / 160 == camera / 160)
+    if (thiefX - camera >= -4 && thiefX - camera <= 164)
       atari::person(c, int(thiefX) - camera + 8, ground(thiefFloor), false, false,
                     thiefDirection < 0, roundTick / 8);
     if (!inLift && (!grace || tick % 8 < 4)) {
       float feet = ground(floor) - jump;
       if (ride)
         feet = ground(floor) + (ground(floor + 1) - ground(floor)) * (60 - ride) / 60.f;
-      atari::person(c, int(x) - camera + 8, int(feet), true, crouching, facing < 0, roundTick / 8);
+      atari::person(c, int(x) - camera + 8, int(feet), true, crouching, facing < 0,
+                    running ? roundTick / 8 : 0, jump > 0);
     }
     c.rect(8, 169, 160, 32, 0xad55);
     for (int f = 0; f < 4; ++f) {
@@ -369,11 +401,15 @@ public:
       }
     }
     c.rect(86, int(197 - elevator.floor * 7) - 4, 5, 4, 0xce59);
-    c.rect(40 + int(x / 5), 197 - floor * 7 - 3, 2, 3, Black);
+    float mapFloor = inLift ? elevator.floor : floor + (ride ? (60 - ride) / 60.f : 0);
+    c.rect(40 + int(x / 5), int(197 - mapFloor * 7) - 3, 2, 3, Black);
     c.rect(40 + int(thiefX / 5), 197 - thiefFloor * 7 - 3, 2, 3, White);
     atari::credit(c, 207);
     if (transition)
-      c.centered(99, transition > 60 ? "ARREST!" : "READY", White);
+      c.centered(99, caught ? "ARREST!" : "READY", White);
+    // Sprites entering a paged view stay inside the Atari playfield gutters.
+    c.rect(0, 0, 8, H, Black);
+    c.rect(168, 0, 8, H, Black);
   }
 };
 GameEntry describeKeystoneKapers() {
@@ -497,6 +533,81 @@ bool verifyKeystoneKapers() {
   HOST_CHECK(g.gameOver());
   g.start({});
   HOST_CHECK(g.points == 0 && g.level == 1 && !g.inLift && !g.transition);
+  // Jumping onto an escalator preserves height and shortens the ascent.
+  g.x = 448;
+  g.jump = 18;
+  g.jumpVelocity = 0;
+  g.update();
+  HOST_CHECK(g.ride > 0 && g.ride < 60 && g.jump == 0 && g.jumpVelocity == 0);
+  while (g.ride)
+    g.update();
+  HOST_CHECK(g.floor == 1 && std::abs(g.x - 416) < .01f);
+  g.start({});
+  for (auto &h : g.hazards)
+    h.active = false;
+  // Contact with the drawn radio's upper rows used to be missed.
+  g.jump = 10;
+  g.jumpVelocity = 0;
+  g.hazards[0] = {g.x, 0, KeystoneKapers::Radio, 0, true};
+  g.update();
+  HOST_CHECK(g.grace == 60);
+  g.start({});
+  g.inLift = true;
+  g.x = 240;
+  g.roundTick = 384;
+  g.thiefFloor = 1;
+  g.thiefX = 240;
+  g.thief();
+  HOST_CHECK(g.thiefDirection == 1); // Harry reacts to Kelly's actual lift floor
+  std::array<uint16_t, W * H> pixels{};
+  Canvas canvas;
+  canvas.attach(pixels.data());
+  g.start({});
+  g.level = 16;
+  g.setupRound();
+  g.x = 150;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "keystone_01_hazards"));
+  g.x = 240;
+  g.inLift = true;
+  g.roundTick = 156;
+  g.render(canvas);
+  HOST_CHECK(canvas.pixel(88, 196) != Black); // no stale ground-floor officer marker
+  HOST_CHECK(captureAtari(canvas, "keystone_02_lift"));
+  g.inLift = false;
+  g.x = 448;
+  g.floor = 0;
+  g.ride = 30;
+  g.x = 432;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "keystone_03_escalator"));
+  g.ride = 0;
+  g.floor = 3;
+  g.x = 400;
+  g.thiefFloor = 3;
+  g.thiefX = 448;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "keystone_04_roof"));
+  HOST_CHECK(canvas.pixel(20, 45) == 0x7370); // top storey must not overwrite the roof
+  g.start({});
+  g.level = 16;
+  g.setupRound();
+  g.floor = 1;
+  g.x = 100;
+  g.crouching = true;
+  g.hazards[0] = {100, 1, KeystoneKapers::Biplane, 1, true};
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "keystone_05_duck"));
+  g.floor = 0;
+  g.x = 170;
+  g.jump = 20;
+  g.crouching = false;
+  g.hazards[0] = {160, 0, KeystoneKapers::Biplane, 1, true};
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "keystone_06_jump_page_edge"));
+  for (int yy = 0; yy < H; ++yy)
+    for (int xx : {0, 7, 168, 175})
+      HOST_CHECK(canvas.pixel(xx, yy) == Black);
   return true;
 }
 #endif

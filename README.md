@@ -96,6 +96,9 @@ differences from the cartridges; see [research, controls and fidelity limits](do
 
 ![Native Atari game previews](artifacts/atari-preview.png)
 
+[View twelve gameplay and graphics review scenes](artifacts/atari-states.png),
+including lift travel, jump/duck poses, rooftop pursuit, river islands and bridge destruction.
+
 ## Wi-Fi and firmware updates
 
 Open **Menu → Wi-Fi / Firmware Update → Wi-Fi / Repository Setup**. Join `GameArcade-Setup`
