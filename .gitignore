@@ -1,14 +1,25 @@
+# Local editor configuration
+.vscode/
+
+# Build output and analysis caches
 .pio/
 .cache/
 graphify-out/
-__pycache__/
-test-results/*.exe
-test-results/*.o
-test-results/*.obj
-test-results/*.pdb
-test-results/*.ilk
-test-results/*.ppm
-*.log
-!test-results/*.log
 dist/
+test-results/
+
+# Python environments and bytecode
 .venv/
+__pycache__/
+*.py[cod]
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*~
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

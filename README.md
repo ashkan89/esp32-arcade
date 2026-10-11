@@ -71,6 +71,9 @@ The additions use original code and procedural artwork, with their own titles an
 
 Open **Menu → Wi-Fi / Firmware Update → Wi-Fi / Repository Setup**. Join `GameArcade-Setup`
 using the random key shown on the display, then open `http://192.168.4.1/`.
+Enter the key exactly as shown, using uppercase letters. If your phone opens a Wi-Fi sign-in
+page, use that page; otherwise open the address manually and stay connected when warned
+that the setup network has no internet. Keep the console on the update menu during setup.
 Enter your Wi-Fi name/password and `ashkan89/esp32-arcade` (or another public repository).
 Setup supports WPA/WPA2 personal credentials, with an 8–63 character password. Credentials
 stay on the console in NVS; they are never added to source or printed on serial.

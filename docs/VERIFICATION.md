@@ -52,6 +52,31 @@ errors, aborts or repeated resets (`artifacts/bootloop-final.log`, local ignored
 Full-frame SPI transfer measured approximately 74.6 ms; the configured 30 FPS request cap
 does not imply 30 FPS for full-screen redraws.
 
+The Wi-Fi setup fix was also flashed through COM5 on 2026-10-11. The generated AP key now
+uses uppercase hexadecimal, matching the display's uppercase-only font. Release and debug
+builds passed, and host tests passed 1,604,048 assertions including setup-key regression checks.
+Serial monitoring confirmed an AP client joined, received a DHCP address, and requested the
+setup page (`test-results/serial-wifi-fix.log`). Captive-probe paths use the redirect fallback;
+the pinned WebServer logs "request handler not found" before executing this fallback.
+The same session saved settings and subsequently connected to the configured Wi-Fi network
+and synchronized its clock. A release check exposed IDLE0 watchdog starvation by the HTTPS
+worker; its priority now matches the idle task so synchronous TLS work can be time-sliced.
+The final release/debug builds passed and final firmware booted successfully on COM5.
+Its first release-check attempt returned a TLS connection EOF without a watchdog reset
+(`test-results/serial-wifi-final.log`). A handshake trace then measured 8.3 seconds verifying
+GitHub's ECDSA certificate chain, followed by approximately four seconds of key-exchange work;
+the peer had closed the connection before sending its final handshake response.
+The HTTPS trust callback now selects TLS 1.2 ECDHE-RSA/AES-GCM suites and P-256 while
+retaining the SDK CA bundle, certificate validity checks, and hostname verification.
+On COM5, certificate verification dropped to 650 ms and GitHub returned HTTP 200 after
+3,897 ms; the console correctly reported current firmware up to date
+(`test-results/serial-https-rsa.log`). Both TLS failure details and HTTP timing are logged
+without credentials. Debug builds also trace handshake stages and stack headroom.
+The normal release build was then flashed to COM5 and confirmed healthy; its own release
+check returned HTTP 200 in 3,927 ms with the same up-to-date result
+(`test-results/serial-https-release.log`). The new TLS configuration was also verified from
+the host against all four allowed GitHub download/redirect hostnames with certificate checks enabled.
+
 The initial firmware repeatedly aborted before setup because the SDK's himem constructor
 queried PSRAM before Arduino initialized it. `scripts/defer_himem.py` links a project-local
 SDK object with the automatic constructor disabled, and `FrameHistory::begin()` explicitly

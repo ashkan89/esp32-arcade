@@ -1,5 +1,6 @@
 #include "arcade/Console.h"
 #include "arcade/ReleasePolicy.h"
+#include "arcade/SetupKey.h"
 #include "games/FlapEscape.h"
 #include "games/MeteorPatrol.h"
 #include "games/NeonBreaker.h"
@@ -783,7 +784,24 @@ static void releasePolicy() {
   CHECK(!parseSha256("abc", digest));
   CHECK(!parseSha256("g123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", digest));
 }
+static void setupKeys() {
+  char key[13];
+  formatSetupKey(key, 0xabcdef01, 0x12345678);
+  CHECK(std::strcmp(key, "ABCDEF015678") == 0);
+  formatSetupKey(key, 0, 0);
+  CHECK(std::strcmp(key, "000000000000") == 0);
+  formatSetupKey(key, 0xffffffff, 0xffffffff);
+  CHECK(std::strcmp(key, "FFFFFFFFFFFF") == 0);
+  // The displayed glyph must represent the exact case-sensitive password byte.
+  const char *alphabet = "0123456789ABCDEF";
+  for (int i = 0; i < 16; ++i) {
+    formatSetupKey(key, uint32_t(i) * 0x11111111u, uint32_t(i) * 0x1111u);
+    for (int j = 0; j < 12; ++j)
+      CHECK(key[j] == alphabet[i]);
+  }
+}
 int main() {
+  setupKeys();
   core();
   inputs();
   saves();

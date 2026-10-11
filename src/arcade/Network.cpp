@@ -1,5 +1,6 @@
 #include "arcade/Network.h"
 #include "arcade/ReleasePolicy.h"
+#include "arcade/SetupKey.h"
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <cstring>
@@ -9,10 +10,24 @@
 #include <esp_heap_caps.h>
 #include <esp_http_client.h>
 #include <esp_ota_ops.h>
+#include <esp_tls.h>
 #include <mbedtls/sha256.h>
 // Arduino shadows the SDK header with its custom-bundle-only variant.
 // Use the SDK's prebuilt full Mozilla bundle, linked from libmbedtls.
 extern "C" esp_err_t esp_crt_bundle_attach(void *conf);
+#if ARCADE_PROFILE
+extern "C" int __real_mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl);
+extern "C" int __wrap_mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl) {
+  int state = ssl->state;
+  uint32_t start = millis();
+  Serial.printf("[https] Handshake stage=%d\n", state);
+  int result = __real_mbedtls_ssl_handshake_client_step(ssl);
+  Serial.printf("[https] Stage %d -> %d result=%d duration=%lu ms stack=%u\n", state,
+                ssl->state, result, (unsigned long)(millis() - start),
+                unsigned(uxTaskGetStackHighWaterMark(nullptr)));
+  return result;
+}
+#endif
 #if !CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
 #error This console requires a rollback-enabled SDK and matching bootloader
 #endif
@@ -20,6 +35,23 @@ namespace arcade {
 namespace {
 constexpr const char *Board = "esp32-wrover-n16r8-ili9225";
 constexpr const char *Binary = "arcade-esp32-n16r8.bin";
+esp_err_t attachHttpsTrust(void *conf) {
+  esp_err_t result = esp_crt_bundle_attach(conf);
+  if (result != ESP_OK)
+    return result;
+  auto *tls = static_cast<mbedtls_ssl_config *>(conf);
+  // GitHub's ECDSA certificate chain takes >8 seconds to verify on classic ESP32.
+  // Select its RSA chain and hardware-accelerated RSA verification instead, while
+  // retaining ECDHE forward secrecy, AES-GCM, and full CA/hostname verification.
+  static const int suites[] = {MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+                               MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 0};
+  static const mbedtls_ecp_group_id curves[] = {MBEDTLS_ECP_DP_SECP256R1, MBEDTLS_ECP_DP_NONE};
+  mbedtls_ssl_conf_min_version(tls, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
+  mbedtls_ssl_conf_max_version(tls, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
+  mbedtls_ssl_conf_ciphersuites(tls, suites);
+  mbedtls_ssl_conf_curves(tls, curves);
+  return ESP_OK;
+}
 struct PsramAllocator {
   void *allocate(size_t n) {
     return heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -45,6 +77,14 @@ class Request {
   esp_http_client_handle_t client = nullptr;
   String location;
   static esp_err_t event(esp_http_client_event_t *evt) {
+    if (evt->event_id == HTTP_EVENT_DISCONNECTED && evt->data) {
+      int tlsCode = 0, flags = 0;
+      esp_err_t error = esp_tls_get_and_clear_last_error(
+          static_cast<esp_tls_error_handle_t>(evt->data), &tlsCode, &flags);
+      if (error || tlsCode || flags)
+        Serial.printf("[https] TLS error=%s code=-0x%04x verify=0x%x\n", esp_err_to_name(error),
+                      unsigned(tlsCode < 0 ? -tlsCode : tlsCode), flags);
+    }
     if (evt->event_id == HTTP_EVENT_ON_HEADER && evt->header_key &&
         strcasecmp(evt->header_key, "Location") == 0)
       static_cast<Request *>(evt->user_data)->location = evt->header_value;
@@ -69,10 +109,20 @@ public:
       location = "";
       if (!trustedUrl(url))
         return false;
+      int hostEnd = url.indexOf('/', 8);
+      String host = hostEnd < 0 ? url.substring(8) : url.substring(8, hostEnd);
+      IPAddress address;
+      if (!WiFi.hostByName(host.c_str(), address)) {
+        Serial.printf("[https] DNS failed: %s\n", host.c_str());
+        return false;
+      }
+      Serial.printf("[https] Connecting %s (%s); internal heap=%u largest=%u\n", host.c_str(),
+                    address.toString().c_str(), heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                    heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
       esp_http_client_config_t config{};
       config.url = url.c_str();
-      config.timeout_ms = 15000;
-      config.crt_bundle_attach = esp_crt_bundle_attach;
+      config.timeout_ms = 30000;
+      config.crt_bundle_attach = attachHttpsTrust;
       config.disable_auto_redirect = true;
       config.event_handler = event;
       config.user_data = this;
@@ -83,12 +133,19 @@ public:
         return false;
       esp_http_client_set_header(client, "Accept", "application/vnd.github+json");
       esp_http_client_set_header(client, "X-GitHub-Api-Version", "2022-11-28");
-      if (esp_http_client_open(client, 0) != ESP_OK)
+      uint32_t started = millis();
+      esp_err_t opened = esp_http_client_open(client, 0);
+      if (opened != ESP_OK) {
+        Serial.printf("[https] Open failed: %s errno=%d after %lu ms\n", esp_err_to_name(opened),
+                      esp_http_client_get_errno(client), (unsigned long)elapsed(millis(), started));
         return false;
+      }
       length = esp_http_client_fetch_headers(client);
       if (length < 0)
         return false;
       int code = esp_http_client_get_status_code(client);
+      Serial.printf("[https] HTTP %d after %lu ms\n", code,
+                    (unsigned long)elapsed(millis(), started));
       if (code == 200)
         return true;
       if ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308) &&
@@ -145,6 +202,7 @@ String escaped(String value) {
 }
 } // namespace
 void Network::status(const char *text) {
+  Serial.printf("[network] %s\n", text);
   portENTER_CRITICAL(&statusLock);
   std::snprintf(message, sizeof(message), "%s", text);
   portEXIT_CRITICAL(&statusLock);
@@ -163,6 +221,21 @@ void Network::begin() {
   if (repository.isEmpty())
     repository = "ashkan89/esp32-arcade";
   WiFi.persistent(false);
+  WiFi.onEvent([](WiFiEvent_t event) {
+    switch (event) {
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
+      Serial.println("[network] AP client joined");
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
+      Serial.println("[network] AP client disconnected");
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:
+      Serial.println("[network] AP client received DHCP address");
+      break;
+    default:
+      break;
+    }
+  });
   WiFi.mode(WIFI_OFF);
 }
 void Network::setupPortal() {
@@ -174,82 +247,113 @@ void Network::setupPortal() {
     status("SETUP: OPEN 192.168.4.1");
     return;
   }
-  uint32_t a = esp_random(), b = esp_random();
-  std::snprintf(apPassword, sizeof(apPassword), "%08lx%04lx", (unsigned long)a,
-                (unsigned long)(b & 65535));
-  WiFi.mode(WIFI_AP);
-  if (!WiFi.softAP("GameArcade-Setup", apPassword, 1, false, 1)) {
+  formatSetupKey(apPassword, esp_random(), esp_random());
+  const IPAddress ip(192, 168, 4, 1), mask(255, 255, 255, 0);
+  if (!WiFi.mode(WIFI_AP) || !WiFi.softAPConfig(ip, ip, mask) ||
+      !WiFi.softAP("GameArcade-Setup", apPassword, 1, false, 4)) {
     status("COULD NOT START SETUP WI-FI");
     WiFi.mode(WIFI_OFF);
     return;
   }
-  server.on("/", HTTP_GET, [this] {
-    String page =
-        "<!doctype html><meta name='viewport' content='width=device-width'><title>Game Arcade "
-        "setup</title><style>body{font:18px system-ui;max-width:32em;margin:2em "
-        "auto;padding:1em;background:#101729;color:white}input,button{display:block;padding:.7em;"
-        "margin:.5em 0;width:90%}</style><h1>Game Arcade</h1><p>Configure Wi-Fi and a public "
-        "GitHub "
-        "release repository.</p><form method='post' action='/save'>";
-    page +=
-        "<input name='token' type='hidden' value='" + String(apPassword) +
-        "'><label>Wi-Fi name<input name='ssid' maxlength='32' required value='" + escaped(ssid) +
-        "'></label><label>Wi-Fi password (enter again)<input name='password' type='password' "
-        "minlength='8' maxlength='63' required autocomplete='new-password'></label><label>GitHub "
-        "owner/repository<input name='repository' maxlength='100' required "
-        "placeholder='owner/repository' value='" +
-        escaped(repository) +
-        "'></label><button>Save and connect</button></form><p>Setup closes after five minutes.</p>";
-    server.sendHeader("Cache-Control", "no-store");
-    server.send(200, "text/html", page);
-  });
-  server.on("/save", HTTP_POST, [this] {
-    String name = server.arg("ssid"), pass = server.arg("password"),
-           repo = server.arg("repository");
-    repo.trim();
-    if (server.arg("token") != apPassword || name.length() < 1 || name.length() > 32 ||
-        pass.length() < 8 || pass.length() > 63 || !validRepository(repo.c_str())) {
-      server.send(
-          400, "text/plain",
-          "Invalid setup fields. Use owner/repository and an 8-63 character Wi-Fi password.");
-      return;
-    }
-    StaticJsonDocument<512> config;
-    config["ssid"] = name;
-    config["password"] = pass;
-    config["repository"] = repo;
-    String encoded;
-    serializeJson(config, encoded);
-    if (prefs.putString("config", encoded) != encoded.length()) {
-      server.send(500, "text/plain", "Could not save settings.");
-      return;
-    }
-    ssid = name;
-    password = pass;
-    repository = repo;
-    found = false;
-    savePending = true;
-    server.send(200, "text/plain", "Saved. Return to the console and choose Check GitHub release.");
-  });
-  server.onNotFound([this] { server.send(404, "text/plain", "Open http://192.168.4.1/"); });
+  if (!dns.start(53, "*", ip)) {
+    status("COULD NOT START SETUP DNS");
+    WiFi.mode(WIFI_OFF);
+    return;
+  }
+  // Register once: repeated setup sessions otherwise accumulate WebServer handlers.
+  if (!routesRegistered) {
+    server.on("/", HTTP_GET, [this] {
+      Serial.println("[network] Setup page requested");
+      String page =
+          "<!doctype html><meta name='viewport' content='width=device-width'><title>Game Arcade "
+          "setup</title><style>body{font:18px system-ui;max-width:32em;margin:2em "
+          "auto;padding:1em;background:#101729;color:white}input,button{display:block;padding:.7em;"
+          "margin:.5em 0;width:90%}</style><h1>Game Arcade</h1><p>Configure Wi-Fi and a public "
+          "GitHub "
+          "release repository.</p><form method='post' action='/save'>";
+      page +=
+          "<input name='token' type='hidden' value='" + String(apPassword) +
+          "'><label>Wi-Fi name<input name='ssid' maxlength='32' required value='" + escaped(ssid) +
+          "'></label><label>Wi-Fi password (enter again)<input name='password' type='password' "
+          "minlength='8' maxlength='63' required autocomplete='new-password'></label><label>GitHub "
+          "owner/repository<input name='repository' maxlength='100' required "
+          "placeholder='owner/repository' value='" +
+          escaped(repository) +
+          "'></label><button>Save settings</button></form><p>Setup closes after five minutes.</p>";
+      server.sendHeader("Cache-Control", "no-store");
+      server.send(200, "text/html", page);
+    });
+    server.on("/save", HTTP_POST, [this] {
+      if (savePending) {
+        server.send(409, "text/plain", "Settings already saved. Setup is closing.");
+        return;
+      }
+      String name = server.arg("ssid"), pass = server.arg("password"),
+             repo = server.arg("repository");
+      repo.trim();
+      if (server.arg("token") != apPassword || name.length() < 1 || name.length() > 32 ||
+          pass.length() < 8 || pass.length() > 63 || !validRepository(repo.c_str())) {
+        server.send(
+            400, "text/plain",
+            "Invalid setup fields. Use owner/repository and an 8-63 character Wi-Fi password.");
+        return;
+      }
+      StaticJsonDocument<512> config;
+      config["ssid"] = name;
+      config["password"] = pass;
+      config["repository"] = repo;
+      String encoded;
+      serializeJson(config, encoded);
+      if (prefs.putString("config", encoded) != encoded.length()) {
+        server.send(500, "text/plain", "Could not save settings.");
+        return;
+      }
+      ssid = name;
+      password = pass;
+      repository = repo;
+      found = false;
+      savePending = true;
+      savedAt = millis();
+      Serial.println("[network] Setup settings saved");
+      server.send(200, "text/plain",
+                  "Saved. Return to the console and choose Check GitHub release.");
+    });
+    server.onNotFound([this] {
+      server.sendHeader("Location", "http://192.168.4.1/", true);
+      server.sendHeader("Cache-Control", "no-store");
+      server.send(302, "text/plain", "Open http://192.168.4.1/");
+    });
+    routesRegistered = true;
+  }
   server.begin();
   portal = true;
   portalAt = millis();
   status("SETUP: OPEN 192.168.4.1");
 }
+void Network::closePortal(const char *reason) {
+  server.stop();
+  dns.stop();
+  // softAPdisconnect rewrites the running AP config before stopping it. That can
+  // race SDK netstack callbacks with shutdown; mode(OFF) stops clients and radio directly.
+  WiFi.mode(WIFI_OFF);
+  portal = false;
+  savePending = false;
+  status(reason);
+}
 void Network::service(bool menu) {
   if (working)
     return;
   if (portal) {
+    dns.processNextRequest();
     server.handleClient();
-    if (savePending || !menu || elapsed(millis(), portalAt) > 300000) {
-      server.stop();
-      WiFi.softAPdisconnect(true);
-      WiFi.mode(WIFI_OFF);
-      portal = false;
-      savePending = false;
-      status("WI-FI SETTINGS SAVED / READY");
-    }
+    // Keep the AP up briefly so the browser receives the save response before teardown.
+    if (savePending) {
+      if (elapsed(millis(), savedAt) >= 1000)
+        closePortal("WI-FI SETTINGS SAVED / READY");
+    } else if (!menu)
+      closePortal("WI-FI SETUP CANCELLED");
+    else if (elapsed(millis(), portalAt) >= 300000)
+      closePortal("WI-FI SETUP TIMED OUT");
   } else if (!menu && WiFi.getMode() != WIFI_OFF) {
     WiFi.disconnect(false);
     WiFi.mode(WIFI_OFF);
@@ -281,6 +385,7 @@ bool Network::connect() {
     }
     vTaskDelay(pdMS_TO_TICKS(100));
   }
+  Serial.printf("[https] Clock epoch=%lld\n", static_cast<long long>(std::time(nullptr)));
   return true;
 }
 bool Network::check() {
@@ -510,7 +615,9 @@ void Network::request(ConsoleAction action) {
   job = action;
   progress = 0;
   working = true;
-  if (xTaskCreatePinnedToCore(task, "github-ota", 10240, this, 1, nullptr, 0) != pdPASS) {
+  // HTTPS certificate verification can be CPU-bound for several seconds. Share
+  // priority with IDLE0 so it can service its watchdog even inside synchronous SDK calls.
+  if (xTaskCreatePinnedToCore(task, "github-ota", 10240, this, tskIDLE_PRIORITY, nullptr, 0) != pdPASS) {
     working = false;
     status("NOT ENOUGH MEMORY FOR UPDATE TASK");
   }

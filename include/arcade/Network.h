@@ -2,6 +2,7 @@
 #include "Canvas.h"
 #include "Console.h"
 #include <Arduino.h>
+#include <DNSServer.h>
 #include <Preferences.h>
 #include <WebServer.h>
 #include <atomic>
@@ -9,10 +10,12 @@ namespace arcade {
 class Network {
   Preferences prefs;
   WebServer server{80};
+  DNSServer dns;
   String ssid, password, repository, firmwareUrl, releaseVersion;
   uint8_t expectedHash[32]{};
-  uint32_t expectedSize = 0, portalAt = 0;
+  uint32_t expectedSize = 0, portalAt = 0, savedAt = 0;
   bool portal = false, savePending = false, storageReady = false;
+  bool routesRegistered = false;
   char apPassword[13]{}, message[96] = "CONFIGURE WI-FI / REPOSITORY";
   portMUX_TYPE statusLock = portMUX_INITIALIZER_UNLOCKED;
   std::atomic<bool> working{false}, found{false};
@@ -20,6 +23,7 @@ class Network {
   ConsoleAction job = ConsoleAction::None;
   void status(const char *text);
   void setupPortal();
+  void closePortal(const char *reason);
   void work();
   bool connect();
   bool check();
