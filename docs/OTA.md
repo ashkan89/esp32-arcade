@@ -20,6 +20,9 @@ preferred first-install path. Subsequent OTA updates preserve settings and parti
 The firmware uses the SDK's full certificate bundle with hostname verification; it never calls
 `setInsecure`. Time must synchronize through NTP before HTTPS. Redirects are bounded and allowed
 only to GitHub and its known release-asset hosts, over HTTPS. Downloads have read/overall deadlines.
+Both HTTP receive and transmit buffers are explicitly 4 KB. The SDK's default 512-byte
+transmit buffer cannot fit GitHub's signed release-asset redirect URLs, causing
+`HTTP_CLIENT: Out of buffer` and a manifest download failure despite successful discovery.
 JSON is bounded in PSRAM. The binary is streamed through an internal 4 KB buffer and hashed.
 Checks include manifest/release version agreement, release asset size, target chip, an exact
 compiled board/version identity marker, SHA-256, and `esp_ota_end()` image validation. TLS plus

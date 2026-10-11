@@ -127,6 +127,9 @@ public:
       config.event_handler = event;
       config.user_data = this;
       config.buffer_size = 4096;
+      // The SDK's default 512-byte TX buffer must fit the entire request line.
+      // GitHub release redirects include signed query strings longer than that.
+      config.buffer_size_tx = 4096;
       config.user_agent = "GameArcade/" ARCADE_VERSION;
       client = esp_http_client_init(&config);
       if (!client)

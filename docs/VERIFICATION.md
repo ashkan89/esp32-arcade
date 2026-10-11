@@ -103,6 +103,27 @@ initializes himem after the PSRAM checks. A build check inspects the linked cons
 to prevent this startup regression. The installed SDK is unchanged. A 64 KB coredump partition
 was added after both OTA slots, and absent optional NVS keys are checked before reading them.
 
+## Release-asset redirect and physical OTA verification (2026-10-11)
+
+COM5 reproduced successful GitHub discovery followed by `HTTP_CLIENT: Out of buffer`
+and `RELEASE MANIFEST DOWNLOAD FAILED` on the release-asset host. The SDK's default
+512-byte transmit buffer could not hold the signed redirect request line. Explicitly
+setting `buffer_size_tx = 4096` fixes the shared manifest and firmware download path.
+TLS certificate/hostname checks and the existing image, size, identity, and SHA-256
+validation remain enabled.
+
+An isolated 3.2.4 build with this fix exercised a real GitHub OTA to the latest stable
+release, which was 3.3.0 by the time of the hardware test. COM5 recorded HTTP 200 for
+the manifest and binary, `UPDATE VERIFIED / RESTARTING`, boot into 3.3.0, saved settings
+loading, and `Boot health checks passed; firmware confirmed`.
+The OTA selection sectors then showed app0 sequence 1 and app1 sequence 2, both VALID.
+Evidence: `artifacts/ota-com5-before.log` and `artifacts/ota-com5-success.log`.
+After the OTA test, corrected 3.3.0 was installed in the selected app1 slot, and a
+clean fixed 3.2.4 image replaced the temporary automatic test harness in app0.
+Application-only writes preserved NVS and OTA selection metadata.
+Both corrected release/debug builds passed, along with 2,223,230 host assertions and
+release packaging. Power-loss and forced rollback scenarios remain untested.
+
 GPIO levels, physical display output, achieved FPS/latency, audio, Wi-Fi/HTTPS, history
 capture/playback, flash power-loss behavior and OTA rollback still require the checks in
 `docs/HARDWARE_CHECKLIST.md`.
