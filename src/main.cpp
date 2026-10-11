@@ -19,8 +19,10 @@ bool ready = false, edgePending = false;
 uint32_t bootAt = 0, lastCapture = 0;
 bool bootConfirmed = false;
 // Preserve the opaque marker expected by previously shipped OTA clients.
+#if !ARCADE_WROOM
 const char HistoricalUpdaterIdentity[] = "\x53\x4c\x59"
                                          "_ARCADE_N16R8|" ARCADE_VERSION;
+#endif
 } // namespace
 // Arduino otherwise accepts a pending image before setup() has checked hardware.
 extern "C" bool verifyRollbackLater() {
@@ -28,16 +30,18 @@ extern "C" bool verifyRollbackLater() {
 }
 void setup() {
   Serial.begin(115200);
-  Serial.println("SKY_ARCADE_N16R8|" ARCADE_VERSION);
+  Serial.println(ARCADE_IDENTITY ARCADE_VERSION);
   // Keep this compatibility data in flash even with compiler/linker garbage collection.
+#if !ARCADE_WROOM
   asm volatile("" : : "r"(HistoricalUpdaterIdentity) : "memory");
+#endif
   diagnostics.begin();
   beginButtons();
   storage.begin();
   audio.begin();
   if (diagnostics.chipFlash != board::ExpectedFlash ||
-      diagnostics.psramPhysical != 8u * 1024u * 1024u) {
-    Serial.println("N16R8 flash / PSRAM check failed. Console halted.");
+      diagnostics.psramPhysical != board::ExpectedPsram) {
+    Serial.println("Target flash / PSRAM check failed. Console halted.");
     Network::failBoot();
     return;
   }

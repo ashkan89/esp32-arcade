@@ -1,4 +1,5 @@
 #include "arcade/Network.h"
+#include "arcade/HttpJson.h"
 #include "arcade/ReleasePolicy.h"
 #include "arcade/SetupKey.h"
 #include <ArduinoJson.h>
@@ -33,8 +34,8 @@ extern "C" int __wrap_mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl
 #endif
 namespace arcade {
 namespace {
-constexpr const char *Board = "esp32-wrover-n16r8-ili9225";
-constexpr const char *Binary = "arcade-esp32-n16r8.bin";
+constexpr const char *Board = ARCADE_BOARD_ID;
+constexpr const char *Binary = ARCADE_BINARY;
 esp_err_t attachHttpsTrust(void *conf) {
   esp_err_t result = esp_crt_bundle_attach(conf);
   if (result != ESP_OK)
@@ -52,18 +53,18 @@ esp_err_t attachHttpsTrust(void *conf) {
   mbedtls_ssl_conf_curves(tls, curves);
   return ESP_OK;
 }
-struct PsramAllocator {
+struct JsonAllocator {
   void *allocate(size_t n) {
-    return heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return heap_caps_malloc(n, (ARCADE_WROOM ? MALLOC_CAP_INTERNAL : MALLOC_CAP_SPIRAM) | MALLOC_CAP_8BIT);
   }
   void deallocate(void *p) {
     heap_caps_free(p);
   }
   void *reallocate(void *p, size_t n) {
-    return heap_caps_realloc(p, n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return heap_caps_realloc(p, n, (ARCADE_WROOM ? MALLOC_CAP_INTERNAL : MALLOC_CAP_SPIRAM) | MALLOC_CAP_8BIT);
   }
 };
-using Json = BasicJsonDocument<PsramAllocator>;
+using Json = BasicJsonDocument<JsonAllocator>;
 bool trustedUrl(const String &url) {
   if (!url.startsWith("https://"))
     return false;
@@ -126,7 +127,7 @@ public:
       config.disable_auto_redirect = true;
       config.event_handler = event;
       config.user_data = this;
-      config.buffer_size = 4096;
+      config.buffer_size = 1024;
       // The SDK's default 512-byte TX buffer must fit the entire request line.
       // GitHub release redirects include signed query strings longer than that.
       config.buffer_size_tx = 4096;
@@ -163,37 +164,16 @@ public:
   int read(void *p, int n) {
     return esp_http_client_read(client, static_cast<char *>(p), n);
   }
-  bool json(Json &out, size_t limit) {
-    if (length > int64_t(limit))
-      return false;
-    auto *buffer =
-        static_cast<char *>(heap_caps_malloc(limit + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-    if (!buffer)
-      return false;
-    size_t used = 0;
-    bool ok = true;
-    uint32_t start = millis();
-    while (used < limit) {
-      int n = read(buffer + used, int(std::min(size_t(4096), limit - used)));
-      if (n < 0) {
-        ok = false;
-        break;
-      }
-      if (!n)
-        break;
-      used += size_t(n);
-      if (elapsed(millis(), start) > 45000) {
-        ok = false;
-        break;
-      }
-    }
-    if (used == limit || (!esp_http_client_is_complete_data_received(client)) ||
-        (length > 0 && uint64_t(length) != used))
-      ok = false;
-    if (ok)
-      ok = !deserializeJson(out, buffer, used);
-    heap_caps_free(buffer);
-    return ok;
+  bool complete() {
+    return esp_http_client_is_complete_data_received(client);
+  }
+  bool json(Json &out, size_t limit, bool release = false) {
+    if (length > int64_t(limit)) return false;
+    // Stream parsing copies strings into the document instead of retaining
+    // pointers into a mutable response buffer that is about to be freed.
+    HttpJsonReader<Request> reader(*this, limit, []() -> uint32_t { return millis(); });
+    bool ok = release ? readReleaseJson(out, reader) : !deserializeJson(out, reader);
+    return ok && reader.finish(length);
   }
 };
 String escaped(String value) {
@@ -399,12 +379,18 @@ bool Network::check() {
   uint32_t binarySize = 0;
   {
     Request request;
-    Json release(65536);
-    if (!request.open("https://api.github.com/repos/" + repository + "/releases/latest") ||
-        !request.json(release, 131072)) {
+    if (!request.open("https://api.github.com/repos/" + repository + "/releases/latest")) {
       status("GITHUB CHECK FAILED / NO RELEASE");
       return false;
     }
+    // Allocate metadata after the TLS handshake's temporary allocations have
+    // been released, preserving internal heap margin on no-PSRAM targets.
+    Json release(16384);
+    if (!request.json(release, 131072, true)) {
+      status("GITHUB CHECK FAILED / NO RELEASE");
+      return false;
+    }
+    request.close();
     if ((release["draft"] | false) || (release["prerelease"] | false)) {
       status("ONLY STABLE RELEASES ACCEPTED");
       return false;
@@ -419,7 +405,7 @@ bool Network::check() {
       String url = asset["browser_download_url"] | "";
       if (!url.startsWith(prefix))
         continue;
-      if (std::strcmp(name, "arcade-release.json") == 0)
+      if (std::strcmp(name, ARCADE_MANIFEST) == 0)
         manifestUrl = url;
       if (std::strcmp(name, Binary) == 0) {
         binaryUrl = url;
@@ -432,11 +418,16 @@ bool Network::check() {
     return false;
   }
   Request request;
-  Json manifest(2048);
-  if (!request.open(manifestUrl) || !request.json(manifest, 4096)) {
+  if (!request.open(manifestUrl)) {
     status("RELEASE MANIFEST DOWNLOAD FAILED");
     return false;
   }
+  Json manifest(2048);
+  if (!request.json(manifest, 4096)) {
+    status("RELEASE MANIFEST DOWNLOAD FAILED");
+    return false;
+  }
+  request.close();
   const char *version = manifest["version"] | "";
   const char *board = manifest["board"] | "";
   const char *file = manifest["asset"] | "";
@@ -490,7 +481,7 @@ bool Network::install() {
   bool ok = buffer != nullptr, identityFound = false;
   uint32_t received = 0, start = millis();
   int matched = 0;
-  String identity = "SKY_ARCADE_N16R8|" + releaseVersion;
+  String identity = ARCADE_IDENTITY + releaseVersion;
   if (ok)
     ok = esp_ota_begin(slot, expectedSize, &handle) == ESP_OK;
   while (ok && received < expectedSize) {
@@ -513,7 +504,8 @@ bool Network::install() {
         break;
       }
       auto *header = reinterpret_cast<esp_image_header_t *>(buffer);
-      if (header->magic != ESP_IMAGE_HEADER_MAGIC || header->chip_id != ESP_CHIP_ID_ESP32) {
+      if (header->magic != ESP_IMAGE_HEADER_MAGIC || header->chip_id != ESP_CHIP_ID_ESP32 ||
+          header->spi_size != (ARCADE_FLASH_MB == 4 ? ESP_IMAGE_FLASH_SIZE_4MB : ESP_IMAGE_FLASH_SIZE_16MB)) {
         ok = false;
         break;
       }
@@ -586,6 +578,9 @@ void Network::rollback() {
   esp_restart();
 }
 void Network::work() {
+  Serial.printf("[network] Start: free=%u largest=%u\n",
+                heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
   if (connect()) {
     if (job == ConsoleAction::CheckUpdate)
       check();
@@ -594,6 +589,11 @@ void Network::work() {
   }
   WiFi.disconnect(false);
   WiFi.mode(WIFI_OFF);
+  Serial.printf("[network] Done: free=%u minimum=%u largest=%u stack-unused=%u\n",
+                heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                unsigned(uxTaskGetStackHighWaterMark(nullptr)));
   working = false;
 }
 void Network::task(void *self) {

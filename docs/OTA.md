@@ -7,6 +7,20 @@ equal/older versions, missing assets, wrong boards and oversized images are reje
 
 Required release assets:
 
+Each target has its own assets and identity; all may share one release:
+
+| Environment | Application | Manifest | OTA slot |
+| --- | --- | --- | --- |
+| `release` | `arcade-esp32-n16r8.bin` | `arcade-release.json` | 3 MiB |
+| `wroom-4mb` | `arcade-esp32-wroom-n4.bin` | `arcade-release-wroom-n4.json` | 1984 KiB |
+| `wroom-16mb` | `arcade-esp32-wroom-n16.bin` | `arcade-release-wroom-n16.json` | 3 MiB |
+
+Package each using `python scripts/package_release.py --env ENVIRONMENT`.
+WROOM board IDs are `esp32-wroom-n4-ili9225` and `esp32-wroom-n16-ili9225`.
+Changing targets or partition layouts requires serial installation.
+
+WROVER assets remain compatible:
+
 - `arcade-esp32-n16r8.bin`: application image, **not** a merged flash image.
 - `arcade-release.json`: schema 1, board `esp32-wrover-n16r8-ili9225`, semantic version,
   asset filename, exact byte size, and 64-digit SHA-256.
@@ -20,10 +34,15 @@ preferred first-install path. Subsequent OTA updates preserve settings and parti
 The firmware uses the SDK's full certificate bundle with hostname verification; it never calls
 `setInsecure`. Time must synchronize through NTP before HTTPS. Redirects are bounded and allowed
 only to GitHub and its known release-asset hosts, over HTTPS. Downloads have read/overall deadlines.
-Both HTTP receive and transmit buffers are explicitly 4 KB. The SDK's default 512-byte
+HTTP receive buffers are 1 KB; transmit buffers remain 4 KB. The SDK's default 512-byte
 transmit buffer cannot fit GitHub's signed release-asset redirect URLs, causing
 `HTTP_CLIENT: Out of buffer` and a manifest download failure despite successful discovery.
-JSON is bounded in PSRAM. The binary is streamed through an internal 4 KB buffer and hashed.
+JSON is streamed with a 512-byte reader; discovery keeps only selected release and asset
+fields in a 16 KB document, and manifests use a 2 KB document. On WROOM these use internal
+RAM; WROVER retains PSRAM allocation. There is no full response allocation. Stream parsing
+copies strings into the document, preserving them through validation. Bodies are bounded
+to 128 KB for discovery and 4 KB for manifests; oversized/overflowed/truncated responses fail.
+The binary is streamed through an internal 4 KB buffer and hashed.
 Checks include manifest/release version agreement, release asset size, target chip, an exact
 compiled board/version identity marker, SHA-256, and `esp_ota_end()` image validation. TLS plus
 the manifest hash trusts the GitHub repository owner; this is not secure boot or signed firmware.
@@ -38,7 +57,7 @@ the manifest hash trusts the GitHub repository owner; this is not secure boot or
 Until verification completes, the running image remains the selected boot image. Only then
 does `esp_ota_set_boot_partition()` select the new image as `NEW`. On its next boot, the bootloader
 sets `PENDING_VERIFY`. The application overrides Arduino's `verifyRollbackLater()` hook to avoid
-the core's early automatic acceptance. Startup validates detected 16 MB flash / 8 MB PSRAM,
+the core's early automatic acceptance. Startup validates the target's flash / PSRAM capacities,
 display allocation/dimensions, NVS availability, and at least eight seconds, 20 rendered frames,
 and 60 main-loop updates before marking the image valid. Reset/crash before acceptance triggers
 bootloader rollback. A detected startup failure explicitly rejects the pending image.
@@ -53,7 +72,7 @@ Two slots preserve one previous healthy firmware; a second update overwrites tha
 
 Increase `VERSION`, update `docs/RELEASE_NOTES.md`, and commit. Create a tag matching the version
 exactly, such as `v2.0.1`, then push the commit and tag to GitHub. `.github/workflows/release.yml`
-builds release/debug, runs host tests, packages checked assets, and creates the release.
+builds release/debug and both WROOM targets, runs host tests, packages checked assets, and creates the release.
 Manual workflow dispatch validates builds without publishing a release. Never edit or replace
 firmware assets in an already published version; publish a higher version instead.
 

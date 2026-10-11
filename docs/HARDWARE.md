@@ -1,6 +1,7 @@
-# Full-button N16R8 wiring
+# Full-button ESP32 wiring
 
 This replaces the old wiring. Use a classic ESP32-WROVER module with 16 MB flash and 8 MB PSRAM,
+or an ESP32-WROOM with 4 MB / 16 MB flash and no PSRAM,
 an SPI ILI9225 TFT, eight momentary buttons, and a small passive piezo transducer.
 All signals use 3.3 V logic; grounds are common. Configuration lives in `include/BoardConfig.h`.
 
@@ -25,7 +26,8 @@ All eight buttons use internal pull-ups; no external button pull-up resistors ar
 Move B, Menu and Back from GPIO19/34/35 to GPIO4/5/15 respectively. GPIO34/35 are unused.
 GPIO5/15 are strapping pins: keep Menu and Back released during power-on/reset to preserve
 the default startup settings. Internal button pull-ups are enabled by the firmware after boot.
-TFT MISO is unused. The framebuffer is portrait 176×220, rotation 0, RGB565, at 20 MHz SPI.
+TFT MISO is unused. The framebuffer is portrait 176×220, rotation 0, RGB565 on WROVER
+or RGB332 on WROOM. Both transfer RGB565 pixels at 20 MHz SPI.
 Power/backlight connections depend on the actual display carrier: follow its voltage rating;
 do not feed a raw high-current backlight from a GPIO. Use a regulated supply with enough current
 for the ESP32's Wi-Fi peaks and the display. Provide 100 nF local decoupling and a 100–470 μF
@@ -47,4 +49,6 @@ window; the himem API allocates approximately 3.75 MB for up to 40 visual-histor
 Only one 32 KB bank is mapped during copies; pointers never survive an unmap.
 Game state, the 8 KB game arena, the SPI staging strip and task stacks remain in internal RAM.
 Startup logs distinguish physical PSRAM, mapped heap, and banked-history allocation.
-The history cache is optional on allocation failure; the PSRAM framebuffer is required.
+The history cache is optional on allocation failure; WROVER requires the PSRAM framebuffer.
+WROOM uses a 38,720-byte internal framebuffer, no previous-frame snapshot and no history.
+See [WROOM memory analysis](WROOM.md) for OTA RAM budgets and physical checks.

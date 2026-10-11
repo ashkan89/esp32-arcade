@@ -5,6 +5,11 @@
 // Arduino must initialize PSRAM before himem queries its physical size.
 extern "C" void esp_himem_init();
 namespace arcade {
+#if ARCADE_WROOM
+bool FrameHistory::begin() { return false; }
+void FrameHistory::capture(Canvas &) {}
+bool FrameHistory::show(Canvas &, unsigned) { return false; }
+#else
 bool FrameHistory::begin() {
   if (!psramFound())
     return false;
@@ -53,4 +58,5 @@ bool FrameHistory::show(Canvas &c, unsigned age) {
   age = std::min(age, count - 1);
   return transfer(c.data(), (next + capacity - 1 - age) % capacity, false);
 }
+#endif
 } // namespace arcade

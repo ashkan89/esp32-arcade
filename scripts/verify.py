@@ -13,7 +13,7 @@ out.mkdir(exist_ok=True)
 pio = shutil.which("pio") or shutil.which("platformio")
 if not pio:
     sys.exit("Install PlatformIO Core: python -m pip install platformio==6.2.0")
-environments = ["release", "debug"]
+environments = ["release", "debug", "wroom-4mb", "wroom-16mb"]
 command = [pio, "run"]
 for name in environments:
     command += ["-e", name]
@@ -29,6 +29,8 @@ subprocess.run([sys.executable, "scripts/test_host.py"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/preview.py"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/preview.py", "--menus"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/package_release.py"], cwd=root, check=True)
+for name in ["wroom-4mb", "wroom-16mb"]:
+    subprocess.run([sys.executable, "scripts/package_release.py", "--env", name], cwd=root, check=True)
 log=(out/'firmware-builds.log').read_text(encoding='utf-8')
 summary={}
 for name in environments:

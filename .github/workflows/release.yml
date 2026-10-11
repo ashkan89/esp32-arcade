@@ -14,19 +14,22 @@ jobs:
         run: |
           python3 -m venv .venv
           .venv/bin/pip install platformio==6.2.0
-      - name: Verify both builds and all game rules
+      - name: Verify all board builds and game rules
         run: |
-          .venv/bin/python -m platformio run -e release -e debug
+          .venv/bin/python -m platformio run -e release -e debug -e wroom-4mb -e wroom-16mb
           .venv/bin/python scripts/test_host.py --sanitize
       - name: Package firmware and check version
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: .venv/bin/python scripts/package_release.py --tag "$RELEASE_TAG"
+        run: |
+          .venv/bin/python scripts/package_release.py --tag "$RELEASE_TAG"
+          .venv/bin/python scripts/package_release.py --env wroom-4mb --tag "$RELEASE_TAG"
+          .venv/bin/python scripts/package_release.py --env wroom-16mb --tag "$RELEASE_TAG"
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" dist/arcade-esp32-n16r8.bin dist/arcade-release.json dist/arcade-factory-esp32-n16r8.bin dist/SHA256SUMS.txt --verify-tag --title "Game Arcade $RELEASE_TAG" --notes-file docs/RELEASE_NOTES.md
+          gh release create "$RELEASE_TAG" dist/*.bin dist/*.json dist/SHA256SUMS.txt --verify-tag --title "Game Arcade $RELEASE_TAG" --notes-file docs/RELEASE_NOTES.md

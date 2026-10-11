@@ -40,7 +40,7 @@ No display/audio worker tasks or BLE services exist.
    six short instruction lines (at most 27 characters), accent, icon ID, and required-button mask.
 3. Append `ARCADE_GAME(MyId, MyGame, 52)` to `include/games/Catalog.def`. Use the next unused ID.
    Never reorder/renumber released IDs; scores/favorites use stable numeric slots. Current save
-   capacity is 64 slots. The launcher/page count and both build environments update automatically.
+   capacity is 64 slots. The launcher/page count and all build environments update automatically.
 4. Add meaningful rule tests and run `python scripts/verify.py`. Raise the arena size deliberately
    if the compile-time `sizeof` guard rejects your game. Test pause, resume, restart, boundaries,
    pool capacity, deterministic seeds and game-over behavior.
@@ -63,9 +63,11 @@ play, restoring a player's checkpoint seed rather than retaining whole inactive 
 Cargo Shift constructs later warehouses by reversing legal pushes from solved boards;
 host tests replay those constructive solution witnesses. Reset recreates the same warehouse.
 
-The firmware identity is `SKY_ARCADE_N16R8|<version>`. Opaque historical marker data is
+The WROVER firmware identity is `SKY_ARCADE_N16R8|<version>`. Opaque historical marker data is
 also retained in the image so installed v2/v3 consoles can update. The OTA board ID and
 firmware asset names remain stable. Game Arcade remains the console and release brand.
+WROOM targets use separate `SKY_ARCADE_WROOM_N4|` / `SKY_ARCADE_WROOM_N16|` identities,
+manifests and assets; see [OTA.md](OTA.md).
 
 Settings schema 2 is a 304-byte CRC-protected NVS blob containing 64 high scores, favorites,
 options and the Sky top five. Schema 1 console saves migrate in memory and are rewritten later.
@@ -82,3 +84,6 @@ Display presentation compares exact 16×8 tiles against a PSRAM snapshot. Sparse
 tiles; dense frames use 176×8 internal strips. The crossover and requested FPS cap are measured
 at startup. Transfer is synchronous, with no claimed DMA overlap. Software RGB inversion is
 used because the library's ILI9225 hardware-invert operation is a placeholder.
+WROOM uses RGB332 in internal RAM and CRC strip comparisons without a snapshot; frame
+history is compiled out. The updater streams filtered JSON to avoid full-body allocation
+and dangling zero-copy strings. Its buffered HTTP JSON adapter has host regression tests.

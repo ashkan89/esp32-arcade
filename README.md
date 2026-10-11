@@ -1,10 +1,11 @@
-# Game Arcade — ESP32-WROVER N16R8
+# Game Arcade — ESP32-WROVER and ESP32-WROOM
 
 52 native arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
 favorites, saved scores, difficulty settings, pause/restart menus, and a PSRAM-backed frame history.
 Wi-Fi setup runs on demand; firmware updates come from
 [ashkan89/esp32-arcade releases](https://github.com/ashkan89/esp32-arcade/releases).
-Only `release` and `debug` environments exist, with the same complete hardware and features.
+WROOM builds support 4 MB or 16 MB flash without PSRAM, with all 52 games and firmware updates.
+They use an RGB332 framebuffer; frame history requires the WROVER PSRAM build.
 
 ![Actual C++ game and menu renderer](artifacts/console-preview.png)
 
@@ -29,14 +30,19 @@ Physical display legibility and frame timing still require device verification.
 python -m pip install platformio==6.2.0
 pio run -e release
 pio run -e debug
+pio run -e wroom-4mb
+pio run -e wroom-16mb
 pio run -e release -t upload --upload-port YOUR_PORT
 pio device monitor --port YOUR_PORT --baud 115200
 ```
 
 Rewire to [the new pin map](docs/HARDWARE.md) before running this firmware. The first upload
 must use USB/serial so the rollback-enabled bootloader and A/B partition table are installed.
-The build targets classic ESP32, 16 MB flash, and 8 MB PSRAM. Startup checks detected capacities;
+Select `release`/`debug` for WROVER N16R8, `wroom-4mb` for WROOM with 4 MB flash,
+or `wroom-16mb` for WROOM with 16 MB flash. Upload using that same environment.
+All builds use the same display and button wiring. Startup checks detected capacities;
 wrong memory hardware stops startup and rejects a pending OTA boot.
+See [WROOM memory analysis and acceptance checks](docs/WROOM.md).
 
 ## Controls
 
@@ -112,7 +118,8 @@ stay on the console in NVS; they are never added to source or printed on serial.
 
 Choose **Check GitHub Release**, then **Install Verified Update** if a newer stable version
 is available. Wi-Fi runs during setup/check/install and shuts off afterwards. The application
-downloads to the inactive 3 MB slot; HTTPS, SHA-256, size, board identity, version and ESP image
+downloads to the inactive slot (1984 KiB on 4 MB WROOM, 3 MiB on 16 MB targets);
+HTTPS, SHA-256, size, board identity, version and ESP image
 validation must pass before boot selection changes. A pending firmware must pass startup
 checks and eight seconds of functioning UI before acceptance. Failure/reset before acceptance
 returns to the previous healthy slot. The update menu also offers explicit previous-firmware boot.
@@ -126,7 +133,7 @@ python scripts/package_release.py
 ```
 
 For the next firmware release, increase `VERSION`, commit, create the matching `vX.Y.Z` tag,
-and push it. The GitHub workflow builds both environments, runs host tests, and publishes the
+and push it. The GitHub workflow builds all four environments, runs host tests, and publishes the
 application binary, manifest, initial-flash image and checksums.
 
 Boot was verified on a physical ESP32 via COM5: 16 MB flash, 8 MB PSRAM, 40 banked-history

@@ -17,8 +17,10 @@ bool Display::begin() {
     error("DIMENSION MISMATCH");
     return false;
   }
-  bool sixteen = true;
-  if (psramFound())
+  bool sixteen = !ARCADE_WROOM;
+  if (ARCADE_WROOM)
+    memory = heap_caps_malloc(W * H, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  else if (psramFound())
     memory = heap_caps_malloc(W * H * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   // This SPI path is synchronous, not DMA. Internal staging also keeps future DMA conversion safe.
   strip =
@@ -36,7 +38,7 @@ bool Display::begin() {
   canvas.attach(memory, sixteen);
   canvas.clear();
   size_t bytes = W * H * (sixteen ? 2 : 1);
-  if (psramFound())
+  if (!ARCADE_WROOM && psramFound())
     previous = heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   Serial.println(previous ? "Renderer: exact dirty tiles with full-strip fallback"
                           : "Renderer: CRC dirty strips; periodic full refresh");
@@ -322,7 +324,7 @@ void Diagnostics::begin() {
                 static_cast<unsigned long>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
   if (chipFlash != board::ExpectedFlash)
     Serial.println("FLASH MISMATCH: use flash_id and correct partitions before further uploads");
-  if (!psramFound())
+  if (!ARCADE_WROOM && !psramFound())
     Serial.println("PSRAM unavailable: console requires the N16R8 memory hardware");
 }
 void Diagnostics::frame(uint32_t us) {

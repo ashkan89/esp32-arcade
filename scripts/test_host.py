@@ -11,6 +11,9 @@ out = root / "test-results"
 out.mkdir(exist_ok=True)
 sources = [root / "tests/rules.cpp", *sorted((root / "src/games").glob("*.cpp")),
            root / "src/arcade/Core.cpp", root / "src/arcade/Canvas.cpp", root / "src/arcade/Console.cpp"]
+json_headers = next((root / ".pio/libdeps").glob("*/ArduinoJson/src"), None)
+if json_headers is None:
+    sys.exit("Run pio pkg install -e release first to install the pinned ArduinoJson test dependency.")
 parser = argparse.ArgumentParser()
 parser.add_argument("--sanitize", action="store_true")
 args = parser.parse_args()
@@ -60,6 +63,7 @@ else:
     command = [compiler, "-std=c++14", "-DARCADE_HOST_TESTS", "-O2", "-Wall", "-Wextra", "-Wpedantic", "-I", str(root / "include"), *map(str, sources), "-o", str(exe)]
     if args.sanitize:
         command += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g"]
+command += [("/I" if Path(compiler).stem.lower() == "cl" else "-I") + str(json_headers)]
 build = subprocess.run(command, cwd=root, capture_output=True, text=True)
 (out / "host-build.log").write_text(build.stdout + build.stderr, encoding="utf-8")
 if build.returncode:

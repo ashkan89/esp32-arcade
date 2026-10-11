@@ -1,6 +1,7 @@
 #include "arcade/Console.h"
 #include "arcade/ReleasePolicy.h"
 #include "arcade/SetupKey.h"
+#include "arcade/HttpJson.h"
 #include "assets/Visuals.h"
 #include "games/FlapEscape.h"
 #include "games/MeteorPatrol.h"
@@ -14,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <string>
 namespace arcade {
 unsigned campaignAssertions = 0;
 bool verifyVectorDrift();
@@ -957,7 +959,70 @@ static void setupKeys() {
       CHECK(key[j] == alphabet[i]);
   }
 }
+static void httpJson() {
+  struct Transport {
+    std::string body;
+    size_t position = 0;
+    bool truncated = false;
+    int read(void *out, int count) {
+      size_t n = std::min(size_t(count), std::min(size_t(7), body.size() - position));
+      std::memcpy(out, body.data() + position, n);
+      position += n;
+      return int(n);
+    }
+    bool complete() const { return !truncated && position == body.size(); }
+  };
+  auto clock = []() -> uint32_t { return 0; };
+  std::string body = "{\"tag_name\":\"v2.0.1\",\"draft\":false,\"prerelease\":false,\"body\":\"";
+  body += std::string(90000, 'x');
+  body += "\",\"assets\":[{\"name\":\"arcade-esp32-wroom-n4.bin\",\"size\":123456,\"browser_download_url\":\"https://github.com/a/b/releases/download/v2.0.1/a.bin\"}]}\n";
+  DynamicJsonDocument doc(16384);
+  Transport input{body};
+  HttpJsonReader<Transport> reader(input, 131072, clock);
+  CHECK(readReleaseJson(doc, reader));
+  CHECK(reader.finish(int64_t(body.size())));
+  CHECK(doc["body"].isNull());
+  CHECK(doc.memoryUsage() < 2048);
+  // Destroy/reuse input storage before consuming strings, as the updater does.
+  input.body.assign(input.body.size(), '!');
+  CHECK(std::strcmp(doc["tag_name"], "v2.0.1") == 0);
+  CHECK(std::strcmp(doc["assets"][0]["name"], "arcade-esp32-wroom-n4.bin") == 0);
+  for (const char *bad : {"{\"tag_name\":", "{} garbage", "{}{}"}) {
+    Transport t{bad};
+    HttpJsonReader<Transport> r(t, 4096, clock);
+    CHECK(!(readReleaseJson(doc, r) && r.finish(int64_t(t.body.size()))));
+  }
+  Transport truncated{"{}", 0, true};
+  HttpJsonReader<Transport> r1(truncated, 4096, clock);
+  CHECK(readReleaseJson(doc, r1));
+  CHECK(!r1.finish(2));
+  Transport wrongSize{"{}"};
+  HttpJsonReader<Transport> r2(wrongSize, 4096, clock);
+  CHECK(readReleaseJson(doc, r2));
+  CHECK(!r2.finish(3));
+  Transport oversized{body};
+  HttpJsonReader<Transport> r3(oversized, 4096, clock);
+  CHECK(!readReleaseJson(doc, r3));
+  Transport small{body};
+  DynamicJsonDocument tiny(32);
+  HttpJsonReader<Transport> r4(small, 131072, clock);
+  CHECK(!readReleaseJson(tiny, r4));
+  Transport expired{"{}"};
+  HttpJsonReader<Transport> r5(expired, 4096, []() -> uint32_t {
+    static uint32_t now = 0;
+    now += 45001;
+    return now;
+  });
+  CHECK(!readReleaseJson(doc, r5));
+  Transport manifest{"{\"board\":\"esp32-wroom-n4-ili9225\",\"version\":\"2.0.1\"}"};
+  HttpJsonReader<Transport> r6(manifest, 4096, clock);
+  CHECK(!deserializeJson(doc, r6));
+  CHECK(r6.finish(int64_t(manifest.body.size())));
+  manifest.body.clear();
+  CHECK(std::strcmp(doc["board"], "esp32-wroom-n4-ili9225") == 0);
+}
 int main() {
+  httpJson();
   setupKeys();
   core();
   inputs();
