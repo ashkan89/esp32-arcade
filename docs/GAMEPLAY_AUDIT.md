@@ -65,7 +65,7 @@ All 52 games use a catalog-specific original track and independent cosmetic RNG.
 
 `AudioSequencer.cpp` owns flash-resident composition and bounded event arbitration; `Hardware.cpp::Audio` alone writes LEDC channel 0. Rendering services audio between internal SPI strips. Score storage v3 has separate difficulty/rules records and preserves historical mixed records. Decoding reads bytes directly into one temporary Settings object rather than nesting multiple 2 KiB migration buffers on the ESP32 loop stack.
 
-`Registry.cpp::gameFor` retains the shared 8,192-byte internal arena, with compile-time per-game size checks in `Registration.h`. Gameplay and audio use fixed arrays/pools, with no per-frame heap allocation. Bounded BFS uses at most 323 cells; only appropriate maze games use it. WROOM retains RGB332 plus internal transfer staging, while WROVER retains PSRAM RGB565 buffers and optional banked history. Rules do not depend on PSRAM or flash capacity.
+`Registry.cpp::gameFor` retains the shared 8,192-byte internal arena, with compile-time per-game size checks in `Registration.h`. Gameplay and audio use fixed arrays/pools, with no per-frame heap allocation. Bounded BFS uses at most 323 cells; only appropriate maze games use it. WROOM retains RGB332 plus internal transfer staging, while WROVER retains PSRAM RGB565 buffers. Banked frame history has been removed. Rules do not depend on PSRAM or flash capacity.
 
 ## Remaining validation limits
 

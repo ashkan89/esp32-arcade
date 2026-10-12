@@ -196,6 +196,7 @@ void Network::begin() {
     String saved = prefs.isKey("config") ? prefs.getString("config", "") : String();
     StaticJsonDocument<512> config;
     if (saved.length() < 512 && !deserializeJson(config, saved)) {
+      persistedConfig = saved;
       ssid = config["ssid"] | "";
       password = config["password"] | "";
       repository = config["repository"] | "";
@@ -287,9 +288,21 @@ void Network::setupPortal() {
       config["repository"] = repo;
       String encoded;
       serializeJson(config, encoded);
-      if (prefs.putString("config", encoded) != encoded.length()) {
-        server.send(500, "text/plain", "Could not save settings.");
-        return;
+      if (encoded != persistedConfig) {
+        uint32_t now = millis();
+        if (!configCooldown.eligible(now)) {
+          server.sendHeader("Retry-After", "60");
+          server.send(429, "text/plain", "Please wait one minute before saving changed settings again.");
+          return;
+        }
+        configCooldown.noteAttempt(now);
+        if (prefs.putString("config", encoded) != encoded.length()) {
+          // A failed commit makes the persisted value uncertain until a successful retry.
+          persistedConfig = "";
+          server.send(500, "text/plain", "Could not save settings. Retry in one minute.");
+          return;
+        }
+        persistedConfig = encoded;
       }
       ssid = name;
       password = pass;

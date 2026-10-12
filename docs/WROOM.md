@@ -4,7 +4,7 @@ Use `wroom-4mb` for physical 4 MB flash or `wroom-16mb` for physical 16 MB flash
 These target classic ESP32, retain all 52 games, and use the existing ILI9225/button/buzzer
 wiring in [HARDWARE.md](HARDWARE.md). Flash capacity must match the environment exactly.
 Neither target defines `BOARD_HAS_PSRAM` or links the banked PSRAM frame-history code.
-The original WROVER `release` and `debug` targets retain RGB565 and frame history.
+The WROVER `release` and `debug` targets retain RGB565. Frame history is removed from all targets.
 
 ```sh
 pio run -e wroom-4mb

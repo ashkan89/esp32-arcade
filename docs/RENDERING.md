@@ -24,9 +24,8 @@ full-frame presentation, so the existing 30 FPS setting was not evidence of achi
   checks 30-frame windows and falls back when at least eight exceed 14,667 us, reserving about
   2 ms for other work. Screen transitions retry the requested rate. This is a workload policy,
   not a guarantee of physical refresh rate.
-- History capture previously mapped/copied banked PSRAM before the visible frame. It now runs
-  after presentation only when remaining time exceeds its observed worst cost plus 2 ms.
-  Heavy gameplay can therefore yield fewer than four history frames per second.
+- Frame-history capture and playback have been removed; no banked screenshot allocation or
+  capture work remains in the rendering loop.
 - Near a render deadline the loop polls in short intervals instead of always sleeping a full
   RTOS tick. Away from deadlines it continues yielding normally.
 

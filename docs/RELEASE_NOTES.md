@@ -1,3 +1,13 @@
+## Unreleased: frame history removal and flash write protection
+
+- Remove the frame-history ring, capture/playback work and system-menu entry on all targets.
+- Skip unchanged or reverted settings saves, batch edits and limit NVS attempts/retries to
+  once per minute per save path. Wi-Fi setup also skips identical saved configuration.
+- Keep defaults in RAM until a real change; preserve save formats, migrations and the WROVER
+  constructor safeguard. See [FLASH_WRITES.md](FLASH_WRITES.md) for delayed-save tradeoffs.
+
+## Historical 3.1.1 startup fix
+
 Game Arcade 3.1.1 for classic ESP32-WROVER N16R8 and SPI ILI9225.
 
 - Fix the startup boot loop by initializing banked frame history after Arduino initializes PSRAM.

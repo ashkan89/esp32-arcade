@@ -25,7 +25,7 @@ Initial inspection found no `AGENTS.md` in the project, `C:\Projects`, or `C:\`.
 | Buzzer | `docs/HARDWARE.md`, `Hardware.cpp`: documented passive piezo, GPIO27, resistor, LEDC channel 0 | Single pitched voice, fixed duty; verify actual part/circuit on hardware before claiming listening quality. |
 | Simulation | `Core.h::StepClock`, `Game.h`, `main.cpp` | Already approximately 60 Hz fixed simulation with bounded catch-up; retain it and test pause/stalls rather than replacing it. |
 | Rendering | `Hardware.cpp::Display`, `main.cpp` | Synchronous RGB565 transfers, internal staging; WROVER RGB565 buffers, WROOM RGB332. Keep rendering separate from simulation. |
-| Memory | `Registry.cpp`, `docs/WROOM.md`, `FrameHistory.cpp` | Shared 8 KiB game arena, bounded game pools, optional banked history. New state must fit; flash capacity does not add RAM. |
+| Memory | `Registry.cpp`, `docs/WROOM.md`, `Persistence.h` | Shared 8 KiB game arena, bounded game pools, saved-state RAM snapshot; frame history removed. New state must fit; flash capacity does not add RAM. |
 | Builds | `platformio.ini` | WROVER `release` and profiling `debug`; WROOM `wroom-4mb` and `wroom-16mb`. |
 | Flash slots | Partition CSVs and existing WROOM documentation | 4 MB board: 1,984 KiB per OTA application; 16 MB boards: 3 MiB. Preserve A/B OTA and identities. |
 | Difficulty | `Game.h`, `Core.h`, `Console.cpp` | Four presets already exist. Tune by genre; retain classic exceptions and start-of-run application. |

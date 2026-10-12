@@ -43,7 +43,7 @@ Effects-invariance coverage runs 1,036,800 actual update ticks across all 52 tit
 
 ## Memory, scheduling and reproduction
 
-The shared 8 KiB arena still enforces each game size at compile time. Save bytes increased from 304 to 2,356; category records add 2 KiB internal state. Decode avoids nested migration copies. Music and descriptors are const flash data; sequencer/event state is fixed and small. No gameplay hot-loop allocation was introduced. WROOM still uses RGB332/internal staging without PSRAM; WROVER keeps ordinary mapped PSRAM separate from optional banked history.
+The shared 8 KiB arena still enforces each game size at compile time. Save bytes increased from 304 to 2,356; category records add 2 KiB internal state. Decode avoids nested migration copies. Music and descriptors are const flash data; sequencer/event state is fixed and small. No gameplay hot-loop allocation was introduced. WROOM still uses RGB332/internal staging without PSRAM; WROVER uses ordinary mapped PSRAM. Frame history is now removed, and write suppression adds a 2,356-byte RAM snapshot on all targets; earlier build sizes above precede this change.
 
 `RUN game=... difficulty=... enhanced=... seed=...` reports the effective game seed. Reproduce in host tests by setting GameOptions.seed/difficulty/enhanced. A firmware build may define ARCADE_FIXED_SEED to reproduce the boot/run seed sequence; this is not a new production menu. Input frames and game ID are still needed to replay an entire session.
 

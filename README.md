@@ -1,11 +1,11 @@
 # Game Arcade — ESP32-WROVER and ESP32-WROOM
 
 52 native arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
-favorites, saved scores, difficulty settings, pause/restart menus, and a PSRAM-backed frame history.
+favorites, saved scores, difficulty settings, and pause/restart menus.
 Wi-Fi setup runs on demand; firmware updates come from
 [ashkan89/esp32-arcade releases](https://github.com/ashkan89/esp32-arcade/releases).
 WROOM builds support 4 MB or 16 MB flash without PSRAM, with all 52 games and firmware updates.
-They use an RGB332 framebuffer; frame history requires the WROVER PSRAM build.
+They use an RGB332 framebuffer; WROVER uses PSRAM for RGB565 rendering.
 
 ![Actual C++ game and menu renderer](artifacts/console-preview.png)
 
@@ -71,8 +71,11 @@ The [52-game audit](docs/GAMEPLAY_AUDIT.md), [audio guide and track map](docs/AU
 [research notes](docs/RESEARCH_NOTES.md), and [build/test results](docs/BUILD_AND_TEST.md)
 document these gameplay and audio changes and the physical checks still pending.
 Attract mode starts after 20 seconds idle and never records scores.
-The last-run history holds up to 40 sampled frames (one every 250 ms), using banked PSRAM.
-It is a visual history, not a replay of game inputs.
+Frame history and its menu entry have been removed. Settings and records skip unchanged saves,
+batch edits for two quiet seconds, and limit write attempts to once per minute outside gameplay
+and attract mode. Wi-Fi setup also skips identical configuration and limits changed-save attempts
+to once per minute. Pending settings can be lost if power is cut before saving; see
+[flash write protection](docs/FLASH_WRITES.md).
 
 ## Games
 
@@ -145,7 +148,8 @@ For the next firmware release, increase `VERSION`, commit, create the matching `
 and push it. The GitHub workflow builds all four environments, runs host tests, and publishes the
 application binary, manifest, initial-flash image and checksums.
 
-Boot was verified on a physical ESP32 via COM5: 16 MB flash, 8 MB PSRAM, 40 banked-history
-slots and successful boot-health confirmation, with no serial errors during a 35-second capture.
-Buttons, sound, Wi-Fi provisioning, history capture/playback and power-loss/rollback still need the
+An earlier firmware boot was verified on a physical ESP32 via COM5: 16 MB flash, 8 MB PSRAM
+and successful boot-health confirmation, with no serial errors during a 35-second capture.
+The frame-history removal and write limits still require physical-board verification.
+Buttons, sound, Wi-Fi provisioning and power-loss/rollback still need the
 [hardware acceptance checks](docs/HARDWARE_CHECKLIST.md).

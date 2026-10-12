@@ -3,6 +3,7 @@
 #include "BoardConfig.h"
 #include "Canvas.h"
 #include "Core.h"
+#include "Persistence.h"
 #include <Arduino.h>
 #include <Preferences.h>
 #include <TFT_eSPI.h>
@@ -44,15 +45,14 @@ public:
 };
 class Storage {
   Preferences prefs;
-  bool ready = false, dirty = false;
-  uint32_t changed = 0, lastAttempt = 0;
+  bool ready = false;
+  DeferredSave<SaveBytes> save;
 
 public:
   Settings settings;
   void begin();
   void mark(uint32_t now) {
-    dirty = true;
-    changed = now;
+    save.mark(now);
   }
   void update(uint32_t now, bool safe);
   bool available() const {

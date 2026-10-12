@@ -45,10 +45,10 @@ The firmware uses one LEDC channel for passive-piezo effects and menu music, wit
 
 Mapped PSRAM holds two 77,440-byte RGB565 buffers and temporary bounded release JSON buffers.
 The classic ESP32 cannot directly map the whole 8 MB at once. The SDK reserves a bank-mapping
-window; the himem API allocates approximately 3.75 MB for up to 40 visual-history slots.
-Only one 32 KB bank is mapped during copies; pointers never survive an unmap.
+window, but the application no longer allocates banked frame history.
 Game state, the 8 KB game arena, the SPI staging strip and task stacks remain in internal RAM.
-Startup logs distinguish physical PSRAM, mapped heap, and banked-history allocation.
-The history cache is optional on allocation failure; WROVER requires the PSRAM framebuffer.
+Startup logs distinguish physical PSRAM and mapped heap.
+WROVER requires the PSRAM framebuffer. Persistence keeps a 2,356-byte saved-state snapshot in RAM
+to skip unchanged flash writes; see FLASH_WRITES.md.
 WROOM uses a 38,720-byte internal framebuffer, no previous-frame snapshot and no history.
 See [WROOM memory analysis](WROOM.md) for OTA RAM budgets and physical checks.

@@ -106,8 +106,9 @@ the host against all four allowed GitHub download/redirect hostnames with certif
 
 The initial firmware repeatedly aborted before setup because the SDK's himem constructor
 queried PSRAM before Arduino initialized it. `scripts/defer_himem.py` links a project-local
-SDK object with the automatic constructor disabled, and `FrameHistory::begin()` explicitly
-initializes himem after the PSRAM checks. A build check inspects the linked constructor table
+SDK object with the automatic constructor disabled. The earlier `FrameHistory::begin()` explicitly
+initialized himem after the PSRAM checks; frame history has since been removed. The constructor
+safeguard remains, and a build check inspects the linked constructor table
 to prevent this startup regression. The installed SDK is unchanged. A 64 KB coredump partition
 was added after both OTA slots, and absent optional NVS keys are checked before reading them.
 

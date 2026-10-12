@@ -736,6 +736,13 @@ static void consoleRules() {
   CHECK(s.favorites & (uint64_t(1) << 1));
   c.update({0, Pause}, 80);
   CHECK(c.state() == Screen::Utilities);
+  // The five utility entries wrap directly to Back to Games; no removed history screen.
+  c.update({0, Up}, 81);
+  c.update({0, Fire}, 82);
+  CHECK(c.state() == Screen::Launcher);
+  c.update({0, Pause}, 83);
+  for (unsigned i = 0; i < 5; ++i)
+    c.update({0, Down}, 84 + i);
   c.update({0, Fire}, 100);
   CHECK(c.state() == Screen::Settings);
   c.update({0, Fire}, 120);

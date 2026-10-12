@@ -6,8 +6,8 @@ No physical ESP32 was available for these checks. Record results on the actual N
   power rating. All eight buttons use internal pull-ups.
 - Keep Menu/Back released during power-on/reset; confirm normal startup with the rewired buttons.
 - Upload the release build over USB, including its bootloader and partition table.
-- Confirm serial detects 16 MB flash / 8 MB physical PSRAM; check mapped heap and banked-history
-  capacity separately. Wrong-capacity hardware must halt startup.
+- Confirm serial detects 16 MB flash / 8 MB physical PSRAM and check mapped heap.
+  Wrong-capacity hardware must halt startup; no frame-history allocation should be logged.
 - Confirm portrait orientation, RGB colors, clipping and inversion. Record full-frame/tile time,
   actual frame-time buckets, update time, input gap, and minimum internal heap.
 - Exercise all eight buttons independently, menu repeats, held-button transitions and pause/resume.
@@ -18,7 +18,12 @@ No physical ESP32 was available for these checks. Record results on the actual N
   explosions, moving brick sentinel and full block/puzzle boards. Record achieved FPS and latency.
 - Confirm bosses remain defeatable when limited consumables are exhausted: regenerated City
   Shield ammunition and Burger Works pepper, non-consumable gun/pump/bubble/snow attacks.
-- Save scores/settings/favorites, reboot, and confirm persistence. Check the last-run history scrubber.
+- Save scores/settings/favorites, leave a safe menu open for 60 seconds after the final change,
+  reboot, and confirm persistence. Check the system menu has five entries with no frame history.
+- Toggle a setting and revert it before saving; verify no save message. Make repeated edits,
+  confirm no more than one state save per minute, and verify the newest state survives reboot.
+- Submit unchanged Wi-Fi setup without a config write. Repeat changed setup within a minute:
+  expect HTTP 429; wait and retry. Test failed-save retry behavior and power loss before saving.
 - Update from older firmware with existing records; confirm Sky Invaders scores, settings and
   favorites survive the namespace migration, and that the prior firmware still boots on rollback.
 - Open Wi-Fi setup, enter credentials, save and verify timeout/exit closes the AP. Check that

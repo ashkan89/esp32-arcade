@@ -178,6 +178,8 @@ void Storage::begin() {
     Serial.println("Settings and records loaded");
     if (len != SaveSize)
       mark(millis());
+    else
+      save.remember(bytes);
     return;
   }
   // Read the historical namespace without changing it, so older firmware can still boot.
@@ -200,17 +202,19 @@ void Storage::begin() {
     }
   }
   Serial.println("New or invalid settings: using defaults");
-  mark(millis());
+  // Defaults remain volatile until a real edit or record needs saving.
+  save.remember(encode(settings));
 }
 void Storage::update(uint32_t now, bool safe) {
-  if (!ready || !dirty || !safe || elapsed(now, changed) < 2000 || elapsed(now, lastAttempt) < 5000)
+  if (!ready || !save.due(now, safe))
     return;
-  lastAttempt = now;
   SaveBytes bytes = encode(settings);
-  if (prefs.putBytes("state", bytes.data(), bytes.size()) == bytes.size()) {
-    dirty = false;
+  auto result = save.update(bytes, now, safe, [this](const SaveBytes &data) {
+    return prefs.putBytes("state", data.data(), data.size()) == data.size();
+  });
+  if (result == SaveResult::Saved)
     Serial.println("Settings and records saved");
-  } else
+  else if (result == SaveResult::Failed)
     Serial.println("NVS save failed; retry pending");
 }
 void beginButtons() {

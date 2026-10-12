@@ -1,5 +1,6 @@
 #include "arcade/AudioSequencer.h"
 #include "arcade/Behavior.h"
+#include "arcade/Persistence.h"
 #include "games/Campaign.h"
 #include <cstdio>
 #include <cstdlib>
@@ -15,6 +16,89 @@ static void require(bool ok, const char *what, unsigned seed = 0, unsigned game 
   }
 }
 void verifyImprovements() {
+  // Count actual writer calls, including failed calls; simulated time needs no Arduino.
+  DeferredSave<SaveBytes> save;
+  Settings savedSettings;
+  SaveBytes original = encode(savedSettings), written{};
+  unsigned writes = 0;
+  bool failWrite = false;
+  auto writer = [&](const SaveBytes &bytes) {
+    ++writes;
+    if (failWrite)
+      return false;
+    written = bytes;
+    return true;
+  };
+  save.remember(original);
+  require(save.update(original, 100000, true, writer) == SaveResult::Deferred && writes == 0,
+          "idle boot does not save defaults or loaded state");
+  savedSettings.sound ^= 1;
+  SaveBytes modified = encode(savedSettings);
+  save.mark(100);
+  require(save.update(modified, 2099, true, writer) == SaveResult::Deferred,
+          "save waits for quiet period");
+  require(save.update(modified, 2100, false, writer) == SaveResult::Deferred && writes == 0,
+          "gameplay and attract never write");
+  require(save.update(modified, 2100, true, writer) == SaveResult::Saved && writes == 1 &&
+              written == modified, "first changed state is saved");
+  save.mark(2200);
+  require(save.update(modified, 4200, true, writer) == SaveResult::Deferred && writes == 1,
+          "duplicate dirty notification waits without writing");
+  save.mark(5000);
+  require(save.update(original, 7000, true, writer) == SaveResult::Deferred && writes == 1,
+          "changed state waits through minute cooldown");
+  save.mark(8000);
+  require(save.update(modified, 10000, true, writer) == SaveResult::Deferred && writes == 1,
+          "cooldown avoids repeated snapshot work");
+  require(save.update(modified, 62100, true, writer) == SaveResult::Unchanged && writes == 1,
+          "reverted change cancels pending save when eligible");
+  save.mark(62200);
+  save.mark(63000);
+  require(save.update(original, 64999, true, writer) == SaveResult::Deferred,
+          "latest edit extends debounce");
+  require(save.update(original, 65000, true, writer) == SaveResult::Saved && writes == 2,
+          "coalesced state saved after cooldown and debounce");
+  failWrite = true;
+  save.mark(66000);
+  require(save.update(modified, 125000, true, writer) == SaveResult::Failed && writes == 3,
+          "failed write retains pending state");
+  require(save.update(modified, 184999, true, writer) == SaveResult::Deferred && writes == 3,
+          "failed write cannot cause retry storm");
+  failWrite = false;
+  savedSettings.music ^= 1;
+  SaveBytes newest = encode(savedSettings);
+  save.mark(180000);
+  require(save.update(newest, 185000, true, writer) == SaveResult::Saved && writes == 4 &&
+              written == newest, "retry persists newest state, not failed snapshot");
+  DeferredSave<SaveBytes> migration;
+  migration.mark(10);
+  require(migration.update(original, 2010, true, writer) == SaveResult::Saved && writes == 5,
+          "migration without current-format snapshot saves once");
+  require(migration.update(original, 100000, true, writer) == SaveResult::Deferred && writes == 5,
+          "migration does not repeat");
+  DeferredSave<SaveBytes> uncertain;
+  uncertain.remember(original);
+  uncertain.mark(0);
+  auto failedCommit = [&](const SaveBytes &bytes) {
+    written = bytes;
+    return false;
+  };
+  require(uncertain.update(modified, 2000, true, failedCommit) == SaveResult::Failed,
+          "failed commit may have changed physical state");
+  uncertain.mark(3000);
+  require(uncertain.update(original, 62000, true, writer) == SaveResult::Saved && written == original,
+          "revert after uncertain commit performs compensating save");
+  DeferredSave<SaveBytes> wrapSave;
+  wrapSave.remember(original);
+  wrapSave.mark(0xfffffff0u);
+  require(wrapSave.update(modified, 1984, true, writer) == SaveResult::Saved,
+          "debounce crosses millis rollover");
+  WriteCooldown cooldown;
+  require(cooldown.eligible(0), "first explicit network save allowed at time zero");
+  cooldown.noteAttempt(0xfffffff0u);
+  require(!cooldown.eligible(59983) && cooldown.eligible(59984),
+          "write cooldown crosses millis rollover at exact boundary");
+  std::puts("PASS persistence write counts, debounce, coalescing, revert, retries, migration and rollover");
   size_t maximumGame = 0;
 #define ARCADE_GAME(id, type, number) maximumGame = std::max(maximumGame, describe##type().bytes);
 #include "games/Catalog.def"

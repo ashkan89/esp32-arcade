@@ -1,5 +1,4 @@
 #include "arcade/Console.h"
-#include "arcade/FrameHistory.h"
 #include "arcade/Hardware.h"
 #include "arcade/Network.h"
 #include <bootloader_random.h>
@@ -11,18 +10,16 @@ Storage storage;
 Diagnostics diagnostics;
 Input buttons;
 Network network;
-FrameHistory history;
 Console console(storage.settings);
 StepClock clockStep;
 FramePacer framePacer;
 FrameBudget frameBudget;
 InputFrame pendingInput;
 uint32_t lastPoll = 0, lastFrame = 0, edgeAt = 0;
-uint32_t historyCostUs = 3000;
 uint8_t pacedFps = 30;
 Screen budgetScreen = Screen::Boot;
 bool ready = false, edgePending = false;
-uint32_t bootAt = 0, lastCapture = 0;
+uint32_t bootAt = 0;
 bool bootConfirmed = false;
 void serviceAudio() {
   auto state = console.state();
@@ -71,7 +68,6 @@ void setup() {
     Network::failBoot();
     return;
   }
-  history.begin();
   network.begin();
   GameOptions o;
   // Short startup entropy window; disabled before RF/ADC/I2S use.
@@ -142,7 +138,6 @@ void loop() {
       renderDue = true;
     }
     if (console.consumeNewRun()) {
-      history.reset();
       audio.stop();
       if (console.active())
         Serial.printf("RUN game=%d difficulty=%u enhanced=%u seed=%lu\n", console.selected(),
@@ -189,13 +184,6 @@ void loop() {
     serviceAudio();
     if (console.state() == Screen::Updates)
       network.draw(display.canvas);
-    if (console.state() == Screen::History &&
-        history.show(display.canvas, unsigned(console.historyOffset()))) {
-      display.canvas.rect(0, 0, W, Top, Navy);
-      display.canvas.centered(5, "LAST RUN FRAME HISTORY", Cyan);
-      display.canvas.rect(0, 204, W, 16, Navy);
-      display.canvas.centered(208, "L/R SCRUB  A BACK", White);
-    }
     if (console.state() == Screen::System)
       diagnostics.draw(display.canvas, display, storage.available());
     diagnostics.drawMax = std::max(diagnostics.drawMax, elapsed(micros(), started));
@@ -211,14 +199,6 @@ void loop() {
     uint32_t end = micros();
     diagnostics.frame(elapsed(end, lastFrame));
     lastFrame = end;
-    // Banked PSRAM capture runs only in measured slack after the visible frame.
-    if (console.state() == Screen::Playing && elapsed(now, lastCapture) >= 250 &&
-        framePacer.remaining(micros()) > historyCostUs + 2000) {
-      uint32_t captureAt = micros();
-      history.capture(display.canvas);
-      historyCostUs = std::max(historyCostUs, elapsed(micros(), captureAt));
-      lastCapture = now;
-    }
   }
   bool safe = console.state() != Screen::Playing && console.state() != Screen::Attract;
   storage.update(now, safe);
@@ -232,8 +212,8 @@ void loop() {
     Serial.printf("COST updateIncludingAI=%lu us draw=%lu us transfer=%lu us\n",
                   (unsigned long)diagnostics.updateMax, (unsigned long)diagnostics.drawMax,
                   (unsigned long)diagnostics.transferMax);
-    Serial.printf("PACING target=%u FPS missedDeadlines=%lu historyMax=%lu us\n", pacedFps,
-                  (unsigned long)framePacer.missed, (unsigned long)historyCostUs);
+    Serial.printf("PACING target=%u FPS missedDeadlines=%lu\n", pacedFps,
+                  (unsigned long)framePacer.missed);
   }
   if (!bootConfirmed && elapsed(now, bootAt) >= 8000 && diagnostics.frames >= 20 &&
       diagnostics.updates >= 60) {

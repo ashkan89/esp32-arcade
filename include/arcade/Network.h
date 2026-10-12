@@ -1,6 +1,7 @@
 #pragma once
 #include "Canvas.h"
 #include "Console.h"
+#include "Persistence.h"
 #include <Arduino.h>
 #include <DNSServer.h>
 #include <Preferences.h>
@@ -12,6 +13,8 @@ class Network {
   WebServer server{80};
   DNSServer dns;
   String ssid, password, repository, firmwareUrl, releaseVersion;
+  String persistedConfig;
+  WriteCooldown configCooldown;
   uint8_t expectedHash[32]{};
   uint32_t expectedSize = 0, portalAt = 0, savedAt = 0;
   bool portal = false, savePending = false, storageReady = false;

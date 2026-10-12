@@ -1,9 +1,10 @@
-"""Defer IDF 4.4 himem initialization until Arduino has initialized PSRAM.
+"""Suppress IDF 4.4's premature himem constructor.
 
 The pinned Arduino SDK enables bankswitching without SPIRAM_BOOT_INIT.
 Its himem constructor therefore aborts before initArduino(). Link a local
 copy of that SDK object with its .ctors section renamed. All SDK code
-and the installed framework archive remain unchanged.
+and the installed framework archive remain unchanged. Frame history has been removed;
+retain this boot-loop safeguard for any SDK bank-switch support that remains linked.
 """
 Import("env")
 from pathlib import Path
@@ -55,8 +56,8 @@ def verify_constructor_table(target, source, env):
     if len(data) != end - start:
         raise RuntimeError("Unable to verify SDK constructor table")
     constructors = struct.unpack("<" + "I" * (len(data) // 4), data)
-    if symbols["esp_himem_init"] in constructors:
+    if symbols.get("esp_himem_init") in constructors:
         raise RuntimeError("Premature himem constructor would cause a PSRAM boot loop")
-    print("Verified: himem initialization deferred until PSRAM is ready")
+    print("Verified: no premature himem constructor (frame history removed)")
 
 env.AddPostAction("$BUILD_DIR/${PROGNAME}.elf", verify_constructor_table)

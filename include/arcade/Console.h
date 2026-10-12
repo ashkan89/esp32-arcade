@@ -14,7 +14,6 @@ enum class Screen : uint8_t {
   Utilities,
   Attract,
   Updates,
-  History,
   SoundPreview
 };
 enum class ConsoleAction : uint8_t { None, CheckUpdate, InstallUpdate, SetupNetwork, Rollback };
@@ -61,9 +60,6 @@ public:
     auto result = action;
     action = ConsoleAction::None;
     return result;
-  }
-  int historyOffset() const {
-    return cursor;
   }
   int previewTrack() const {
     return cursor;

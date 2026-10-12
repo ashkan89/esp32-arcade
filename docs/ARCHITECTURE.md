@@ -15,7 +15,7 @@ each game owns its rules, pools and presentation.
 | `Registration` / `Catalog.def` | Type-erased construction/destruction and stable catalog IDs |
 | `Game` / `Campaign` | Twelve-stage victory, transitions, grace periods and bounded visual effects |
 | `Hardware` | Display transfers, piezo sound, NVS persistence and measurements |
-| `FrameHistory` | 8 MB PSRAM bank API; bounded sampled-frame ring |
+| `Persistence` | Unchanged-save suppression, edit batching and write-attempt cooldown |
 | `Network` / `ReleasePolicy` | Setup portal, GitHub release discovery, HTTPS, inactive-slot OTA |
 | `main.cpp` | Main-loop ownership and startup health acceptance |
 
@@ -25,7 +25,7 @@ Never cache inactive game pointers. Menus call cleanup before replacing/leaving 
 There are no allocations in game update/render paths. Shared shooter utilities are not a
 collection of games in one file: each shooter's enemy AI lives in its own named source file.
 
-The main task owns buttons, console, audio, display, NVS, and banked frame history. A temporary
+The main task owns buttons, console, audio, display and NVS. A temporary
 network task runs HTTPS/OTA on core 0 while the update screen remains responsive; game/menu
 actions are frozen for that job. It never draws or changes console state. Status uses a short
 critical section and completion/progress use atomics. The task deletes itself after the job.
@@ -69,16 +69,21 @@ firmware asset names remain stable. Game Arcade remains the console and release 
 WROOM targets use separate `SKY_ARCADE_WROOM_N4|` / `SKY_ARCADE_WROOM_N16|` identities,
 manifests and assets; see [OTA.md](OTA.md).
 
-Settings schema 2 is a 304-byte CRC-protected NVS blob containing 64 high scores, favorites,
-options and the Sky top five. Schema 1 console saves migrate in memory and are rewritten later.
+Settings schema 3 is a 2,356-byte CRC-protected NVS blob containing 64 aggregate high scores,
+Classic/Enhanced records by difficulty, favorites, options and the Sky top five. Schema 1/2
+console saves migrate in memory and are rewritten later.
 Difficulty values 0–3 represent Easy, Medium (formerly Normal), Hard and Nightmare.
 Existing schema 1/2 saves retain their scores, favorites and difficulty indexes. Nightmare
-fits the existing options byte; no blob-layout migration is needed. Older firmware that
+fits the existing options byte. Older firmware that
 only accepts 0–2 cannot load a save while its difficulty byte is set to Nightmare.
 Settings use the `skyarcade` namespace. If its state is absent or invalid, a valid historical
 namespace state is imported and saved later; the historical state remains untouched for rollback.
-Writes are deferred outside gameplay and retried after failure. Invalid data never partially
-overwrites settings. Network credentials use a separate atomic JSON string in their own namespace.
+Writes are deferred outside gameplay/attract, batched after two quiet seconds and limited to one
+attempt per minute, including retries. A RAM snapshot suppresses unchanged or reverted saves;
+booting with defaults does not save the state blob until a real change. Invalid data never partially
+overwrites settings. Network credentials use a separate atomic JSON string in their own namespace,
+with identical-value suppression and a one-minute attempt limit. See FLASH_WRITES.md for power-loss
+tradeoffs and remaining SDK/OTA writes.
 
 Display presentation compares eight-row bands against a PSRAM snapshot. Dirty tile runs merge
 horizontally, with a measured window-overhead/wire-cost estimate choosing runs or one trimmed
@@ -90,9 +95,9 @@ used because the library's ILI9225 hardware-invert operation is a placeholder.
 Simulation and presentation use shared-phase fractional timing for exactly 60 Hz simulation
 and 30/60 Hz render deadlines. Catch-up remains bounded, and missed render deadlines skip
 obsolete slots. Sustained workload can lower the current screen's 60 FPS request to 30;
-changing screens retries the requested rate. Banked frame-history capture uses measured slack
-after presentation, so busy scenes can have fewer history samples. Diagnostics display measured
+changing screens retries the requested rate. Frame history and its capture work have been removed.
+Diagnostics display measured
 presentation FPS and report missed deadlines in profiling builds. See RENDERING.md for limits.
-WROOM keeps RGB332 in internal RAM without a snapshot; frame history is compiled out.
+WROOM keeps RGB332 in internal RAM without a display snapshot.
 The updater streams filtered JSON to avoid full-body allocation
 and dangling zero-copy strings. Its buffered HTTP JSON adapter has host regression tests.

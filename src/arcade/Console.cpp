@@ -188,14 +188,14 @@ void Console::update(const InputFrame &f, uint32_t now) {
   }
   if (screen == Screen::Utilities) {
     if (nav) {
-      cursor = (cursor + nav + 6) % 6;
+      cursor = (cursor + nav + 5) % 5;
       pending = Sound::Move;
     }
     if (back)
       transition(Screen::Launcher, now);
     else if (ok) {
-      const Screen next[] = {Screen::Settings, Screen::Scores,  Screen::System,
-                             Screen::Updates,  Screen::History, Screen::Launcher};
+      const Screen next[] = {Screen::Settings, Screen::Scores, Screen::System,
+                             Screen::Updates, Screen::Launcher};
       transition(next[cursor], now);
     }
     return;
@@ -215,13 +215,6 @@ void Console::update(const InputFrame &f, uint32_t now) {
       if (cursor == 4)
         transition(Screen::Utilities, now);
     }
-    return;
-  }
-  if (screen == Screen::History) {
-    if (nav)
-      cursor = clamp(cursor + nav, 0, 39);
-    if (back || ok)
-      transition(Screen::Utilities, now);
     return;
   }
   if (screen == Screen::Settings) {
@@ -441,16 +434,15 @@ void Console::render(Canvas &c) const {
   }
   if (screen == Screen::Utilities) {
     header(c, "SYSTEM MENU");
-    const char *rows[] = {"SETTINGS",        "HIGH SCORES",   "SYSTEM INFO",
-                          "WI-FI / UPDATES", "FRAME HISTORY", "BACK TO GAMES"};
-    for (int i = 0; i < 6; i++) {
-      int y = 33 + i * 27;
+    const char *rows[] = {"SETTINGS", "HIGH SCORES", "SYSTEM INFO",
+                          "WI-FI / UPDATES", "BACK TO GAMES"};
+    for (int i = 0; i < 5; i++) {
+      int y = 33 + i * 33;
       visual::card(c, 5, y, 166, 24, Cyan, cursor == i);
       visual::thumbnail(c,
                         i == 0   ? 9
                         : i == 1 ? 21
                         : i == 3 ? 1
-                        : i == 4 ? 19
                                  : 0,
                         10, y + 1, cursor == i ? Cyan : visual::Muted, 0);
       c.text(42, y + 8, rows[i], cursor == i ? Cyan : White);
@@ -466,15 +458,6 @@ void Console::render(Canvas &c) const {
       visual::card(c, 4, 30 + i * 21, 168, 19, Cyan, cursor == i);
       c.text(9, 36 + i * 21, rows[i], cursor == i ? Cyan : White);
     }
-    return;
-  }
-  if (screen == Screen::History) {
-    header(c, "LAST RUN FRAME HISTORY");
-    visual::card(c, 9, 68, 158, 80, Cyan, false);
-    visual::thumbnail(c, 19, 75, 78, Cyan, 0);
-    c.centered(110, "NO FRAMES YET", White);
-    c.centered(129, "PLAY A GAME TO RECORD", visual::Muted);
-    c.centered(207, "L/R SCRUB  A BACK", White);
     return;
   }
   if (screen == Screen::Settings) {
