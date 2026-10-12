@@ -127,18 +127,61 @@ public:
     }
     uint32_t dt = elapsed(now, previous);
     previous = now;
-    if (dt > StepUs * 6) {
-      dropped += dt - StepUs * 6;
-      dt = StepUs * 6;
+    if (dt > 100000) {
+      dropped += dt - 100000;
+      dt = 100000;
     }
-    accumulator += dt;
-    unsigned n = std::min(4u, accumulator / StepUs);
-    accumulator -= n * StepUs;
-    if (accumulator >= StepUs) {
-      dropped += accumulator - accumulator % StepUs;
-      accumulator %= StepUs;
+    // Fractional microseconds: exactly 60 Hz, sharing phase with FramePacer.
+    accumulator += dt * 60;
+    unsigned n = std::min(4u, accumulator / 1000000);
+    accumulator -= n * 1000000;
+    if (accumulator >= 1000000) {
+      dropped += (accumulator / 1000000) * 1000000 / 60;
+      accumulator %= 1000000;
     }
     return n;
+  }
+};
+class FramePacer {
+  uint32_t previous = 0, phase = 0;
+  uint8_t rate = 30;
+
+public:
+  uint32_t missed = 0;
+  void reset(uint32_t now, uint8_t fps) {
+    previous = now;
+    phase = 0;
+    rate = fps == 60 ? 60 : 30;
+  }
+  bool advance(uint32_t now) {
+    uint64_t total = uint64_t(elapsed(now, previous)) * rate + phase;
+    previous = now;
+    uint32_t due = uint32_t(total / 1000000);
+    phase = uint32_t(total % 1000000);
+    if (due > 1)
+      missed += due - 1;
+    return due != 0;
+  }
+  uint32_t remaining(uint32_t now) const {
+    uint64_t used = uint64_t(elapsed(now, previous)) * rate + phase;
+    return used >= 1000000 ? 0 : uint32_t((1000000 - used + rate - 1) / rate);
+  }
+};
+class FrameBudget {
+  unsigned samples = 0, slow = 0;
+
+public:
+  void reset() {
+    samples = slow = 0;
+  }
+  bool observe(uint32_t workUs) {
+    // Reserve time for polling and RTOS service. Ignore isolated transition spikes.
+    slow += workUs > 14667;
+    if (++samples < 30)
+      return false;
+    bool overloaded = slow >= 8;
+    reset();
+    return overloaded;
   }
 };
 enum class Sound : uint8_t {

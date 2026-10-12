@@ -80,10 +80,19 @@ namespace state is imported and saved later; the historical state remains untouc
 Writes are deferred outside gameplay and retried after failure. Invalid data never partially
 overwrites settings. Network credentials use a separate atomic JSON string in their own namespace.
 
-Display presentation compares exact 16×8 tiles against a PSRAM snapshot. Sparse frames transfer
-tiles; dense frames use 176×8 internal strips. The crossover and requested FPS cap are measured
-at startup. Transfer is synchronous, with no claimed DMA overlap. Software RGB inversion is
+Display presentation compares eight-row bands against a PSRAM snapshot. Dirty tile runs merge
+horizontally, with a measured window-overhead/wire-cost estimate choosing runs or one trimmed
+band. Dense bands stay local instead of forcing a full-screen transfer. Snapshot presentation
+does not calculate CRCs. WROOM hashes native RGB332 bands before expanding changed bands through
+a lookup table; its CRC remains save-format compatible. Filled rectangles use bulk row writes.
+Transfer stays synchronous at 20 MHz, with no claimed DMA overlap. Software RGB inversion is
 used because the library's ILI9225 hardware-invert operation is a placeholder.
-WROOM uses RGB332 in internal RAM and CRC strip comparisons without a snapshot; frame
-history is compiled out. The updater streams filtered JSON to avoid full-body allocation
+Simulation and presentation use shared-phase fractional timing for exactly 60 Hz simulation
+and 30/60 Hz render deadlines. Catch-up remains bounded, and missed render deadlines skip
+obsolete slots. Sustained workload can lower the current screen's 60 FPS request to 30;
+changing screens retries the requested rate. Banked frame-history capture uses measured slack
+after presentation, so busy scenes can have fewer history samples. Diagnostics display measured
+presentation FPS and report missed deadlines in profiling builds. See RENDERING.md for limits.
+WROOM keeps RGB332 in internal RAM without a snapshot; frame history is compiled out.
+The updater streams filtered JSON to avoid full-body allocation
 and dangling zero-copy strings. Its buffered HTTP JSON adapter has host regression tests.

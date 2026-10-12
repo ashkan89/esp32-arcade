@@ -14,8 +14,13 @@ Network network;
 FrameHistory history;
 Console console(storage.settings);
 StepClock clockStep;
+FramePacer framePacer;
+FrameBudget frameBudget;
 InputFrame pendingInput;
-uint32_t lastRender = 0, lastPoll = 0, lastFrame = 0, edgeAt = 0;
+uint32_t lastPoll = 0, lastFrame = 0, edgeAt = 0;
+uint32_t historyCostUs = 3000;
+uint8_t pacedFps = 30;
+Screen budgetScreen = Screen::Boot;
 bool ready = false, edgePending = false;
 uint32_t bootAt = 0, lastCapture = 0;
 bool bootConfirmed = false;
@@ -79,7 +84,10 @@ void setup() {
   console.begin(o, millis());
   display.service = serviceAudio;
   clockStep.reset(micros());
-  lastRender = lastPoll = lastFrame = micros();
+  lastPoll = lastFrame = micros();
+  pacedFps = std::min(storage.settings.fps, display.maxFps);
+  clockStep.reset(lastFrame);
+  framePacer.reset(lastFrame, pacedFps);
   ready = true;
   bootAt = millis();
 }
@@ -103,6 +111,10 @@ void loop() {
     edgePending = true;
   }
   serviceAudio();
+  // Sample both clocks together after input/audio service, never with a stale timestamp.
+  us = micros();
+  uint32_t workAt = us;
+  bool renderDue = framePacer.advance(us);
   unsigned steps = clockStep.advance(us);
   for (unsigned i = 0; i < steps; i++) {
     uint32_t started = micros();
@@ -124,7 +136,10 @@ void loop() {
       f = {};
       serviceAudio();
       display.invalidate();
-      clockStep.reset(micros());
+      uint32_t resetAt = micros();
+      clockStep.reset(resetAt);
+      framePacer.reset(resetAt, pacedFps);
+      renderDue = true;
     }
     if (console.consumeNewRun()) {
       history.reset();
@@ -154,13 +169,20 @@ void loop() {
       break;
   }
   display.invert(storage.settings.invert);
+  if (console.state() != budgetScreen) {
+    budgetScreen = console.state();
+    display.maxFps = 60;
+    frameBudget.reset();
+  }
   uint8_t fps = std::min(storage.settings.fps, display.maxFps);
-  uint32_t interval = 1000000u / fps;
-  us = micros();
-  if (elapsed(us, lastRender) >= interval) {
-    lastRender += interval;
-    if (elapsed(us, lastRender) >= interval)
-      lastRender = us;
+  if (fps != pacedFps) {
+    pacedFps = fps;
+    uint32_t resetAt = micros();
+    clockStep.reset(resetAt);
+    framePacer.reset(resetAt, fps);
+    frameBudget.reset();
+  }
+  if (renderDue) {
     uint32_t started = micros();
     display.canvas.clear();
     console.render(display.canvas);
@@ -174,10 +196,6 @@ void loop() {
       display.canvas.rect(0, 204, W, 16, Navy);
       display.canvas.centered(208, "L/R SCRUB  A BACK", White);
     }
-    if (console.state() == Screen::Playing && elapsed(now, lastCapture) >= 250) {
-      history.capture(display.canvas);
-      lastCapture = now;
-    }
     if (console.state() == Screen::System)
       diagnostics.draw(display.canvas, display, storage.available());
     diagnostics.drawMax = std::max(diagnostics.drawMax, elapsed(micros(), started));
@@ -186,13 +204,21 @@ void loop() {
     diagnostics.transferMax = std::max(diagnostics.transferMax, elapsed(micros(), transferAt));
     uint32_t renderTime = elapsed(micros(), started);
     diagnostics.renderMax = std::max(diagnostics.renderMax, renderTime);
-    if (fps == 60 && renderTime > 16667) {
+    if (fps == 60 && frameBudget.observe(elapsed(micros(), workAt))) {
       display.maxFps = 30;
-      Serial.println("Renderer exceeded 60 FPS budget; capped at 30 FPS");
+      Serial.println("Sustained frame workload exceeds 60 FPS; pacing this screen at 30 FPS");
     }
     uint32_t end = micros();
     diagnostics.frame(elapsed(end, lastFrame));
     lastFrame = end;
+    // Banked PSRAM capture runs only in measured slack after the visible frame.
+    if (console.state() == Screen::Playing && elapsed(now, lastCapture) >= 250 &&
+        framePacer.remaining(micros()) > historyCostUs + 2000) {
+      uint32_t captureAt = micros();
+      history.capture(display.canvas);
+      historyCostUs = std::max(historyCostUs, elapsed(micros(), captureAt));
+      lastCapture = now;
+    }
   }
   bool safe = console.state() != Screen::Playing && console.state() != Screen::Attract;
   storage.update(now, safe);
@@ -206,6 +232,8 @@ void loop() {
     Serial.printf("COST updateIncludingAI=%lu us draw=%lu us transfer=%lu us\n",
                   (unsigned long)diagnostics.updateMax, (unsigned long)diagnostics.drawMax,
                   (unsigned long)diagnostics.transferMax);
+    Serial.printf("PACING target=%u FPS missedDeadlines=%lu historyMax=%lu us\n", pacedFps,
+                  (unsigned long)framePacer.missed, (unsigned long)historyCostUs);
   }
   if (!bootConfirmed && elapsed(now, bootAt) >= 8000 && diagnostics.frames >= 20 &&
       diagnostics.updates >= 60) {
@@ -218,5 +246,10 @@ void loop() {
       bootConfirmed = true;
     }
   }
-  delay(1);
+  // Keep yielding away from deadlines; a full RTOS tick at the deadline adds visible jitter.
+  uint32_t slack = framePacer.remaining(micros());
+  if (!slack || slack > 1500)
+    delay(1);
+  else if (slack)
+    delayMicroseconds(std::min(slack, 200u));
 }

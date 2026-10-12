@@ -16,13 +16,12 @@ class Display {
   bool invalid = true;
   bool inverted = false;
   uint32_t presents = 0;
-  unsigned tileCutoff = 108;
 
 public:
   Canvas canvas;
   void (*service)() = nullptr;
   uint32_t fullFrameUs = 0, tileUs = 0, lastTransferUs = 0;
-  uint8_t maxFps = 30;
+  uint8_t maxFps = 60;
   bool begin();
   void invalidate() {
     invalid = true;
@@ -65,6 +64,7 @@ struct Diagnostics {
   uint32_t updateMax = 0, drawMax = 0, transferMax = 0, renderMax = 0, frameMax = 0, lastReport = 0,
            maxInputGap = 0, pressToUpdateMax = 0;
   std::array<uint32_t, 6> frameBuckets{};
+  uint32_t windowUs = 0, windowFrames = 0, achievedFps10 = 0, windowMax = 0, recentMax = 0;
   void begin();
   void frame(uint32_t duration);
   void report(uint32_t now, const Display &, const StepClock &);

@@ -1,4 +1,5 @@
 #include "arcade/Console.h"
+#include "arcade/DirtySpan.h"
 #include "arcade/HttpJson.h"
 #include "arcade/ReleasePolicy.h"
 #include "arcade/SetupKey.h"
@@ -452,8 +453,99 @@ static void core() {
     c.reset(0);
     unsigned n = 0;
     for (unsigned i = 1; i <= fps; i++)
-      n += c.advance(i * 1000020 / fps);
+      n += c.advance(i * 1000000 / fps);
     CHECK(n == 60);
+  }
+}
+static void renderingTiming() {
+  for (uint8_t fps : {uint8_t(30), uint8_t(60)}) {
+    StepClock simulation;
+    FramePacer pacing;
+    uint32_t origin = 0xffff0000u;
+    simulation.reset(origin);
+    pacing.reset(origin, fps);
+    unsigned frames = 0, ticks = 0, priorTicks = 0;
+    // Ten minutes, wraparound, sub-millisecond polling jitter and variable transfer cost.
+    for (uint32_t t = 0; t <= 600000000u;) {
+      uint32_t now = origin + t;
+      bool due = pacing.advance(now);
+      ticks += simulation.advance(now);
+      if (due) {
+        CHECK(ticks - priorTicks == 60u / fps);
+        priorTicks = ticks;
+        ++frames;
+        t += 1000 + (frames % 5) * 1300;
+      } else
+        t += std::min(200u, pacing.remaining(now));
+    }
+    CHECK(frames == unsigned(fps) * 600);
+    CHECK(ticks == 36000);
+    CHECK(pacing.missed == 0);
+    pacing.reset(0, fps);
+    CHECK(pacing.advance(200000));
+    CHECK(pacing.missed == unsigned(fps) / 5 - 1);
+    CHECK(!pacing.advance(200000));
+  }
+  FrameBudget budget;
+  for (unsigned i = 0; i < 30; ++i)
+    CHECK(!budget.observe(i == 0 ? 80000 : 4000));
+  for (unsigned i = 0; i < 29; ++i)
+    CHECK(!budget.observe(18000));
+  CHECK(budget.observe(18000));
+  budget.reset();
+  CHECK(!budget.observe(18000));
+
+  CHECK(checksum(reinterpret_cast<const uint8_t *>("123456789"), 9) == 0xcbf43926u);
+  CHECK(checksum(nullptr, 0) == 0);
+  std::array<uint16_t, W * 8> current{}, previous{}, packed{};
+  CHECK(dirtySpan(current.data(), previous.data(), 8).empty());
+  current[W + 3] = Red;
+  current[7 * W + W - 1] = Cyan;
+  auto span = dirtySpan(current.data(), previous.data(), 8);
+  CHECK(span.left == 3 && span.right == W);
+  auto split = dirtyPlan(current.data(), previous.data(), 8, 10, 20000000);
+  CHECK(split.count == 2);
+  CHECK(split.spans[0].left == 3 && split.spans[0].right == 16);
+  CHECK(split.spans[1].left == 160 && split.spans[1].right == W);
+  auto merged = dirtyPlan(current.data(), previous.data(), 8, 10000, 20000000);
+  CHECK(merged.count == 1);
+  CHECK(merged.spans[0].left == 3 && merged.spans[0].right == W);
+  previous = current;
+  current[W + 3] = Black;
+  span = dirtySpan(current.data(), previous.data(), 8);
+  CHECK(span.left == 3 && span.right == 4);
+  CHECK(dirtyPlan(current.data(), previous.data(), 4, 10, 20000000).count == 1);
+  std::array<uint8_t, W * 8> smallBand{}, oldBand{};
+  for (int x = 0; x < W; x += 32)
+    smallBand[x] = 1;
+  CHECK(dirtyPlan(smallBand.data(), oldBand.data(), 4, 1, 20000000).count == 6);
+  oldBand = smallBand;
+  CHECK(dirtyPlan(smallBand.data(), oldBand.data(), 4, 1, 20000000).count == 0);
+  std::array<uint16_t, W * H> pixels{};
+  std::array<uint8_t, W * H> small{};
+  for (unsigned i = 0; i < 256; ++i)
+    small[i] = uint8_t(i);
+  Canvas palette;
+  palette.attach(small.data(), false);
+  for (unsigned i = 0; i < 256; ++i) {
+    uint16_t expected =
+        uint16_t(((i >> 5) * 31 / 7) << 11 | (((i >> 2) & 7) * 63 / 7) << 5 | (i & 3) * 31 / 3);
+    CHECK(palette.pixel(int(i % W), int(i / W)) == expected);
+  }
+  for (bool sixteen : {false, true}) {
+    Canvas c;
+    c.attach(sixteen ? static_cast<void *>(pixels.data()) : static_cast<void *>(small.data()),
+             sixteen);
+    c.clear();
+    c.rect(-4, H - 9, 24, 16, Pink);
+    c.rect(8, H - 4, W, 4, Cyan);
+    for (bool invert : {false, true}) {
+      c.copyRect(3, H - 8, 19, 8, packed.data(), invert);
+      for (int row = 0; row < 8; ++row)
+        for (int x = 0; x < 19; ++x)
+          CHECK(packed[row * 19 + x] ==
+                uint16_t(c.pixel(x + 3, row + H - 8) ^ (invert ? 0xffff : 0)));
+    }
   }
 }
 static void inputs() {
@@ -1055,6 +1147,7 @@ static void httpJson() {
   CHECK(std::strcmp(doc["board"], "esp32-wroom-n4-ili9225") == 0);
 }
 int main() {
+  renderingTiming();
   httpJson();
   setupKeys();
   core();

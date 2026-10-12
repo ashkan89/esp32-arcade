@@ -137,11 +137,15 @@ bool Settings::record(unsigned g, uint32_t s, unsigned difficulty, bool enhanced
   return changed;
 }
 uint32_t checksum(const uint8_t *p, size_t n) {
+  static constexpr uint32_t table[] = {0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
+                                       0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
+                                       0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
+                                       0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c};
   uint32_t c = 0xffffffff;
   for (size_t i = 0; i < n; i++) {
     c ^= p[i];
-    for (int b = 0; b < 8; b++)
-      c = (c >> 1) ^ (0xedb88320u & uint32_t(-int32_t(c & 1)));
+    c = (c >> 4) ^ table[c & 15];
+    c = (c >> 4) ^ table[c & 15];
   }
   return ~c;
 }

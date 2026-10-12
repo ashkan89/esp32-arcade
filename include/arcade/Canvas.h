@@ -23,6 +23,8 @@ public:
     return buffer;
   }
   void clear(uint16_t color = Black);
+  // Pack an in-bounds rectangle into contiguous RGB565 transfer memory.
+  void copyRect(int x, int y, int w, int h, uint16_t *out, bool invert = false) const;
   void pixel(int x, int y, uint16_t color);
   uint16_t pixel(int x, int y) const;
   void rect(int x, int y, int w, int h, uint16_t color, bool filled = true);

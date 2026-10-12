@@ -1,4 +1,5 @@
 #include "arcade/Hardware.h"
+#include "arcade/DirtySpan.h"
 #include <cstring>
 #include <esp32/spiram.h>
 #include <esp_flash.h>
@@ -40,7 +41,7 @@ bool Display::begin() {
   size_t bytes = W * H * (sixteen ? 2 : 1);
   if (!ARCADE_WROOM && psramFound())
     previous = heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  Serial.println(previous ? "Renderer: exact dirty tiles with full-strip fallback"
+  Serial.println(previous ? "Renderer: exact dirty spans, merged by transfer cost"
                           : "Renderer: CRC dirty strips; periodic full refresh");
   uint32_t total = 0;
   for (int i = 0; i < 3; i++) {
@@ -59,13 +60,12 @@ bool Display::begin() {
     total += elapsed(micros(), start);
   }
   tileUs = std::max(1u, total / 3);
-  tileCutoff = clamp(fullFrameUs / tileUs, 1u, 308u);
-  // Leave 25% plus 3 ms CPU headroom. This is a boot measurement, not a promised FPS.
-  maxFps = fullFrameUs * 5 / 4 + 3000 < 16667 ? 60 : 30;
+  // Sparse gameplay can sustain 60 even when a full-screen transfer cannot.
+  maxFps = 60;
   Serial.printf("display RGB%u full frame=%lu us, maximum request=%u FPS\n", sixteen ? 16 : 8,
                 static_cast<unsigned long>(fullFrameUs), maxFps);
-  Serial.printf("Tile transfer=%lu us; dense-frame crossover=%u tiles\n", (unsigned long)tileUs,
-                tileCutoff);
+  Serial.printf("Tile transfer=%lu us; runtime pacing checks sustained load\n",
+                (unsigned long)tileUs);
   invalidate();
   return true;
 }
@@ -88,65 +88,52 @@ void Display::present(bool force) {
   if (!strip || !canvas.ready())
     return;
   uint32_t started = micros();
-  // Exact comparison avoids hash collisions when a backing snapshot is available.
-  if (previous && !force && !invalid) {
-    std::array<bool, 308> changed{};
-    unsigned count = 0;
-    size_t bpp = canvas.sixteen() ? 2 : 1;
-    auto *current = static_cast<uint8_t *>(canvas.data());
-    auto *old = static_cast<uint8_t *>(previous);
-    for (int y = 0, t = 0; y < H; y += 8)
-      for (int x = 0; x < W; x += 16, t++) {
-        int rows = std::min(8, H - y);
-        bool different = false;
-        for (int j = 0; j < rows && !different; j++)
-          different = std::memcmp(current + ((y + j) * W + x) * bpp, old + ((y + j) * W + x) * bpp,
-                                  16 * bpp) != 0;
-        changed[unsigned(t)] = different;
-        count += different;
-      }
-    // Sparse frames use tiles. Dense frames amortize controller window commands in strips.
-    if (count < tileCutoff) {
-      for (int y = 0, t = 0; y < H; y += 8)
-        for (int x = 0; x < W; x += 16, t++)
-          if (changed[unsigned(t)]) {
-            int rows = std::min(8, H - y);
-            for (int j = 0; j < rows; j++)
-              for (int i = 0; i < 16; i++)
-                strip[j * 16 + i] = uint16_t(canvas.pixel(x + i, y + j) ^ (inverted ? 0xffff : 0));
-            tft.pushImage(x, y, 16, rows, strip);
-            if (service)
-              service();
-            for (int j = 0; j < rows; j++)
-              std::memcpy(old + ((y + j) * W + x) * bpp, current + ((y + j) * W + x) * bpp,
-                          16 * bpp);
-          }
-      lastTransferUs = elapsed(micros(), started);
-      return;
-    }
-    force = true;
-  }
-  // Without a snapshot, refresh periodically to bound the effect of any CRC collision.
+  size_t bpp = canvas.sixteen() ? 2 : 1;
+  auto *current = static_cast<const uint8_t *>(canvas.data());
+  auto *old = static_cast<uint8_t *>(previous);
+  uint32_t tileWireUs = uint32_t(uint64_t(16 * 8) * 16000000 / SPI_FREQUENCY);
+  uint32_t windowUs = tileUs > tileWireUs ? tileUs - tileWireUs : 1;
+  // CRC fallback is for boards without snapshot memory. Bound collision lifetime.
   if (!previous && ++presents % 120 == 0)
     force = true;
-  for (int y = 0, index = 0; y < H; y += 8, index++) {
+  for (int y = 0, index = 0; y < H; y += 8, ++index) {
     int rows = std::min(8, H - y);
-    for (int j = 0; j < rows; j++)
-      for (int x = 0; x < W; x++)
-        strip[j * W + x] = uint16_t(canvas.pixel(x, y + j) ^ (inverted ? 0xffff : 0));
-    uint32_t hash = checksum(reinterpret_cast<uint8_t *>(strip), size_t(W * rows * 2));
-    if (force || invalid || hash != hashes[unsigned(index)]) {
-      tft.pushImage(0, y, W, rows, strip);
+    DirtyPlan plan;
+    plan.count = 1;
+    plan.spans[0] = {0, W};
+    uint32_t hash = 0;
+    if (previous && !force && !invalid) {
+      if (canvas.sixteen())
+        plan = dirtyPlan(reinterpret_cast<const uint16_t *>(current) + y * W,
+                         reinterpret_cast<const uint16_t *>(old) + y * W, rows, windowUs,
+                         SPI_FREQUENCY);
+      else
+        plan = dirtyPlan(current + y * W, old + y * W, rows, windowUs, SPI_FREQUENCY);
+      if (!plan.count)
+        continue;
+    } else if (!previous) {
+      // Hash native pixels before expansion; unchanged bands need no RGB conversion.
+      hash = checksum(current + y * W * bpp, size_t(W * rows) * bpp);
+      if (!force && !invalid && hash == hashes[unsigned(index)])
+        continue;
+    }
+    for (unsigned i = 0; i < plan.count; ++i) {
+      const auto &span = plan.spans[i];
+      int width = span.right - span.left;
+      canvas.copyRect(span.left, y, width, rows, strip, inverted);
+      tft.pushImage(span.left, y, width, rows, strip);
       if (service)
         service();
-      hashes[unsigned(index)] = hash;
     }
+    if (previous)
+      std::memcpy(old + y * W * bpp, current + y * W * bpp, size_t(W * rows) * bpp);
+    else
+      hashes[unsigned(index)] = hash;
   }
   invalid = false;
   lastTransferUs = elapsed(micros(), started);
-  if (previous)
-    std::memcpy(previous, canvas.data(), size_t(W * H) * (canvas.sixteen() ? 2 : 1));
 }
+
 void Audio::begin() {
   ready = ledcSetup(0, 1000, 8) > 0;
   if (ready) {
@@ -281,6 +268,14 @@ void Diagnostics::begin() {
 }
 void Diagnostics::frame(uint32_t us) {
   frames++;
+  windowUs += us;
+  windowFrames++;
+  windowMax = std::max(windowMax, us);
+  if (windowUs >= 1000000) {
+    achievedFps10 = uint32_t(uint64_t(windowFrames) * 10000000 / windowUs);
+    recentMax = windowMax;
+    windowUs = windowFrames = windowMax = 0;
+  }
   frameMax = std::max(frameMax, us);
   unsigned bucket = us < 16667    ? 0
                     : us < 33334  ? 1
@@ -296,6 +291,9 @@ void Diagnostics::report(uint32_t now, const Display &d, const StepClock &clock)
   if (elapsed(now, lastReport) < 30000)
     return;
   lastReport = now;
+  Serial.printf("DISPLAY achieved=%lu.%lu FPS recentWorst=%lu us\n",
+                (unsigned long)(achievedFps10 / 10), (unsigned long)(achievedFps10 % 10),
+                (unsigned long)recentMax);
   Serial.printf("PROFILE frames=%lu updates=%lu updateMax=%lu renderMax=%lu frameMax=%lu "
                 "transfer=%lu inputPollMax=%lu droppedSim=%lu us\n",
                 (unsigned long)frames, (unsigned long)updates, (unsigned long)updateMax,
@@ -324,7 +322,8 @@ void Diagnostics::draw(Canvas &c, const Display &d, bool nvs) const {
   c.text(6, 137, s, White);
   std::snprintf(s, sizeof(s), "FULL FRAME %lu US", (unsigned long)d.fullFrameUs);
   c.text(6, 153, s, White);
-  std::snprintf(s, sizeof(s), "FRAME CAP %u FPS", unsigned(d.maxFps));
+  std::snprintf(s, sizeof(s), "FPS %lu.%lu CAP %u", (unsigned long)(achievedFps10 / 10),
+                (unsigned long)(achievedFps10 % 10), unsigned(d.maxFps));
   c.text(6, 169, s, Cyan);
   c.text(6, 185, nvs ? "NVS READY" : "NVS FAILED - VOLATILE", nvs ? Green : Red);
 }

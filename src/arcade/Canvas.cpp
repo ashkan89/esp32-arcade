@@ -36,8 +36,28 @@ static uint8_t pack(uint16_t c) {
   return uint8_t(((c >> 8) & 0xe0) | ((c >> 6) & 0x1c) | ((c >> 3) & 3));
 }
 static uint16_t unpack(uint8_t c) {
-  unsigned r = c >> 5, g = (c >> 2) & 7, b = c & 3;
-  return uint16_t((r * 31 / 7) << 11 | (g * 63 / 7) << 5 | b * 31 / 3);
+  static const std::array<uint16_t, 256> colors = [] {
+    std::array<uint16_t, 256> result{};
+    for (unsigned i = 0; i < result.size(); ++i)
+      result[i] =
+          uint16_t(((i >> 5) * 31 / 7) << 11 | (((i >> 2) & 7) * 63 / 7) << 5 | (i & 3) * 31 / 3);
+    return result;
+  }();
+  return colors[c];
+}
+void Canvas::copyRect(int x, int y, int w, int h, uint16_t *out, bool invert) const {
+  for (int row = 0; row < h; ++row) {
+    size_t offset = size_t((y + row) * W + x);
+    if (rgb565 && !invert)
+      std::memcpy(out, static_cast<const uint16_t *>(buffer) + offset, size_t(w) * 2);
+    else
+      for (int col = 0; col < w; ++col) {
+        uint16_t color = rgb565 ? static_cast<const uint16_t *>(buffer)[offset + col]
+                                : unpack(static_cast<const uint8_t *>(buffer)[offset + col]);
+        out[col] = uint16_t(color ^ (invert ? 0xffff : 0));
+      }
+    out += w;
+  }
 }
 void Canvas::clear(uint16_t c) {
   if (!buffer)
@@ -72,9 +92,15 @@ void Canvas::rect(int x, int y, int w, int h, uint16_t c, bool fill) {
     return;
   }
   int x0 = clamp(x, 0, W), x1 = clamp(x + w, 0, W), y0 = clamp(y, 0, H), y1 = clamp(y + h, 0, H);
-  for (int j = y0; j < y1; j++)
-    for (int i = x0; i < x1; i++)
-      pixel(i, j, c);
+  if (!buffer || x1 <= x0)
+    return;
+  uint8_t packed = pack(c);
+  for (int j = y0; j < y1; j++) {
+    if (rgb565)
+      std::fill_n(static_cast<uint16_t *>(buffer) + j * W + x0, x1 - x0, c);
+    else
+      std::memset(static_cast<uint8_t *>(buffer) + j * W + x0, packed, size_t(x1 - x0));
+  }
 }
 void Canvas::line(int x, int y, int x1, int y1, uint16_t c) {
   int dx = std::abs(x1 - x), sx = x < x1 ? 1 : -1, dy = -std::abs(y1 - y), sy = y < y1 ? 1 : -1,
