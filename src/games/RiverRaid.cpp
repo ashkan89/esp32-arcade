@@ -1,3 +1,4 @@
+#include "arcade/DirtySpan.h"
 #include "assets/AtariPixels.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -17,6 +18,9 @@ class RiverRaid final : public TickGame {
     uint8_t difficulty = 1;
     std::array<uint8_t, 17> bank{}, island{};
     std::array<Object, 16> objects{};
+#ifdef ARCADE_HOST_TESTS
+    std::array<float, 129> route{};
+#endif
   };
   Section current, next;
   struct Burst {
@@ -126,9 +130,9 @@ class RiverRaid final : public TickGame {
     edge = std::floor((s.bank[block] * (1 - t) + s.bank[block + 1] * t) / 4) * 4;
     isle = std::floor((s.island[block] * (1 - t) + s.island[block + 1] * t) / 4) * 4;
   }
-  // Conservative fast-flight reachability through the left route. Fuel depots
-  // constrain the route; enemies occupy the other branch in Enhanced mode.
-  static bool feasible(const Section &s) {
+  // Two reachable intervals retain both island branches. Include the nose footprint,
+  // depot contact and bridge approach at maximum forward speed.
+  static bool feasible(const Section &s, std::array<float, 129> *route = nullptr) {
     int previousDepot = 0, depots = 0;
     for (int i = 0; i < 15; ++i)
       if (s.objects[i].kind == Fuel) {
@@ -138,58 +142,178 @@ class RiverRaid final : public TickGame {
         previousDepot = position;
         ++depots;
       }
-    // At .75 units/tick, 160 units costs < 6,827 fuel. Even a partial
-    // 16-tick depot contact restores 7,680 net fuel; faster flight costs less.
     if (depots < 3 || 512 - previousDepot > 160)
       return false;
-    float low = 80, high = 80;
-    for (int pos = 0; pos <= 512; pos += 4) {
-      float edge, isle;
+    struct Interval {
+      float lo = 1, hi = 0;
+    };
+    using Pair = std::array<Interval, 2>;
+    std::array<Pair, 129> reachable{};
+    Pair previous{{{80, 80}, {1, 0}}};
+    for (int index = 0; index <= 128; ++index) {
+      int pos = index * 4;
+      float edge, isle, frontEdge, frontIsle;
       profile(s, float(pos), edge, isle);
-      low = std::max(edge + 4, low - 1.46f);
-      high = std::min(isle ? 76 - isle : 156 - edge, high + 1.46f);
-      if (pos >= 488 && pos <= 504) {
-        low = std::max(low, 68.f);
-        high = std::min(high, 92.f);
+      profile(s, float(pos + 6), frontEdge, frontIsle);
+      float left = std::max(edge + 5, frontEdge + 3);
+      float right = 160 - std::max(edge + 5, frontEdge + 3);
+      float island = std::max(isle ? isle + 5.01f : 0.f, frontIsle ? frontIsle + 3.01f : 0.f);
+      Pair allowed{
+          {{left, island ? 80 - island : right}, {island ? 80 + island : 1, island ? right : 0}}};
+      float contactLow = 0, contactHigh = 160;
+      if (pos >= 484 && pos <= 504) {
+        contactLow = 68;
+        contactHigh = 92;
       }
       for (int i = 0; i < 15; ++i)
         if (s.objects[i].kind == Fuel && pos == i * 32 + 16) {
-          low = std::max(low, s.objects[i].x - 7);
-          high = std::min(high, s.objects[i].x + 7);
+          contactLow = s.objects[i].x - 7;
+          contactHigh = s.objects[i].x + 7;
         }
-      if (low > high)
+      std::array<Interval, 4> parts{};
+      unsigned count = 0;
+      for (const auto &a : allowed)
+        for (const auto &v : previous) {
+          if (v.lo > v.hi || a.lo > a.hi)
+            continue;
+          float expansion = index ? 1.46f : 0.f;
+          Interval part{std::max({a.lo, contactLow, v.lo - expansion}),
+                        std::min({a.hi, contactHigh, v.hi + expansion})};
+          if (part.lo <= part.hi)
+            parts[count++] = part;
+        }
+      if (!count)
         return false;
+      std::sort(parts.begin(), parts.begin() + count,
+                [](Interval a, Interval b) { return a.lo < b.lo; });
+      Pair result{};
+      unsigned merged = 0;
+      for (unsigned i = 0; i < count; ++i) {
+        if (merged && parts[i].lo <= result[merged - 1].hi)
+          result[merged - 1].hi = std::max(result[merged - 1].hi, parts[i].hi);
+        else {
+          if (merged == 2)
+            return false;
+          result[merged++] = parts[i];
+        }
+      }
+      previous = result;
+      if (route)
+        reachable[index] = result;
+    }
+    if (route) {
+      float chosen = 80;
+      for (int index = 128; index >= 0; --index) {
+        float best = 1000, selected = 80;
+        for (const auto &v : reachable[index])
+          if (v.lo <= v.hi) {
+            float candidate = clamp(chosen, v.lo, v.hi);
+            if (std::abs(candidate - chosen) < best) {
+              best = std::abs(candidate - chosen);
+              selected = candidate;
+            }
+          }
+        (*route)[unsigned(index)] = chosen = selected;
+      }
     }
     return true;
   }
+  static bool validateLayout(Section &s) {
+#ifdef ARCADE_HOST_TESTS
+    return feasible(s, &s.route);
+#else
+    return feasible(s);
+#endif
+  }
+  static void placeObject(Section &s, int index, Random &layout, int side = -1) {
+    auto &o = s.objects[index];
+    float edge, isle;
+    footprint(s, index, edge, isle);
+    if (o.kind == House) {
+      float side = std::max(8.f, edge - 10);
+      o.x = layout.range(0, 2) ? 160 - side : side;
+      return;
+    }
+    if (o.kind == Bridge)
+      return;
+    float radius = halfWidth(o.kind) + 2;
+    float left = edge + radius, right = 160 - edge - radius;
+    bool chooseRight = side < 0 ? layout.range(0, 2) != 0 : side != 0;
+    if (isle) {
+      if (chooseRight)
+        left = 80 + isle + radius;
+      else
+        right = 80 - isle - radius;
+    }
+    if (!isle && side >= 0) {
+      if (chooseRight)
+        left = 80 + radius;
+      else
+        right = 80 - radius;
+    }
+    o.x = left + (right - left) * layout.range(0, 101) / 100.f;
+    o.direction = chooseRight ? -1 : 1;
+  }
   void buildSection(Section &s, uint16_t seed, uint8_t difficulty) {
     generate(s, seed, difficulty);
-    if (!options.enhanced)
-      return;
     Random layout{derivedSeed(options.seed, uint32_t(seed) | (uint32_t(difficulty) << 16))};
+    if (!options.enhanced) {
+      // Keep the historical sequence; anchor houses wholly on their shoreline.
+      for (int i = 0; i < 15; ++i)
+        if (s.objects[i].kind == House) {
+          float edge, isle;
+          footprint(s, i, edge, isle);
+          float side = std::max(8.f, edge - 10);
+          s.objects[i].x = s.objects[i].x < 80 ? side : 160 - side;
+        } else {
+          auto &o = s.objects[i];
+          float left, right;
+          patrolRange(s, i, o, left, right);
+          o.x = clamp(o.x, left, right);
+        }
+      return;
+    }
+    bool firstRight = layout.range(0, 2) != 0;
     for (unsigned attempt = 0; attempt < 4; ++attempt) {
       for (int i = 0; i <= 16; ++i) {
         s.bank[i] = uint8_t(16 + layout.range(0, 5) * 4);
-        s.island[i] = (i >= 3 && i <= 11) ? uint8_t(layout.range(0, 4) * 4) : 0;
+        // Short islands leave open water for changes of refuelling side.
+        s.island[i] = (i == 3 || i == 8) ? uint8_t(4 + layout.range(0, 3) * 4) : 0;
       }
       s.bank[0] = s.bank[16] = 32;
+      bool patrolRight = firstRight;
       for (int i = 0; i < 15; ++i) {
         auto &o = s.objects[i];
-        if (i == 2 || i == 6 || i == 10 || i == 13)
-          o = {52, Fuel, 1, true};
-        else if (o.kind != House) {
-          if (o.kind == Fuel)
-            o.kind = Helicopter;
-          o.x = 108;
+        if (i == 2 || i == 6 || i == 10 || i == 13) {
+          bool right = (i == 2 || i == 13) ? firstRight : !firstRight;
+          o = {(right ? 100.f : 60.f) + layout.range(-2, 3), Fuel, 1, true};
+        } else {
+          // Mixed patrols on both banks; later tiers introduce faster aircraft.
+          o.kind = i == 0 || layout.range(0, 5) == 0            ? House
+                   : difficulty >= 3 && layout.range(0, 4) == 0 ? EnemyJet
+                   : layout.range(0, 2)                         ? Tanker
+                                                                : Helicopter;
+          o.alive = true;
+          placeObject(s, i, layout, patrolRight);
+          if (o.kind != House)
+            patrolRight = !patrolRight;
         }
       }
-      if (feasible(s))
+      if (validateLayout(s))
         return;
     }
-    // Fixed bounded fallback has a connected approach to the bridge and depots.
+    // Bounded fallback retains side variety without islands or narrow bends.
     s.bank.fill(24);
     s.bank[0] = s.bank[16] = 32;
     s.island.fill(0);
+    bool patrolRight = firstRight;
+    for (int i = 0; i < 15; ++i)
+      if (s.objects[i].kind != Fuel) {
+        placeObject(s, i, layout, patrolRight);
+        if (s.objects[i].kind != House)
+          patrolRight = !patrolRight;
+      }
+    validateLayout(s);
   }
   static bool water(const Section &s, float position, float px, float radius) {
     if (std::abs(position - 496.f) < 7)
@@ -263,7 +387,51 @@ class RiverRaid final : public TickGame {
     return index * 32.f + 16;
   }
   static float halfWidth(Kind kind) {
-    return kind == Tanker ? 9.f : kind == Bridge ? 16.f : kind == EnemyJet ? 8.f : 5.f;
+    return kind == Tanker                      ? 9.f
+           : kind == Bridge                    ? 16.f
+           : kind == EnemyJet || kind == House ? 8.f
+                                               : 5.f;
+  }
+  static int halfHeight(Kind kind) {
+    return kind == Fuel ? 12 : kind == Bridge ? 7 : kind == EnemyJet ? 5 : 8;
+  }
+  static void footprint(const Section &s, int index, float &edge, float &isle) {
+    bool house = s.objects[index].kind == House;
+    edge = house ? 160 : 0;
+    isle = 0;
+    // Include the entire sprite height; center-only checks let wings/hulls enter land.
+    int radius = halfHeight(s.objects[index].kind);
+    for (int dy : {-radius, radius}) {
+      float e, island;
+      profile(s, objectY(index) + dy, e, island);
+      edge = house ? std::min(edge, e) : std::max(edge, e);
+      isle = std::max(isle, island);
+    }
+  }
+  static void patrolRange(const Section &s, int index, Object &o, float &left, float &right) {
+    float edge, isle;
+    footprint(s, index, edge, isle);
+    float radius = halfWidth(o.kind);
+    left = edge + radius;
+    right = 160 - edge - radius;
+    if (isle) {
+      if (o.x < 80)
+        right = 80 - isle - radius - .01f;
+      else
+        left = 80 + isle + radius + .01f;
+    }
+    if (left > right) {
+      o.kind = Helicopter;
+      radius = halfWidth(o.kind);
+      left = edge + radius;
+      right = 160 - edge - radius;
+      if (isle) {
+        if (o.x < 80)
+          right = 80 - isle - radius - .01f;
+        else
+          left = 80 + isle + radius + .01f;
+      }
+    }
   }
   void objects(Section &s, float offset, float previousMissileY) {
     for (int i = 0; i < 16; ++i) {
@@ -273,18 +441,25 @@ class RiverRaid final : public TickGame {
       float yy = 163 - (offset + objectY(i) - travel);
       if (yy < 8 || yy > 192)
         continue;
-      if (o.kind == EnemyJet || ((o.kind == Tanker || o.kind == Helicopter) && tick % 120 < 70)) {
+      unsigned patrolPhase = (tick + (s.seed ^ unsigned(i * 37))) % 120;
+      if (o.kind == EnemyJet || ((o.kind == Tanker || o.kind == Helicopter) && patrolPhase < 70)) {
+        float left, right;
+        patrolRange(s, i, o, left, right);
+        o.x = clamp(o.x, left, right);
         float step = o.kind == EnemyJet ? 1.25f : o.kind == Helicopter ? .36f : .20f;
+        if (options.enhanced)
+          step += std::min(.25f, s.difficulty * .006f);
         float nx = o.x + o.direction * step;
-        if ((options.enhanced && nx < 96 + halfWidth(o.kind)) ||
-            !water(s, objectY(i), nx, halfWidth(o.kind)))
+        if (nx < left || nx > right)
           o.direction *= -1;
         else
           o.x = nx;
       }
       if (missile && o.kind != House &&
           swept(missileX, previousMissileY, missileX, missileY,
-                {o.x - halfWidth(o.kind), yy - 5, halfWidth(o.kind) * 2, 10}, 1)) {
+                {o.x - halfWidth(o.kind), yy - halfHeight(o.kind), halfWidth(o.kind) * 2,
+                 float(halfHeight(o.kind) * 2)},
+                1)) {
         o.alive = false;
         missile = false;
         explode(o.x, yy);
@@ -295,8 +470,8 @@ class RiverRaid final : public TickGame {
           bridgeCleared = true;
         continue;
       }
-      if (std::abs(yy - 163) < (o.kind == Fuel ? 12 : 10) &&
-          std::abs(x - o.x) < halfWidth(o.kind) + 3) {
+      if (std::abs(yy - 163) < (o.kind == Fuel ? 12 : halfHeight(o.kind) + 6) &&
+          std::abs(x - o.x) < halfWidth(o.kind) + 4) {
         if (o.kind == Fuel) {
           fuel = std::min(65535u, fuel + 512);
           if (tick % 12 == 0)
@@ -350,7 +525,7 @@ class RiverRaid final : public TickGame {
     fuel -= 32;
     if (fuel < 16384 && tick % 30 == 0)
       sound(Sound::Warning);
-    if (!water(current, travel, x, 3) || !water(current, travel + 6, x, 2)) {
+    if (!water(current, travel, x, 4) || !water(current, travel + 6, x, 2)) {
       crash();
       return;
     }
@@ -366,12 +541,9 @@ class RiverRaid final : public TickGame {
       if (options.difficulty < 2)
         missileX = clamp(missileX + bank * 1.1f, 0.f, 160.f);
     }
-    objects(current, 0, oldY);
-    if (crashTimer || ended)
-      return;
-    objects(next, 512, oldY);
-    // A missile cannot pass through a bank or an island. Resolve targets first
-    // so an intact bridge remains shootable rather than absorbing the shot.
+    // Clip the shot at the first shoreline contact before resolving targets.
+    // This prevents a target behind a bank being hit during the same swept step.
+    bool blocked = false;
     if (missile)
       for (int yy = int(oldY); yy >= int(missileY); --yy) {
         float pos = travel + 163 - yy;
@@ -382,11 +554,21 @@ class RiverRaid final : public TickGame {
         profile(s, pos, edge, isle);
         if (yy < 20 || missileX < edge || missileX >= 160 - edge ||
             (isle && missileX >= 80 - isle && missileX < 80 + isle)) {
-          missile = false;
+          missileY = float(yy + 1);
+          blocked = true;
           break;
         }
       }
+    if (blocked && missileY > oldY)
+      missile = false;
+    objects(current, 0, oldY);
+    if (crashTimer || ended)
+      return;
+    objects(next, 512, oldY);
+    if (blocked)
+      missile = false;
   }
+
   static void drawObject(Canvas &c, const Object &o, int yy, unsigned frame) {
     int xx = int(o.x) + 8;
     bool flip = o.direction < 0;
@@ -395,7 +577,7 @@ class RiverRaid final : public TickGame {
       atari::mask(c, xx - 8, yy - 8,
                   std::array<uint8_t, 13>{{0x18, 0x3c, 0x7e, 0xff, 0x7e, 0x7e, 0x7e, 0x7e, 0x66,
                                            0x66, 0x66, 0x66, 0x7e}},
-                  White, false, 2);
+                  0xe71c, false, 2);
       c.rect(xx - 8, yy - 4, 16, 2, Red);
       break;
     case Fuel:
@@ -410,10 +592,12 @@ class RiverRaid final : public TickGame {
                   atari::RiverWater);
       break;
     case Tanker:
-      atari::mask(c, xx - 8, yy - 4,
-                  std::array<uint8_t, 9>{{0x04, 0x04, 0x34, 0x3c, 0x7f, 0xff, 0xff, 0x7e, 0x3c}},
+      // Deck, cabin, funnel and a low tapered hull distinguish a ship from a jet.
+      atari::mask(c, xx - 8, yy - 1, std::array<uint8_t, 6>{{0xff, 0xff, 0xff, 0x7e, 0x7e, 0x3c}},
                   0xce6f, flip, 2);
-      c.rect(xx - 4, yy - 3, 4, 2, Red);
+      c.rect(xx - 4, yy - 5, 8, 4, 0xe71c);
+      c.rect(xx + (flip ? 2 : -4), yy - 8, 2, 4, Red);
+      c.rect(xx + (flip ? -3 : 1), yy - 4, 2, 2, atari::Ink);
       break;
     case Helicopter:
       c.rect(xx - 7, yy - 7, 14, 1, atari::Ink);
@@ -426,9 +610,12 @@ class RiverRaid final : public TickGame {
         c.rect(xx - 5, yy - 8, 10, 1, atari::Ink);
       break;
     case EnemyJet:
-      atari::mask(c, xx - 8, yy - 4,
-                  std::array<uint8_t, 9>{{0x10, 0x30, 0x70, 0xff, 0xff, 0x70, 0x30, 0x10, 0}},
-                  White, flip, 2);
+      atari::mask(c, xx - 8, yy - 5,
+                  std::array<uint8_t, 11>{
+                      {0x18, 0x18, 0x18, 0x98, 0xfe, 0xff, 0xfe, 0x98, 0x18, 0x18, 0x18}},
+                  0xbdf7, flip, 2);
+      c.rect(xx + (flip ? -5 : 2), yy - 1, 3, 2, atari::Ink);
+      c.pixel(xx + (flip ? -6 : 5), yy + 1, Red);
       break;
     case Bridge:
       c.rect(8, yy - 6, 160, 12, atari::Concrete);
@@ -563,7 +750,14 @@ bool verifyRiverRaid() {
         g.speed = fast ? 3.f : .75f;
         unsigned ticks = 0;
         while (g.sectionNumber <= 10 && ticks++ < 8000) {
-          float target = g.travel > 440 ? 80.f : 52.f;
+          unsigned part = std::min(127u, unsigned(g.travel / 4));
+          float t = (g.travel - part * 4) / 4;
+          float target = g.current.route[part] * (1 - t) + g.current.route[part + 1] * t;
+          for (auto *section : {&g.current, &g.next})
+            for (auto &enemy : section->objects)
+              if (enemy.kind == RiverRaid::Tanker || enemy.kind == RiverRaid::Helicopter ||
+                  enemy.kind == RiverRaid::EnemyJet)
+                enemy.alive = false;
           InputFrame f;
           f.held = fast ? Up : Down;
           if (g.x < target - .6f)
@@ -572,11 +766,16 @@ bool verifyRiverRaid() {
             f.held |= Left;
           if (g.travel > 450 && g.x >= 65 && !g.bridgeCleared)
             f.held |= Fire;
+          float priorX = g.x, priorTravel = g.travel;
           g.handle(f);
           g.update();
           if (g.health != 4 || g.crashTimer)
             std::fprintf(stderr, "River pilot seed=%u fast=%u tick=%u travel=%.2f x=%.2f fuel=%u\n",
-                         seed, unsigned(fast), ticks, g.travel, g.x, g.fuel);
+                         seed, unsigned(fast), ticks, priorTravel, priorX, g.fuel);
+          if (g.health != 4 || g.crashTimer)
+            std::fprintf(stderr, "target=%.2f route[0]=%.2f part=%u route=%.2f/%.2f\n", target,
+                         g.current.route[0], part, g.current.route[part],
+                         g.current.route[part + 1]);
           HOST_CHECK(g.health == 4 && !g.crashTimer && g.fuel > 32);
         }
         HOST_CHECK(g.sectionNumber == 11);
@@ -594,16 +793,25 @@ bool verifyRiverRaid() {
       HOST_CHECK(g.feasible(section));
       HOST_CHECK(section.bank.front() == 32 && section.bank.back() == 32 &&
                  !section.island.front() && !section.island.back());
-      unsigned fuelCount = 0;
+      unsigned fuelCount = 0, leftEnemies = 0, rightEnemies = 0;
       for (int i = 0; i < 15; ++i) {
         const auto &o = section.objects[i];
         if (o.kind == RiverRaid::Fuel) {
           ++fuelCount;
-          HOST_CHECK(o.x == 52);
-        } else if (o.kind != RiverRaid::House)
-          HOST_CHECK(o.x >= 96);
+          HOST_CHECK(o.x >= 40 && o.x <= 120);
+        } else if (o.kind != RiverRaid::House) {
+          HOST_CHECK(g.water(section, g.objectY(i), o.x, g.halfWidth(o.kind)));
+          if (o.x < 80)
+            ++leftEnemies;
+          else
+            ++rightEnemies;
+        }
       }
       HOST_CHECK(fuelCount >= 3);
+      HOST_CHECK(leftEnemies && rightEnemies);
+      HOST_CHECK(section.objects[2].x < 80 ? section.objects[6].x > 80 : section.objects[6].x < 80);
+      for (unsigned part = 1; part < section.route.size(); ++part)
+        HOST_CHECK(std::abs(section.route[part] - section.route[part - 1]) <= 1.461f);
       section.objects[15].alive = false;
       HOST_CHECK(g.water(section, 496, 80, 3));
     }
@@ -616,6 +824,22 @@ bool verifyRiverRaid() {
                  objects[i].x == g.current.objects[i].x);
   }
   g.start({});
+  for (unsigned seed = 1; seed <= 128; ++seed)
+    for (unsigned tier = 1; tier <= 48; ++tier) {
+      RiverRaid::Section section;
+      g.buildSection(section, uint16_t(seed * 317), uint8_t(tier));
+      for (int i = 0; i < 15; ++i) {
+        const auto &o = section.objects[i];
+        for (int dy : {-g.halfHeight(o.kind), g.halfHeight(o.kind)}) {
+          if (o.kind == RiverRaid::House) {
+            float edge, isle;
+            g.profile(section, g.objectY(i) + dy, edge, isle);
+            HOST_CHECK(o.x < 80 ? o.x + 8 <= edge : o.x - 8 >= 160 - edge);
+          } else
+            HOST_CHECK(g.water(section, g.objectY(i) + dy, o.x, g.halfWidth(o.kind)));
+        }
+      }
+    }
   HOST_CHECK(g.lives() == 4 && g.stageLimit() == 0 && g.ownsHud());
   uint16_t r = 0xa814;
   HOST_CHECK(g.random16(r) == 0x5029);
@@ -762,6 +986,49 @@ bool verifyRiverRaid() {
   HOST_CHECK(g.gameOver() && g.score() == 500);
   g.start({});
   HOST_CHECK(!g.twoPlayers && g.player == 0 && !g.started);
+  // Patrols cross open water in both directions, and remain on water around islands.
+  GameOptions enhanced;
+  enhanced.enhanced = true;
+  g.start(enhanced);
+  g.current.bank.fill(24);
+  g.current.island.fill(0);
+  for (auto &o : g.current.objects)
+    o.alive = false;
+  g.current.objects[3] = {120, RiverRaid::EnemyJet, -1, true};
+  g.travel = 20;
+  for (unsigned i = 0; i < 50; ++i) {
+    ++g.tick;
+    g.objects(g.current, 0, 0);
+  }
+  HOST_CHECK(g.current.objects[3].x < 80);
+  g.current.objects[3] = {40, RiverRaid::EnemyJet, 1, true};
+  for (unsigned i = 0; i < 50; ++i) {
+    ++g.tick;
+    g.objects(g.current, 0, 0);
+  }
+  HOST_CHECK(g.current.objects[3].x > 80);
+  g.current.island.fill(12);
+  g.current.objects[3] = {44, RiverRaid::EnemyJet, 1, true};
+  for (unsigned i = 0; i < 200; ++i) {
+    ++g.tick;
+    g.objects(g.current, 0, 0);
+    HOST_CHECK(g.water(g.current, g.objectY(3), g.current.objects[3].x, 8));
+  }
+  // An enemy behind a bank cannot be destroyed by a shot starting on land.
+  g.start({});
+  g.started = true;
+  g.awaitingTakeoff = false;
+  for (auto &o : g.current.objects)
+    o.alive = false;
+  g.current.objects[2] = {30, RiverRaid::Fuel, 1, true};
+  g.travel = 10;
+  g.missile = true;
+  g.missileX = 30;
+  g.missileY = 96;
+  g.handle({});
+  g.update();
+  HOST_CHECK(g.current.objects[2].alive && g.score() == 0 && !g.missile);
+  g.start({});
   // Targets remain visible through the player's collision/refuelling band.
   for (auto &o : g.current.objects)
     o.alive = false;
@@ -822,6 +1089,63 @@ bool verifyRiverRaid() {
   g.current.objects[4] = {98, RiverRaid::Helicopter, 1, true};
   g.render(canvas);
   HOST_CHECK(captureAtari(canvas, "river_05_sprites"));
+  // Mirrored fleet details must stay attached to the silhouette, without stray pixels.
+  std::array<uint16_t, W * H> mirrored{};
+  Canvas other;
+  other.attach(mirrored.data());
+  for (auto kind : {RiverRaid::Tanker, RiverRaid::EnemyJet, RiverRaid::Helicopter}) {
+    canvas.clear(atari::RiverWater);
+    other.clear(atari::RiverWater);
+    g.drawObject(canvas, {80, kind, 1, true}, 90, 0);
+    g.drawObject(other, {80, kind, -1, true}, 90, 0);
+    for (int yy = 78; yy <= 102; ++yy)
+      for (int xx = 76; xx < 100; ++xx)
+        HOST_CHECK(canvas.pixel(xx, yy) == other.pixel(175 - xx, yy));
+  }
+  // Replay exact dirty transfers through moving objects, bridge damage, retry and seams.
+  std::array<uint16_t, W * H> snapshot{}, presented{};
+  std::array<uint16_t, W * 8> packed{};
+  for (unsigned frame = 0; frame < 180; ++frame) {
+    if (frame % 60 == 0) {
+      enhanced.seed = 1 + frame;
+      g.start(enhanced);
+      g.started = true;
+    }
+    g.travel = float((frame * 13) % 512) + .5f;
+    g.tick = frame * 5;
+    g.bank = int(frame % 3) - 1;
+    g.x = 55 + float(frame % 50);
+    g.current.objects[15].alive = frame % 7 != 0;
+    g.missile = frame % 3 == 0;
+    g.missileX = g.x;
+    g.missileY = 70 + float(frame % 80);
+    g.render(canvas);
+    for (int y = 0; y < H; y += 8) {
+      int rows = std::min(8, H - y);
+      auto plan = dirtyPlan(pixels.data() + y * W, snapshot.data() + y * W, rows, 20, 20000000);
+      for (unsigned i = 0; i < plan.count; ++i) {
+        const auto &span = plan.spans[i];
+        int width = span.right - span.left;
+        canvas.copyRect(span.left, y, width, rows, packed.data());
+        for (int row = 0; row < rows; ++row)
+          std::memcpy(presented.data() + (y + row) * W + span.left, packed.data() + row * width,
+                      size_t(width) * 2);
+      }
+      std::memcpy(snapshot.data() + y * W, pixels.data() + y * W, size_t(rows * W) * 2);
+    }
+    HOST_CHECK(presented == pixels);
+    for (int y = 20; y < 180; ++y)
+      HOST_CHECK(canvas.pixel(0, y) == Black && canvas.pixel(175, y) == Black);
+  }
+  g.start(enhanced);
+  g.started = true;
+  g.travel = 250;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_07_enhanced_patrol"));
+  g.travel = 500;
+  g.current.objects[15].alive = false;
+  g.render(canvas);
+  HOST_CHECK(captureAtari(canvas, "river_08_enhanced_seam"));
   g.crash();
   g.render(canvas);
   HOST_CHECK(captureAtari(canvas, "river_06_retry"));
