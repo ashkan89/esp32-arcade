@@ -133,7 +133,7 @@ void AudioSequencer::play(Sound s, uint32_t now) {
   unsigned id = unsigned(s);
   if (id >= last.size())
     return;
-  unsigned interval = s == Sound::Shot ? 120 : s == Sound::Move ? 70 : 180;
+  unsigned interval = s == Sound::Shot ? 120 : s == Sound::Move || s == Sound::Footstep ? 70 : 180;
   if (seen[id] && elapsed(now, last[id]) < interval) {
     ++coalesced;
     return;
@@ -144,6 +144,11 @@ void AudioSequencer::play(Sound s, uint32_t now) {
       (playing == Sound::None && (!recovering || soundPriority(s) >= 6))) {
     playing = s;
     effectAt = now;
+    return;
+  }
+  // A foot contact is only useful now: never queue a tap behind a hit or warning.
+  if (s == Sound::Footstep) {
+    ++dropped;
     return;
   }
   if (s == playing) {
@@ -196,6 +201,9 @@ uint16_t AudioSequencer::musicPitch() const {
 uint16_t AudioSequencer::effectPitch(uint32_t age, bool &done) const {
   done = false;
   switch (playing) {
+  case Sound::Footstep:
+    done = age >= 24;
+    return age < 8 ? 330 : 180;
   case Sound::Move:
     done = age >= 18;
     return 880;

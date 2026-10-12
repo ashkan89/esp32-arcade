@@ -5,6 +5,7 @@ uint8_t soundPriority(Sound s) {
   switch (s) {
   case Sound::None:
     return 0;
+  case Sound::Footstep:
   case Sound::Move:
     return 1;
   case Sound::Shot:

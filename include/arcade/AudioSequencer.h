@@ -20,8 +20,8 @@ class AudioSequencer {
     uint32_t at = 0;
   };
   std::array<Event, 4> queue{};
-  std::array<uint32_t, 14> last{};
-  std::array<bool, 14> seen{};
+  std::array<uint32_t, SoundCount> last{};
+  std::array<bool, SoundCount> seen{};
   uint8_t track = SilentTrack, count = 0;
   Sound playing = Sound::None;
   uint32_t previous = 0, effectAt = 0, recoveryAt = 0;

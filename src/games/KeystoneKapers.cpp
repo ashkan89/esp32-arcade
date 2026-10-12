@@ -19,6 +19,8 @@ class KeystoneKapers final : public TickGame {
   int facing = 1, thiefDirection = -1, seconds = 3000, grace = 0, transition = 0, ride = 0;
   uint32_t roundTick = 0;
   float rideOriginX = 0, rideHeight = 0;
+  float walkDistance = 0, thiefWalkDistance = 0;
+  static constexpr float RunSpeed = 1.f;
   int rideDuration = 60, jumpBuffer = 0;
   bool inLift = false, crouching = false, running = false, caught = false;
   int thiefCommit = 0;
@@ -61,6 +63,7 @@ class KeystoneKapers final : public TickGame {
     seconds = 3000;
     grace = ride = jumpBuffer = 0;
     rideOriginX = rideHeight = 0;
+    walkDistance = thiefWalkDistance = 0;
     rideDuration = 60;
     inLift = crouching = running = false;
     roundTick = 0;
@@ -177,7 +180,7 @@ class KeystoneKapers final : public TickGame {
                                                         : (thiefFloor % 2 ? -1 : 1);
       thiefCommit = 36 + rng.range(0, 25);
     }
-    float speed = .53f + std::min(15, int(level) - 1) * .012f;
+    float speed = .38f + std::min(15, int(level) - 1) * .008f;
     if (thiefSeekLift) {
       thiefX += clamp(240 - thiefX, -speed, speed);
       if (thiefX == 240 && elevator.open && elevator.stop == thiefFloor) {
@@ -213,7 +216,7 @@ class KeystoneKapers final : public TickGame {
                                                               : (thiefFloor % 2 ? -1 : 1);
       thiefCommit = options.enhanced ? 36 + rng.range(0, 25) : 0;
     }
-    float speed = .53f + std::min(15, int(level) - 1) * .012f;
+    float speed = .38f + std::min(15, int(level) - 1) * .008f;
     thiefX += thiefDirection * speed;
     if (thiefX < 12 || thiefX > 468) {
       thiefCommit = 0;
@@ -241,6 +244,8 @@ class KeystoneKapers final : public TickGame {
     }
     if (grace)
       --grace;
+    float oldX = x;
+    bool wasGrounded = !inLift && !ride && jump == 0;
     running = false;
     if (options.enhanced && input.hit(Fire))
       jumpBuffer = 6;
@@ -268,8 +273,7 @@ class KeystoneKapers final : public TickGame {
       if (dx)
         facing = dx;
       if (!crouching)
-        x = clamp(x + dx * 1.45f, 12.f, 468.f);
-      running = dx && !crouching && !jump;
+        x = clamp(x + dx * RunSpeed, 12.f, 468.f);
       if ((input.hit(Fire) || jumpBuffer) && !jump && !crouching) {
         jumpBuffer = 0;
         jumpVelocity = floor == 3 ? 1.9f : 2.9f;
@@ -299,9 +303,29 @@ class KeystoneKapers final : public TickGame {
         crouching = false;
       }
     }
+    running = wasGrounded && !inLift && !ride && jump == 0 && !crouching && x != oldX;
+    if (running) {
+      int oldContact = int((walkDistance + 8) / 16);
+      walkDistance += std::abs(x - oldX);
+      if (int((walkDistance + 8) / 16) != oldContact)
+        sound(Sound::Footstep);
+      if (walkDistance >= 32)
+        walkDistance -= 32;
+    } else
+      walkDistance = 0;
+    float oldThiefX = thiefX;
+    int oldThiefFloor = thiefFloor;
+    bool thiefWasWalking = !thiefRide && !thiefInLift;
     thief();
     if (transition || ended)
       return;
+    if (thiefWasWalking && !thiefRide && !thiefInLift && thiefFloor == oldThiefFloor &&
+        thiefX != oldThiefX) {
+      thiefWalkDistance += std::abs(thiefX - oldThiefX);
+      if (thiefWalkDistance >= 32)
+        thiefWalkDistance -= 32;
+    } else
+      thiefWalkDistance = 0;
     bool sameFloor = options.enhanced && thiefInLift
                          ? inLift
                          : !inLift && !ride && !thiefRide && floor == thiefFloor;
@@ -513,7 +537,9 @@ public:
       }
     if (thiefX - camera >= -4 && thiefX - camera <= 164)
       atari::person(c, int(thiefX) - camera + 8, int(ground(0) - 36 * thiefVisualFloor()), false,
-                    false, thiefDirection < 0, roundTick / 8);
+                    false, thiefDirection < 0,
+                    thiefWalkDistance > 0 ? 1 + unsigned(thiefWalkDistance / 4) : 0, false, 0,
+                    true);
     if (!inLift && (!grace || tick % 8 < 4)) {
       // The roof has less headroom beneath the scoreboard than the shop floors.
       int ceiling = floor < 3 ? ground(floor + 1) + 4 : 33;
@@ -521,10 +547,11 @@ public:
       if (ride)
         feet = ridingFeet();
       atari::person(c, int(x) - camera + 8, int(feet), true, crouching, facing < 0,
-                    running ? roundTick / 8 : 0, jump > 0,
+                    running ? 1 + unsigned(walkDistance / 4) : 0, jump > 0,
                     ride        ? 0
                     : floor < 3 ? ground(floor + 1) + 4
-                                : 33);
+                                : 33,
+                    true);
     }
     c.rect(8, 169, 160, 32, 0xad55);
     for (int f = 0; f < 4; ++f) {
@@ -767,6 +794,99 @@ bool verifyKeystoneKapers() {
   g.thiefX = 240;
   g.thief();
   HOST_CHECK(g.thiefDirection == 1); // Harry reacts to Kelly's actual lift floor
+  // Grounded stride contacts follow distance, never the global animation clock.
+  for (bool enhancedMode : {false, true}) {
+    GameOptions walking;
+    walking.enhanced = enhancedMode;
+    g.start(walking);
+    for (auto &h : g.hazards)
+      h.active = false;
+    g.x = 100;
+    g.thiefFloor = 3;
+    g.thiefX = 400;
+    g.handle({Right, Right});
+    unsigned contacts = 0;
+    for (int t = 1; t <= 60; ++t) {
+      g.update();
+      Sound effect = g.takeSound();
+      bool contact = t % 16 == 8;
+      HOST_CHECK((effect == Sound::Footstep) == contact);
+      contacts += effect == Sound::Footstep;
+      HOST_CHECK(g.running && g.x == 100 + t);
+    }
+    HOST_CHECK(contacts == 4 && g.walkDistance == 28);
+    g.handle({});
+    float stoppedX = g.x;
+    for (int t = 0; t < 20; ++t) {
+      g.update();
+      HOST_CHECK(g.x == stoppedX && !g.running && g.walkDistance == 0);
+      HOST_CHECK(g.takeSound() != Sound::Footstep);
+    }
+    g.handle({Left, Left});
+    contacts = 0;
+    for (int t = 0; t < 32; ++t) {
+      g.update();
+      contacts += g.takeSound() == Sound::Footstep;
+      HOST_CHECK(g.running && g.facing == -1);
+    }
+    HOST_CHECK(g.x == stoppedX - 32 && contacts == 2);
+    g.handle({});
+    g.update();
+    g.takeSound();
+    g.handle({Right | Fire, Fire});
+    g.update();
+    HOST_CHECK(g.jump > 0 && !g.running && g.walkDistance == 0);
+    HOST_CHECK(g.takeSound() != Sound::Footstep);
+    while (g.jump > 0) {
+      g.handle({Right, 0});
+      g.update();
+      HOST_CHECK(!g.running && g.takeSound() != Sound::Footstep);
+    }
+    g.handle({Down, Down});
+    g.update();
+    HOST_CHECK(g.crouching && g.takeSound() != Sound::Footstep);
+    g.floor = 3;
+    g.x = 468;
+    g.thiefFloor = 2;
+    g.handle({Right, Right});
+    for (int t = 0; t < 20; ++t) {
+      g.update();
+      HOST_CHECK(g.x == 468 && !g.running && g.takeSound() != Sound::Footstep);
+    }
+    g.start(walking);
+    g.x = 240;
+    g.handle({Up, Up});
+    g.update();
+    HOST_CHECK(g.inLift && g.takeSound() != Sound::Footstep);
+    g.start(walking);
+    g.x = 448;
+    g.handle({Right, Right});
+    g.update();
+    HOST_CHECK(g.ride && !g.running && g.takeSound() != Sound::Footstep);
+  }
+  // Reduced speed still permits a normal chase before the timer expires.
+  for (bool enhancedMode : {false, true})
+    for (unsigned stage : {1u, 8u, 16u, 32u}) {
+      GameOptions walking;
+      walking.enhanced = enhancedMode;
+      g.start(walking);
+      g.level = uint16_t(stage);
+      g.setupRound();
+      for (auto &h : g.hazards)
+        h.active = false;
+      for (int t = 0; t < 3000 && !g.transition; ++t) {
+        uint16_t direction = g.floor % 2 ? Left : Right;
+        if (g.floor == g.thiefFloor)
+          direction = g.x < g.thiefX ? Right : Left;
+        g.handle({direction, 0});
+        g.update();
+      }
+      if (!g.caught)
+        std::fprintf(
+            stderr, "CHASE mode=%d stage=%u officer=%u/%.1f thief=%u/%.1f time=%d health=%d\n",
+            enhancedMode, stage, g.floor, g.x, g.thiefFloor, g.thiefX, g.seconds, g.health);
+      HOST_CHECK(g.caught && g.level == stage + 1 && g.health == 4);
+    }
   // Enhanced hazards approach along each floor's route without homing or instant reversals.
   g.start(enhanced);
   g.level = 16;
@@ -903,6 +1023,19 @@ bool verifyKeystoneKapers() {
   g.render(canvas);
   HOST_CHECK(canvas.pixel(10, KeystoneKapers::ground(1) - 19) == Yellow);
   HOST_CHECK(captureAtari(canvas, "keystone_09_incoming_plane"));
+  g.start(enhanced);
+  for (auto &h : g.hazards)
+    h.active = false;
+  g.floor = 0;
+  g.x = 160;
+  g.running = true;
+  for (unsigned pose = 0; pose < 8; ++pose) {
+    g.walkDistance = pose * 4;
+    g.render(canvas);
+    char scene[40];
+    std::snprintf(scene, sizeof(scene), "keystone_stride_%02u", pose);
+    HOST_CHECK(captureAtari(canvas, scene));
+  }
   return true;
 }
 #endif

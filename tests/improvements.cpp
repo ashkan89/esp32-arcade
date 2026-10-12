@@ -88,6 +88,41 @@ void verifyImprovements() {
       rest |= !t.notes[n].hz;
     require(rest, "phrases breathe", 0, id);
   }
+  AudioSequencer steps;
+  steps.configure(true, false, true);
+  steps.select(uint8_t(GameId::Keystone), 0);
+  steps.play(Sound::Footstep, 0);
+  require(steps.update(0) == 330 && steps.update(8) == 180, "percussive foot contact");
+  require(steps.update(24) == 0 && steps.activeEffect() == Sound::None, "short footstep gate");
+  steps.update(90);
+  steps.play(Sound::Hit, 90);
+  steps.play(Sound::Footstep, 100);
+  require(steps.activeEffect() == Sound::Hit && !steps.queued(), "footstep never delays a hit");
+  steps.update(200);
+  require(steps.activeEffect() == Sound::None && !steps.queued(), "no stale contact after impact");
+  steps.configure(true, true, true);
+  unsigned quietFrames = 0;
+  for (unsigned ms = 300; ms < 1300; ++ms) {
+    if ((ms - 300) % 267 == 0)
+      steps.play(Sound::Footstep, ms);
+    steps.update(ms);
+    quietFrames += steps.activeEffect() == Sound::None;
+  }
+  require(quietFrames > 850, "footsteps leave room for music");
+  steps.configure(true, true, false);
+  steps.play(Sound::Footstep, 1500);
+  require(steps.activeEffect() == Sound::None, "footsteps respect SFX mute");
+  AudioSequencer footstepPreview;
+  footstepPreview.configure(true, false, true);
+  footstepPreview.select(uint8_t(GameId::Keystone), 0);
+  FILE *pitches = std::fopen("test-results/keystone-footsteps-hz.txt", "w");
+  require(pitches != nullptr, "footstep preview opens");
+  for (unsigned ms = 0; ms < 1300; ++ms) {
+    if (ms >= 133 && (ms - 133) % 267 == 0)
+      footstepPreview.play(Sound::Footstep, ms);
+    std::fprintf(pitches, "%u\n", footstepPreview.update(ms));
+  }
+  require(std::fclose(pitches) == 0, "footstep preview closes");
   Settings s;
   s.music = 0;
   s.sfx = 1;

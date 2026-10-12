@@ -198,8 +198,10 @@ enum class Sound : uint8_t {
   Start,
   Warning,
   Victory,
-  HighScore
+  HighScore,
+  Footstep
 };
+constexpr size_t SoundCount = size_t(Sound::Footstep) + 1;
 uint8_t soundPriority(Sound sound);
 struct Settings {
   uint8_t difficulty = 1, sound = 1, effects = 1, lastGame = 0, invert = 0, layout = 0, attract = 1,

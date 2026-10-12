@@ -189,3 +189,49 @@ wroom-4mb, wroom-16mb), 1,744,122 focused campaign assertions,
 Classic/Enhanced effects-invariance ticks. Renderer scenes were regenerated and
 visually reviewed. Local OTA/factory packages were rebuilt in `dist/` with slot,
 board/version, partition and SHA-256 checks. No device flashing was performed.
+
+
+## Keystone running and footstep follow-up (2026-10-12)
+
+Rechecked the [original Activision Atari 2600 manual](https://www.atariage.com/manual_html_page.php?SoftwareLabelID=261),
+including joystick running, running jumps and the designer's step-based avoidance
+rhythms. [Atari's official reissue description](https://atari.com/products/keystone-kapers-2600-standard-edition)
+also highlights the original cop's running animation. The manual supplies no
+numeric movement rate or audio waveform. Gameplay video retrieval failed;
+no frame timing or original-audio listening comparison is claimed.
+
+Both modes now run at 1.00 world pixel per 60 Hz tick (60 pixels/second), down
+from 1.45 (87 pixels/second), a 31% reduction. The thief slows from 0.53–0.71 to 0.38–0.50 pixels/tick, keeping
+the chase viable within fifty seconds and the officer faster at every tier. Grounded travel advances an eight-pose leg/arm cycle,
+four world pixels per pose; each planted foot produces one short tap, at eight
+then twenty-four pixels of the thirty-two-pixel stride. Stopping, a blocked
+wall, ducking, jumping, escalators and lift travel suppress running steps. The
+thief uses the same distance-driven poses and stands still while waiting or
+riding. Idle rendering and jump poses stay distinct.
+
+`Sound::Footstep` is a dedicated low-priority synthesized 24 ms tap (330 Hz
+attack for 8 ms, 180 Hz tail). This approximates a percussive contact on the
+single-tone piezo; it does not emulate the original TIA noise waveform.
+It respects SFX/master mute, loses to important cues, and is dropped rather
+than queued when the voice is busy, preventing taps after movement ends.
+No cartridge music or sound assets were copied. Movement/animation and these
+audio parameters are native tuning choices, not measured ROM constants.
+
+Regressions cover stride timing in both directions/modes, movement stops,
+airborne/duck/lift/escalator silence, short sound gating and critical-cue
+priority, mute, music headroom, and hazard-free chases at rounds 1/8/16/32
+before the fifty-second deadline. Eight renderer poses are exported for review.
+
+
+Final host validation: 1,744,638 focused campaign assertions; 2,282,313 general
+assertions; 2,080,000 lifecycle ticks; 1,036,800 effects-invariance ticks, PASS.
+The audio sequencer remains bounded at 160 host bytes. Review artifacts:
+`artifacts/keystone-stride.gif`, `artifacts/keystone-stride-poses.png`, and
+`artifacts/keystone-footsteps.wav`. The WAV uses the actual C++ sequencer's
+millisecond pitch trace; it approximates single-tone piezo output, without
+claiming a physical speaker recording.
+
+All four final firmware builds passed (WROVER release/debug and WROOM 4/16 MB).
+Local OTA/factory packages were regenerated in `dist/`, with partition, target,
+slot-size and checksum validation. No device was flashed. Physical-board sound
+and control feel still require listening and playtesting.
