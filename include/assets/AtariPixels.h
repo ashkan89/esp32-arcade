@@ -14,33 +14,44 @@ inline void credit(Canvas &c, int y, uint16_t color = White) {
 }
 template <size_t N>
 inline void mask(Canvas &c, int x, int y, const std::array<uint8_t, N> &rows, uint16_t color,
-                 bool flip = false, int stretch = 1) {
+                 bool flip = false, int stretch = 1, int ceiling = 0) {
   for (size_t row = 0; row < N; ++row)
     for (int col = 0; col < 8; ++col)
-      if (rows[row] & (0x80 >> col))
+      if (y + int(row) >= ceiling && (rows[row] & (0x80 >> col)))
         c.rect(x + (flip ? 7 - col : col) * stretch, y + int(row), stretch, 1, color);
 }
 inline void person(Canvas &c, int x, int feet, bool cop, bool duck, bool flip, unsigned frame,
-                   bool airborne = false) {
+                   bool airborne = false, int ceiling = 0) {
   const uint16_t suit = cop ? 0x2199 : 0xaac6;
   if (duck) {
-    mask(c, x - 4, feet - 9, std::array<uint8_t, 3>{{0x38, 0x7c, 0x7e}}, Ink, flip);
-    mask(c, x - 4, feet - 6, std::array<uint8_t, 2>{{0x3c, 0x18}}, Skin, flip);
-    mask(c, x - 4, feet - 4, std::array<uint8_t, 4>{{0x7e, 0xff, 0xee, 0xc6}}, suit, flip);
+    mask(c, x - 4, feet - 9, std::array<uint8_t, 3>{{0x38, 0x7c, 0x7e}}, Ink, flip, 1, ceiling);
+    mask(c, x - 4, feet - 6, std::array<uint8_t, 2>{{0x3c, 0x18}}, Skin, flip, 1, ceiling);
+    mask(c, x - 4, feet - 4, std::array<uint8_t, 4>{{0x7e, 0xff, 0xee, 0xc6}}, suit, flip, 1,
+         ceiling);
     return;
   }
-  mask(c, x - 4, feet - 20, std::array<uint8_t, 4>{{0x18, 0x3c, 0x3c, 0x7e}}, Ink, flip);
-  mask(c, x - 4, feet - 16, std::array<uint8_t, 4>{{0x3c, 0x3e, 0x3c, 0x18}}, Skin, flip);
-  c.pixel(x + (flip ? -2 : 1), feet - 15, Ink);
-  mask(c, x - 4, feet - 12, std::array<uint8_t, 7>{{0x7c, 0xfe, 0xda, 0xdb, 0x7c, 0x3c, 0x3c}},
-       suit, flip);
-  c.pixel(x - 1, feet - 10, cop ? Yellow : White);
-  c.rect(x - 2, feet - 6, 4, 1, Ink);
-  mask(c, x - 4, feet - 5,
-       airborne    ? std::array<uint8_t, 5>{{0x66, 0xc3, 0x81, 0xc3, 0x66}}
-       : frame & 1 ? std::array<uint8_t, 5>{{0x66, 0x66, 0xc3, 0xc3, 0xe7}}
-                   : std::array<uint8_t, 5>{{0x3c, 0x24, 0x24, 0x66, 0x66}},
-       suit, flip);
+  // Tuck the airborne pose to fit low ceilings instead of losing the head to clipping.
+  int height = airborne ? clamp(feet - ceiling, 8, 20) : 20;
+  auto bodyY = [&](int yy) { return feet - height + (yy - (feet - 20)) * height / 20; };
+  auto bodyMask = [&](int yy, const auto &rows, uint16_t color) {
+    for (size_t row = 0; row < rows.size(); ++row)
+      mask(c, x - 4, bodyY(yy + int(row)), std::array<uint8_t, 1>{{rows[row]}}, color, flip, 1,
+           ceiling);
+  };
+  bodyMask(feet - 20, std::array<uint8_t, 4>{{0x18, 0x3c, 0x3c, 0x7e}}, Ink);
+  bodyMask(feet - 16, std::array<uint8_t, 4>{{0x3c, 0x3e, 0x3c, 0x18}}, Skin);
+  if (bodyY(feet - 15) >= ceiling)
+    c.pixel(x + (flip ? -2 : 1), bodyY(feet - 15), Ink);
+  bodyMask(feet - 12, std::array<uint8_t, 7>{{0x7c, 0xfe, 0xda, 0xdb, 0x7c, 0x3c, 0x3c}}, suit);
+  if (bodyY(feet - 10) >= ceiling)
+    c.pixel(x - 1, bodyY(feet - 10), cop ? Yellow : White);
+  if (bodyY(feet - 6) >= ceiling)
+    c.rect(x - 2, bodyY(feet - 6), 4, 1, Ink);
+  bodyMask(feet - 5,
+           airborne    ? std::array<uint8_t, 5>{{0x66, 0xc3, 0x81, 0xc3, 0x66}}
+           : frame & 1 ? std::array<uint8_t, 5>{{0x66, 0x66, 0xc3, 0xc3, 0xe7}}
+                       : std::array<uint8_t, 5>{{0x3c, 0x24, 0x24, 0x66, 0x66}},
+           suit);
 }
 inline void jet(Canvas &c, int x, int y, int bank = 0) {
   mask(c, x - 4, y - 7,

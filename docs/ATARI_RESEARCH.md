@@ -154,3 +154,38 @@ The same checks exercise the fixed gameplay cases and verify the roof and gutter
 These improvements remain a native reconstruction. Final production acceptance
 still requires testing button feel, audio, scrolling and frame timing on the
 physical LCD; no hardware upload or acceptance is implied by host captures.
+
+
+## Keystone rendering and playability fixes (2026-10-12)
+
+Both modes now let moving hazards leave the mall completely before wrapping,
+preserve travel overshoot, and draw partially visible sprites and escalators.
+Jumping onto an escalator retains the actual boarding position and height;
+the remaining ascent interpolates to the landing without a sideways snap.
+Jump poses tuck to fit their shop floor and cannot repaint the ceiling, upper
+storey, or HUD. Roof jumps use a lower arc to fit beneath the scoreboard.
+The minimap follows the same escalator height.
+
+Enhanced mode uses a continuous camera, with world-positioned lift geometry and
+scrolling storefront details. Balls, carts and planes approach against the
+upward route on each floor (including the reversed middle floor); directions
+stay fixed when passing the officer. Extra carts are 72 world pixels apart and
+extra planes are 140 apart at round setup, giving distinct avoidance windows.
+Incoming offscreen planes show a yellow direction cue and approaching planes
+trigger proximity warnings. Jump presses are buffered for six simulation ticks.
+The thief rejects lift routes with boarding waits longer than 120 ticks and
+continues toward the escalator, rechecking on the existing commitment cadence.
+
+Host regressions cover wrap boundaries in both directions, floor-relative
+hazards, jump buffering, lift wait decisions, continuous camera seams, escalator
+boarding continuity, ceiling/HUD pixel preservation on all four floors, and
+incoming-plane cues. Nine Keystone renderer scenes are exported by
+`python scripts/preview.py --atari-states`. Physical-board response and human
+balance still need playtesting.
+
+Validation: final source passed all four firmware builds (release, debug,
+wroom-4mb, wroom-16mb), 1,744,122 focused campaign assertions,
+2,282,313 general assertions, 2,080,000 lifecycle ticks, and 1,036,800
+Classic/Enhanced effects-invariance ticks. Renderer scenes were regenerated and
+visually reviewed. Local OTA/factory packages were rebuilt in `dist/` with slot,
+board/version, partition and SHA-256 checks. No device flashing was performed.
