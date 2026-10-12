@@ -103,7 +103,7 @@ void verifyImprovements() {
   steps.configure(true, true, true);
   unsigned quietFrames = 0;
   for (unsigned ms = 300; ms < 1300; ++ms) {
-    if ((ms - 300) % 267 == 0)
+    if ((ms - 300) % 237 == 0)
       steps.play(Sound::Footstep, ms);
     steps.update(ms);
     quietFrames += steps.activeEffect() == Sound::None;
@@ -118,7 +118,7 @@ void verifyImprovements() {
   FILE *pitches = std::fopen("test-results/keystone-footsteps-hz.txt", "w");
   require(pitches != nullptr, "footstep preview opens");
   for (unsigned ms = 0; ms < 1300; ++ms) {
-    if (ms >= 133 && (ms - 133) % 267 == 0)
+    if (ms >= 119 && (ms - 119) % 237 == 0)
       footstepPreview.play(Sound::Footstep, ms);
     std::fprintf(pitches, "%u\n", footstepPreview.update(ms));
   }

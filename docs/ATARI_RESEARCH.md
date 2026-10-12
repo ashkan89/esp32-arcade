@@ -235,3 +235,16 @@ All four final firmware builds passed (WROVER release/debug and WROOM 4/16 MB).
 Local OTA/factory packages were regenerated in `dist/`, with partition, target,
 slot-size and checksum validation. No device was flashed. Physical-board sound
 and control feel still require listening and playtesting.
+
+
+### Small officer speed adjustment (2026-10-12)
+
+Following play feedback, the officer now runs at 1.125 world pixels/tick
+(67.5 pixels/second), 12.5% faster than the previous 1.00 setting. Stride
+poses and footstep contacts still follow distance; the previews use the new
+roughly 237 ms foot-contact interval. The thief retains the previous tuned
+pace. Both Classic and Enhanced receive the adjustment.
+
+Validation: all four firmware builds and the complete host regression suite
+passed at the adjusted pace. Local firmware packages and cadence previews
+were updated. No device was flashed.

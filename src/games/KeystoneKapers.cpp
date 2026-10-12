@@ -20,7 +20,7 @@ class KeystoneKapers final : public TickGame {
   uint32_t roundTick = 0;
   float rideOriginX = 0, rideHeight = 0;
   float walkDistance = 0, thiefWalkDistance = 0;
-  static constexpr float RunSpeed = 1.f;
+  static constexpr float RunSpeed = 1.125f;
   int rideDuration = 60, jumpBuffer = 0;
   bool inLift = false, crouching = false, running = false, caught = false;
   int thiefCommit = 0;
@@ -809,12 +809,12 @@ bool verifyKeystoneKapers() {
     for (int t = 1; t <= 60; ++t) {
       g.update();
       Sound effect = g.takeSound();
-      bool contact = t % 16 == 8;
+      bool contact = t == 8 || t == 22 || t == 36 || t == 50;
       HOST_CHECK((effect == Sound::Footstep) == contact);
       contacts += effect == Sound::Footstep;
-      HOST_CHECK(g.running && g.x == 100 + t);
+      HOST_CHECK(g.running && g.x == 100 + t * 1.125f);
     }
-    HOST_CHECK(contacts == 4 && g.walkDistance == 28);
+    HOST_CHECK(contacts == 4 && g.walkDistance == 3.5f);
     g.handle({});
     float stoppedX = g.x;
     for (int t = 0; t < 20; ++t) {
@@ -829,7 +829,7 @@ bool verifyKeystoneKapers() {
       contacts += g.takeSound() == Sound::Footstep;
       HOST_CHECK(g.running && g.facing == -1);
     }
-    HOST_CHECK(g.x == stoppedX - 32 && contacts == 2);
+    HOST_CHECK(g.x == stoppedX - 36 && contacts == 2);
     g.handle({});
     g.update();
     g.takeSound();
