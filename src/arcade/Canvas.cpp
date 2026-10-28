@@ -81,6 +81,45 @@ uint16_t Canvas::pixel(int x, int y) const {
   return rgb565 ? static_cast<uint16_t *>(buffer)[y * W + x]
                 : unpack(static_cast<uint8_t *>(buffer)[y * W + x]);
 }
+void Canvas::indexed(int x, int y, int w, int h, const uint8_t *data,
+                     const uint16_t *palette, int sw, int sh, bool transparent, bool flip,
+                     int cropX, int cropY, int cropW, int cropH) {
+  if (!buffer || !data || !palette || w <= 0 || h <= 0 || sw <= 0 || sh <= 0)
+    return;
+  int left = std::max(0, x), right = std::min(W, x + w);
+  int top = std::max(0, y), bottom = std::min(H, y + h);
+  if (left >= right || top >= bottom)
+    return;
+  cropX = clamp(cropX, 0, sw);
+  cropY = clamp(cropY, 0, sh);
+  cropW = cropW > 0 ? std::min(cropW, sw - cropX) : sw - cropX;
+  cropH = cropH > 0 ? std::min(cropH, sh - cropY) : sh - cropY;
+  if (!cropW || !cropH)
+    return;
+  uint16_t columns[W];
+  uint8_t packed[16];
+  for (unsigned i = 0; i < 16; ++i)
+    packed[i] = pack(palette[i]);
+  for (int xx = left; xx < right; ++xx) {
+    int dest = flip ? w - 1 - (xx - x) : xx - x;
+    columns[xx - left] = uint16_t(cropX + dest * cropW / w);
+  }
+  for (int yy = top; yy < bottom; ++yy) {
+    unsigned row = unsigned((cropY + (yy - y) * cropH / h) * sw);
+    unsigned dest = unsigned(yy * W + left);
+    for (int xx = 0; xx < right - left; ++xx, ++dest) {
+      unsigned index = row + columns[xx];
+      uint8_t p = data[index / 2];
+      unsigned color = index & 1 ? p & 15 : p >> 4;
+      if (!color && transparent)
+        continue;
+      if (rgb565)
+        static_cast<uint16_t *>(buffer)[dest] = palette[color];
+      else
+        static_cast<uint8_t *>(buffer)[dest] = packed[color];
+    }
+  }
+}
 void Canvas::rect(int x, int y, int w, int h, uint16_t c, bool fill) {
   if (w <= 0 || h <= 0)
     return;

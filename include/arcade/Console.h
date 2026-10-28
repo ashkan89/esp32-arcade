@@ -1,5 +1,6 @@
 #pragma once
 #include "Game.h"
+#include "Library.h"
 namespace arcade {
 enum class Screen : uint8_t {
   Boot,
@@ -14,7 +15,10 @@ enum class Screen : uint8_t {
   Utilities,
   Attract,
   Updates,
-  SoundPreview
+  SoundPreview,
+  LibraryOptions,
+  Reset,
+  ResetConfirm
 };
 enum class ConsoleAction : uint8_t { None, CheckUpdate, InstallUpdate, SetupNetwork, Rollback };
 class Console {
@@ -30,6 +34,9 @@ class Console {
   bool newRun = false;
   bool legacyScores = false;
   Random runSeeds;
+  Library library;
+  bool resetScores = false;
+  void rebuildLibrary();
   uint32_t nextSeed() {
     return runSeeds.next();
   }

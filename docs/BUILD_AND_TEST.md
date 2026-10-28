@@ -1,4 +1,9 @@
+> Current 3.7.0 artwork and COM9 installation evidence: [MODERN_GRAPHICS.md](MODERN_GRAPHICS.md). Earlier revision measurements below remain historical.
+
 # Build and test
+
+Current 3.6.0 evidence is in [REDESIGN_CHECKPOINT.md](REDESIGN_CHECKPOINT.md).
+The October 11 results below are retained as historical evidence, not current binary sizes.
 
 Implementation date: 2026-10-11. Baseline commit: c36888f. Toolchain: PlatformIO Core with espressif32@6.10.0, Arduino-ESP32 2.0.17, ESP-IDF 4.4.7, TFT_eSPI 2.5.43, ArduinoJson 6.21.5. No display pin, catalog ID or partition was changed.
 

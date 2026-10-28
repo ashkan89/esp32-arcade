@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class SnowSiege final : public CampaignGame {
@@ -130,16 +131,16 @@ public:
     return foes.count() + shots.count() + balls.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 36);
     for (int r = 0; r < 4; ++r) {
-      c.rect(0, 205 - r * 45, 176, 4, Cyan);
+      art::platform(c, 0, 205 - r * 45, 176, 6, art::Sprite::SteelPlatform);
       c.rect(0, 205 - r * 45, 176, 1, White);
     }
     for (const auto &e : foes.items)
       if (e.active)
-        c.circle(int(e.x), int(e.y), 5 + e.snow, e.snow == 3 ? White : e.hp > 1 ? Red : Pink, true);
+        art::object(c, e.snow == 3 ? art::Sprite::Pinball : art::Sprite::SnowMonster, int(e.x), int(e.y), 14 + e.snow, 16 + e.snow);
     if (!grace || tick % 10 < 5) {
-      c.circle(int(x), int(y), 7, Cyan, true);
-      c.rect(int(x) - 4, int(y) - 7, 8, 3, Yellow);
+      art::object(c, art::Sprite::SnowHero, int(x), int(y), 18, 18);
     }
     drawProjectiles(c, shots, White);
     for (const auto &p : balls.items)

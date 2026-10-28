@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class StackTower final : public TickGame {
@@ -67,9 +68,10 @@ public:
     return size_t(count + 1);
   }
   void render(Canvas &c) const override {
+    art::scene(c, 21);
     for (int i = 0; i < count; i++)
-      c.rect(slabs[i].x, 201 - (count - 1 - i) * 10, slabs[i].width, 8, i % 2 ? Cyan : Pink);
-    c.rect(int(moving), 201 - count * 10, width, 8, Yellow);
+      art::tile(c, slabs[i].x, 201 - (count - 1 - i) * 10, slabs[i].width, 8, i % 2 ? Cyan : Pink);
+    art::tile(c, int(moving), 201 - count * 10, width, 8, Yellow);
     c.centered(210, "A: DROP THE MOVING SLAB", White);
   }
 };

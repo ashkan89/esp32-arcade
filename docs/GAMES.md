@@ -20,7 +20,7 @@ shortens its stage deadline. Bubble Burst adds a row after 4/4/3/2 consecutive m
 Hard and Nightmare require tighter decisions; physical playtesting is still needed to tune
 the challenge on the actual display and buttons.
 
-Every game has twelve stages and a Campaign Complete ending. Clearing the last stage adds
+Games 0–49 have twelve stages and a Campaign Complete ending. Clearing the last stage adds
 5,000 points plus 1,000 per remaining life, once, and freezes the score. A replays; B returns
 to the launcher. Menu/Back opens pause, restart, controls and exit. The HUD shows stage /12.
 

@@ -212,6 +212,10 @@ struct Settings {
   uint8_t music = 1, sfx = 1, enhanced = 0;
   // Aggregate best/leaderboard remains historical; comparable records start fresh.
   std::array<std::array<uint32_t, 64>, 8> modeBest{};
+  std::array<uint8_t, 8> recent{{255, 255, 255, 255, 255, 255, 255, 255}};
+  bool played(unsigned game);
+  void resetPreferences();
+  void clearScores();
   bool valid() const;
   bool record(unsigned game, uint32_t score, unsigned difficulty = 1, bool enhanced = false);
   uint32_t comparableBest(unsigned game, unsigned difficulty, bool enhanced) const {
@@ -220,7 +224,8 @@ struct Settings {
                : 0;
   }
 };
-constexpr size_t SaveSize = 2356;
+constexpr size_t PreviousSaveSize = 2356;
+constexpr size_t SaveSize = 2364;
 using SaveBytes = std::array<uint8_t, SaveSize>;
 SaveBytes encode(const Settings &s);
 bool decode(const SaveBytes &bytes, Settings &out);

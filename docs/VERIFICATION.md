@@ -1,4 +1,10 @@
+> Current 3.7.0 artwork and COM9 installation evidence: [MODERN_GRAPHICS.md](MODERN_GRAPHICS.md). Earlier revision measurements below remain historical.
+
 # Verification results
+
+For the October 28, 2026 working revision, use [the current audit](REDESIGN_CHECKPOINT.md)
+and [numbered inventory/matrix](GAME_INVENTORY.md). The sizes and physical captures below
+describe earlier revisions; they are not new hardware results for 3.6.0.
 
 Verification targets classic ESP32-WROVER N16R8 and WROOM 4 MB / 16 MB without PSRAM,
 Arduino-ESP32 2.0.17 / ESP-IDF 4.4.7,

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class NightRacer final : public CampaignGame {
@@ -74,7 +75,8 @@ public:
     return cars.count() + 1;
   }
   void render(Canvas &c) const override {
-    c.circle(141, 55, 10, Grey, true);
+    art::scene(c, 47);
+    // Neon skyline and moon are baked into the game illustration.
     float bend = curve();
     for (int yy = 70; yy < 210; ++yy) {
       float d = (yy - 70) / 140.f;
@@ -93,13 +95,9 @@ public:
         int yy = 70 + int(e.depth * 140), width = 4 + int(e.depth * 16),
             center = 88 + int(bend * (1 - e.depth) * 60) +
                      int((e.lane - position * .25f) * e.depth * 70);
-        c.rect(center - width / 2, yy - width, width, width * 3 / 2, Pink);
-        c.rect(center - width / 3, yy - width + 2, width * 2 / 3, width / 3, Cyan);
+        art::sprite(c, art::Sprite::RearEnemyCar, center - width / 2, yy - width, width, width * 3 / 2);
       }
-    c.rect(69, 188, 38, 24, collision ? Red : Green);
-    c.rect(76, 191, 24, 7, Cyan);
-    c.rect(68, 205, 6, 8, Grey);
-    c.rect(102, 205, 6, 8, Grey);
+    art::sprite(c, collision ? art::Sprite::RearEnemyCar : art::Sprite::RearCar, 69, 184, 38, 30);
     c.text(3, 35, "TIME", Grey);
     c.number(32, 35, std::max(0, time) / 60, Yellow);
     c.text(93, 35, "KM/H", Grey);

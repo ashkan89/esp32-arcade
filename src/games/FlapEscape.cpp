@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/FlapEscape.h"
 namespace arcade {
 void FlapEscape::start(const GameOptions &o) {
@@ -60,17 +61,16 @@ void FlapEscape::update() {
   }
 }
 void FlapEscape::render(Canvas &c) const {
+    art::scene(c, 7);
   int gap = 78 - challenge() * 4 - std::min(10, int(level));
   for (auto &g : gates.items)
     if (g.active) {
-      c.rect(int(g.x), Top, 20, g.gapY - Top, Green);
-      c.rect(int(g.x), g.gapY + gap, 20, H - g.gapY - gap, Green);
+      art::sprite(c, art::Sprite::Wall, int(g.x), Top, 20, g.gapY - Top);
+      art::sprite(c, art::Sprite::Wall, int(g.x), g.gapY + gap, 20, H - g.gapY - gap);
       c.rect(int(g.x) - 2, g.gapY - 5, 24, 5, Cyan);
       c.rect(int(g.x) - 2, g.gapY + gap, 24, 5, Cyan);
     }
-  c.circle(43, int(y), 5, Yellow, true);
-  c.pixel(45, int(y) - 2, Black);
-  c.rect(47, int(y), 5, 2, Orange);
+  art::object(c, art::Sprite::Bird, 45, int(y), 17, 15);
   if (!flying) {
     c.centered(148, "FIRE TO FLAP", Yellow);
     c.centered(164, "TAP. RELEASE. REPEAT.", White);

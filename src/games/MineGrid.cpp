@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/PuzzleRules.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -92,17 +93,17 @@ public:
     return 81;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 10);
     for (int p = 0; p < 81; p++) {
       int x = 7 + (p % 9) * 18, y = 34 + (p / 9) * 18;
-      c.rect(x, y, 16, 16, open[p] ? Grey : Navy);
+      art::tile(c, x, y, 16, 16, open[p] ? uint16_t(0xbdd7) : uint16_t(0x33b9));
       if (open[p]) {
         if (mines[p])
-          c.circle(x + 8, y + 8, 5, Red, true);
+          art::sprite(c, art::Sprite::Bomb, x + 1, y + 1, 14, 14);
         else if (int n = adjacentMines(mines, p))
           c.number(x + 5, y + 4, n, Black);
       } else if (flag[p]) {
-        c.line(x + 5, y + 3, x + 5, y + 13, White);
-        c.rect(x + 6, y + 3, 7, 5, Red);
+        art::sprite(c, art::Sprite::Flag, x + 2, y + 1, 13, 14);
       }
       if (p == cursor)
         c.rect(x - 1, y - 1, 18, 18, Yellow, false);

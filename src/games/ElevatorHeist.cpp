@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class ElevatorHeist final : public CampaignGame {
@@ -119,20 +120,21 @@ public:
     return agents.count() + shots.count() + hostile.count() + sparks.count() + 6;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 43);
     for (int f = 0; f < 5; ++f) {
       int yy = ground(f);
-      c.line(0, yy, 175, yy, Grey);
+      art::platform(c, 0, yy, W, 4, art::Sprite::SteelPlatform);
       int door = f % 2 ? 22 : 154;
-      c.rect(door - 8, yy - 25, 16, 24, documents[f] ? Green : Red);
+      art::sprite(c, documents[f] ? art::Sprite::Elevator : art::Sprite::Door, door - 8, yy - 25, 16, 24);
       c.text(door - 2, yy - 17, "D", White);
     }
     c.rect(76, 36, 24, 166, Navy);
     c.rect(76, ground(floor) - 27, 24, 27, Cyan, false);
     for (const auto &e : agents.items)
       if (e.active)
-        c.rect(int(e.x) - 5, ground(e.floor) - 16, 10, 16, e.hp > 2 ? Red : Pink);
+        art::sprite(c, art::Sprite::Guard, int(e.x) - 6, ground(e.floor) - 18, 13, 18);
     if (!grace || tick % 10 < 5)
-      c.rect(int(x) - 4, ground(floor) - 17, 8, 17, White);
+      art::sprite(c, tick / 8 % 2 ? art::Sprite::Hero : art::Sprite::HeroStep, int(x) - 6, ground(floor) - 18, 13, 18);
     drawProjectiles(c, shots, Yellow);
     drawProjectiles(c, hostile, Pink);
     if (bossRound())

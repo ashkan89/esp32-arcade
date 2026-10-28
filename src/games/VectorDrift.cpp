@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class VectorDrift final : public CampaignGame {
@@ -137,15 +138,16 @@ public:
     return rocks.count() + shots.count() + hostile.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 25);
     scenery(c, Cyan);
     for (const auto &r : rocks.items)
       if (r.active) {
         int radius = 5 + r.size * 4;
-        c.circle(int(r.x), int(r.y), radius, Grey);
-        c.line(int(r.x) - radius, int(r.y), int(r.x), int(r.y) - radius, White);
+        art::object(c, art::Sprite::Rock, int(r.x), int(r.y), radius * 2, radius * 2);
       }
     if (!grace || tick % 10 < 5) {
       int xx = int(x), yy = int(y);
+      art::rotated(c, art::Sprite::Jet, xx, yy, 17, angle + 1.5707963f);
       c.line(xx + int(std::cos(angle) * 9), yy + int(std::sin(angle) * 9),
              xx + int(std::cos(angle + 2.5f) * 7), yy + int(std::sin(angle + 2.5f) * 7), Cyan);
       c.line(xx + int(std::cos(angle) * 9), yy + int(std::sin(angle) * 9),

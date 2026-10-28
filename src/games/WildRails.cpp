@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class WildRails final : public CampaignGame {
@@ -111,28 +112,25 @@ public:
     return bandits.count() + shots.count() + hostile.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
-    c.rect(0, 35, 176, 176, 0x6243);
+    art::scene(c, 45);
+    // Illustrated desert and railway are behind the interactive train.
     c.line(73, 35, 73, 211, Grey);
     c.line(103, 35, 103, 211, Grey);
     for (int yy = 35 + int(tick % 16); yy < 210; yy += 16)
       c.line(69, yy, 107, yy, Grey);
     for (int i = 0; i < 3; ++i) {
-      c.rect(77, 83 + i * 38, 23, 31, Navy);
-      c.rect(80, 87 + i * 38, 17, 21, Orange);
+      art::sprite(c, art::Sprite::TrainCar, 76, 81 + i * 38, 25, 34);
     }
     for (const auto &e : bandits.items)
       if (e.active) {
-        c.rect(int(e.x) - 6, int(e.y), 12, 9, Orange);
-        c.circle(int(e.x), int(e.y) - 5, 4, Pink, true);
+        art::object(c, art::Sprite::Cowboy, int(e.x), int(e.y), 17, 21, true);
       }
     if (!grace || tick % 10 < 5) {
-      c.rect(int(x) - 7, int(y), 14, 10, Yellow);
-      c.circle(int(x), int(y) - 5, 4, White, true);
+      art::object(c, art::Sprite::Cowboy, int(x), int(y), 17, 21);
       c.line(int(x), int(y) - 5, int(x) + dx * 12, int(y) - 5 + dy * 12, Cyan);
     }
     if (hp) {
-      c.rect(72, 36, 32, 36, Red);
-      c.circle(88, 42, 7, Grey, true);
+      art::sprite(c, art::Sprite::Locomotive, 72, 36, 32, 36);
       bossBar(c, hp, maximum);
     }
     drawProjectiles(c, shots, Yellow);

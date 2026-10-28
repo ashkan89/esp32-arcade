@@ -5,6 +5,10 @@ These target classic ESP32, retain all 52 games, and use the existing ILI9225/bu
 wiring in [HARDWARE.md](HARDWARE.md). Flash capacity must match the environment exactly.
 Neither target defines `BOARD_HAS_PSRAM` or links the banked PSRAM frame-history code.
 The WROVER `release` and `debug` targets retain RGB565. Frame history is removed from all targets.
+In 3.7.0, WROOM attempts one internal RGB565 framebuffer when allocation leaves a 128 KiB
+reserve, and otherwise keeps RGB332. It shrinks to RGB332 before network work and attempts
+full color again after leaving the network screen. No per-frame allocation occurs.
+Current graphics/device evidence is in [MODERN_GRAPHICS.md](MODERN_GRAPHICS.md).
 
 ```sh
 pio run -e wroom-4mb
@@ -27,7 +31,7 @@ all targets. No hardware is flashed by the verification scripts.
 
 | Allocation | WROOM policy |
 | --- | --- |
-| Framebuffer | 38,720 bytes internal RGB332 instead of 77,440 bytes RGB565 |
+| Framebuffer | 77,440-byte internal RGB565 preferred; 38,720-byte RGB332 compact/fallback |
 | Display staging | 2,816 bytes internal (eight RGB565 scanlines), synchronous SPI |
 | Previous-frame snapshot | Disabled; CRC strip comparison and periodic full refresh |
 | Frame history | Disabled; no replacement history allocation in internal RAM |
@@ -53,7 +57,7 @@ sequential, and release parsing/document storage is freed before downloading the
 Full CA/hostname verification, SHA-256, chip/flash header checks, board/version markers,
 inactive-slot writes and startup rollback remain enabled.
 
-## Physical acceptance checks
+## Historical build results and physical acceptance checks
 
 Local firmware builds and release packaging passed for both WROOM targets:
 
@@ -70,8 +74,9 @@ network/SDK heap allocations are additional to the static RAM values above.
 Build/host tests cannot establish runtime heap margin or prove a physical WROOM is reliable.
 Before treating either target as hardware-verified:
 
-1. Boot the matching target with no PSRAM; verify detected flash, RGB8 renderer, saved
-   settings and boot-health confirmation. Exercise every game, menus, sound and RGB332 legibility.
+1. Boot the matching target with no PSRAM; verify detected flash, RGB16 when memory permits
+   or RGB8 fallback, saved settings and boot-health confirmation. Exercise every game,
+   menus, sound, both framebuffer formats and network-screen switching.
 2. Provision Wi-Fi, save settings, reconnect and check a real GitHub release. Repeat setup,
    check and failed-download sessions at least twenty times to expose leaks/fragmentation.
 3. Record `[https]` free/largest-block logs and `[network] Done` free/minimum/largest and
@@ -85,3 +90,7 @@ Before treating either target as hardware-verified:
 
 References: [ArduinoJson filtering and streaming](https://arduinojson.org/v6/how-to/deserialize-a-very-large-document/),
 [ESP-IDF OTA and rollback](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/system/ota.html).
+
+## COM9 artwork validation
+
+The 3.7.0 artwork run passed all 52 automated game rendering exercises and ten framebuffer format transitions on the 4 MB board. The existing Arduino loop task uses 12 KiB of stack; the measured minimum headroom was 4,460 bytes. See [full evidence and limitations](MODERN_GRAPHICS.md).

@@ -10,6 +10,7 @@ each game owns its rules, pools and presentation.
 | --- | --- |
 | `Core` / `Canvas` | Portable timing, collision, pools, input, CRC saves and graphics |
 | `Console` | Paged launcher, favorites, controls, pause/restart, scores/settings, update actions |
+| `Library` | Fixed-capacity catalog-ID views, category/favorite/recent filters and stable sorting |
 | `src/games/<Game>.cpp` | One concrete game, local state/rules/rendering and metadata |
 | `ShooterBase` | Shared projectile pools, collisions, power-ups, boss and sprite utilities |
 | `Registration` / `Catalog.def` | Type-erased construction/destruction and stable catalog IDs |
@@ -41,6 +42,8 @@ No display/audio worker tasks or BLE services exist.
 3. Append `ARCADE_GAME(MyId, MyGame, 52)` to `include/games/Catalog.def`. Use the next unused ID.
    Never reorder/renumber released IDs; scores/favorites use stable numeric slots. Current save
    capacity is 64 slots. The launcher/page count and all build environments update automatically.
+   Assign the new ID a category in `Library.cpp` and deliberately update the 52-game audit
+   guard in `scripts/catalog_report.py` when expanding the shipped catalog.
 4. Add meaningful rule tests and run `python scripts/verify.py`. Raise the arena size deliberately
    if the compile-time `sizeof` guard rejects your game. Test pause, resume, restart, boundaries,
    pool capacity, deterministic seeds and game-over behavior.
@@ -69,9 +72,10 @@ firmware asset names remain stable. Game Arcade remains the console and release 
 WROOM targets use separate `SKY_ARCADE_WROOM_N4|` / `SKY_ARCADE_WROOM_N16|` identities,
 manifests and assets; see [OTA.md](OTA.md).
 
-Settings schema 3 is a 2,356-byte CRC-protected NVS blob containing 64 aggregate high scores,
-Classic/Enhanced records by difficulty, favorites, options and the Sky top five. Schema 1/2
-console saves migrate in memory and are rewritten later.
+Settings schema 4 is a 2,364-byte CRC-protected NVS blob containing 64 aggregate high scores,
+Classic/Enhanced records by difficulty, favorites, options, eight recent IDs and the Sky top five. Schema 1/2/3
+console saves migrate in memory and are rewritten later. An older decoder cannot load v4;
+see REDESIGN_CHECKPOINT.md before a deliberate downgrade.
 Difficulty values 0–3 represent Easy, Medium (formerly Normal), Hard and Nightmare.
 Existing schema 1/2 saves retain their scores, favorites and difficulty indexes. Nightmare
 fits the existing options byte. Older firmware that

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/NeonBreaker.h"
 namespace arcade {
 void NeonBreaker::layout() {
@@ -167,8 +168,9 @@ void NeonBreaker::update() {
   input.pressed = 0;
 }
 void NeonBreaker::render(Canvas &c) const {
+    art::scene(c, 4);
   if (bossHP) {
-    c.rect(int(bossX) - 24, 48, 48, 22, Red);
+    art::sprite(c, art::Sprite::Boss, int(bossX) - 24, 48, 48, 22);
     c.rect(int(bossX) - 17, 53, 9, 7, Yellow);
     c.rect(int(bossX) + 8, 53, 9, 7, Yellow);
     c.text(5, 24, "BOSS", Pink);
@@ -178,15 +180,15 @@ void NeonBreaker::render(Canvas &c) const {
   for (unsigned i = 0; i < bricks.size(); i++)
     if (bricks[i]) {
       int x = 4 + int(i % 8) * 21, y = 34 + int(i / 8) * 13;
-      c.rect(x, y, 19, 10, i / 8 % 2 ? Pink : Cyan);
+      art::tile(c, x, y, 19, 10, i / 8 % 2 ? Pink : Cyan);
       c.line(x + 1, y + 1, x + 17, y + 1, White);
       c.line(x + 1, y + 8, x + 17, y + 8, visual::shade(i / 8 % 2 ? Pink : Cyan, 40));
       if (bricks[i] > 1)
         c.rect(x + 3, y + 3, 13, 4, White);
     }
-  c.rect(int(paddle), 198, wide ? 48 : 32, 5, Green);
+  art::platform(c, int(paddle), 198, wide ? 48 : 32, 5, art::Sprite::SteelPlatform);
   c.line(int(paddle) + 2, 198, int(paddle) + (wide ? 45 : 29), 198, White);
-  c.circle(int(ballX), int(ballY), 3, White, true);
+  art::object(c, art::Sprite::Pinball, int(ballX), int(ballY), 7, 7);
   if (!launched)
     c.centered(158, "FIRE TO SERVE", Yellow);
   if (dropKind >= 0) {

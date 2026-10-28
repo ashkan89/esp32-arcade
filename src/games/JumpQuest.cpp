@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class JumpQuest final : public TickGame {
@@ -94,11 +95,11 @@ public:
     platforms.clear();
   }
   void render(Canvas &c) const override {
+    art::scene(c, 22);
     for (const auto &p : platforms.items)
       if (p.active)
-        c.rect(int(p.x), int(p.y), p.width, 4, Green);
-    c.rect(int(x) - 5, int(y) - 5, 10, 10, Yellow);
-    c.pixel(int(x) + 2, int(y) - 2, Black);
+        art::platform(c, int(p.x), int(p.y), p.width, 6);
+    art::object(c, tick / 8 % 2 ? art::Sprite::Hero : art::Sprite::HeroStep, int(x), int(y), 13, 16);
     c.centered(211, "L/R: STEER THE JUMPER", Grey);
   }
 };

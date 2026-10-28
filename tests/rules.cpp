@@ -620,6 +620,178 @@ static void saves() {
   s.skyLeaders = {0, 10, 0, 0, 0};
   CHECK(!decode(encode(s), out));
 }
+static void indexedBitmapRules() {
+  const uint8_t data[] = {0x01, 0x23, 0x32, 0x10};
+  const uint16_t palette[16] = {Black, Red, Green, Cyan};
+  std::array<uint16_t, W * H + 2> full{};
+  std::array<uint8_t, W * H + 2> small{};
+  full.front() = 0xdead; full.back() = 0xbeef;
+  small.front() = 17; small.back() = 19;
+  Canvas c;
+  for (bool sixteen : {false, true}) {
+    c.attach(sixteen ? static_cast<void *>(full.data() + 1) : static_cast<void *>(small.data() + 1), sixteen);
+    for (bool flip : {false, true}) {
+      c.clear(Pink);
+      c.indexed(-2, -1, 8, 4, data, palette, 4, 2, true, flip);
+      for (int y = 0; y < 3; ++y)
+        for (int x = 0; x < 6; ++x) {
+          int sx = (x + 2) / 2, sy = (y + 1) / 2;
+          if (flip) sx = 3 - sx;
+          unsigned index = unsigned(sy * 4 + sx);
+          unsigned color = index & 1 ? data[index / 2] & 15 : data[index / 2] >> 4;
+          CHECK(c.pixel(x, y) == (color ? palette[color] : Pink));
+        }
+      CHECK(c.pixel(6, 3) == Pink);
+    }
+    c.clear(Pink);
+    c.indexed(0, 0, 4, 2, data, palette, 4, 2, false);
+    CHECK(c.pixel(0, 0) == Black && c.pixel(3, 1) == Black);
+    c.indexed(10, 10, 4, 4, data, palette, 4, 2, false, false, 1, 0, 2, 2);
+    CHECK(c.pixel(10, 10) == Red && c.pixel(13, 10) == Green);
+    CHECK(c.pixel(10, 13) == Green && c.pixel(13, 13) == Red);
+    c.indexed(0, 10, 3, 2, data, palette, 4, 2, false);
+    c.indexed(10, 10, 3, 2, data, palette, 4, 2, false, true);
+    for (int y = 10; y < 12; ++y)
+      for (int x = 0; x < 3; ++x)
+        CHECK(c.pixel(x, y) == c.pixel(12 - x, y));
+    c.indexed(0, 0, 0, 8, data, palette, 4, 2);
+    for (unsigned id = 0; id < art::SpriteCount; ++id) {
+      art::sprite(c, art::Sprite(id), -10, -10, 24, 24, true);
+      art::rotated(c, art::Sprite(id), W - 1, H - 1, 25, .7f);
+    }
+    art::scene(c, 55, W - 7, H - 5, 80, 100);
+    CHECK(full.front() == 0xdead && full.back() == 0xbeef);
+    CHECK(small.front() == 17 && small.back() == 19);
+  }
+}
+static void libraryRules() {
+  Settings s;
+  for (unsigned id = 0; id < 12; ++id)
+    CHECK(s.played(id));
+  CHECK(s.recent.front() == 11 && s.recent.back() == 4);
+  CHECK(!s.played(11) && !s.played(64));
+  CHECK(s.played(7));
+  CHECK(s.recent[0] == 7 && s.recent[1] == 11 && s.recent[7] == 4);
+  CHECK(s.valid());
+  s.best[51] = 900;
+  s.modeBest[1][51] = 700;
+  s.favorites = (uint64_t(1) << 50) | (uint64_t(1) << 51);
+  auto bytes = encode(s);
+  Settings restored;
+  CHECK(decode(bytes, restored) && restored.recent == s.recent);
+  // Migrate the actual v3 wire layout, preserving every score and flag.
+  bytes[4] = 3;
+  uint32_t crc = checksum(bytes.data(), PreviousSaveSize - 4);
+  for (unsigned k = 0; k < 4; ++k)
+    bytes[PreviousSaveSize - 4 + k] = uint8_t(crc >> (8 * k));
+  CHECK(decodeStored(bytes.data(), PreviousSaveSize, restored));
+  CHECK(restored.best == s.best && restored.modeBest == s.modeBest && restored.favorites == s.favorites);
+  CHECK(restored.recent[0] == 255);
+  for (auto invalid : {std::array<uint8_t, 8>{{2, 2, 255, 255, 255, 255, 255, 255}},
+                       std::array<uint8_t, 8>{{255, 2, 255, 255, 255, 255, 255, 255}},
+                       std::array<uint8_t, 8>{{64, 255, 255, 255, 255, 255, 255, 255}}}) {
+    Settings bad = s;
+    bad.recent = invalid;
+    auto previous = encode(restored);
+    CHECK(!decode(encode(bad), restored) && encode(restored) == previous);
+  }
+  Library view;
+  view.rebuild(s);
+  CHECK(view.size() == GameCount && view.at(51) == 51);
+  view.filter = LibraryFilter::Favorites;
+  view.rebuild(s);
+  CHECK(view.size() == 2 && view.at(0) == 50 && view.at(1) == 51);
+  view.sort = LibrarySort::Best;
+  view.rebuild(s);
+  CHECK(view.at(0) == 51);
+  view.sort = LibrarySort::Title;
+  view.filter = LibraryFilter::All;
+  view.rebuild(s);
+  for (unsigned i = 1; i < view.size(); ++i)
+    CHECK(std::strcmp(registry()[view.at(i - 1)].title, registry()[view.at(i)].title) < 0);
+  uint64_t covered = 0;
+  for (unsigned filter = unsigned(LibraryFilter::Combat); filter < unsigned(LibraryFilter::Count); ++filter) {
+    view.filter = LibraryFilter(filter);
+    view.rebuild(s);
+    CHECK(view.size());
+    for (unsigned row = 0; row < view.size(); ++row) {
+      unsigned id = view.at(row);
+      CHECK(!(covered & (uint64_t(1) << id)));
+      covered |= uint64_t(1) << id;
+    }
+  }
+  CHECK(covered == (uint64_t(1) << GameCount) - 1);
+  view.filter = LibraryFilter::Recent;
+  view.rebuild(s);
+  CHECK(view.size() == 8 && view.at(0) == 7 && view.at(1) == 11);
+  s.sound = 0;
+  s.difficulty = 3;
+  s.resetPreferences();
+  CHECK(s.sound == 1 && s.difficulty == 1 && s.best[51] == 900 && s.recent[0] == 7);
+  s.clearScores();
+  CHECK(s.best[51] == 0 && s.modeBest[1][51] == 0 && s.favorites && s.recent[0] == 7);
+
+  Settings empty;
+  Console console(empty);
+  uint32_t now = 0;
+  auto key = [&](Button button) { console.update({0, button}, now += 30); };
+  auto options = [&] {
+    key(Pause);
+    for (int i = 0; i < 4; ++i) key(Down);
+    key(Fire);
+    CHECK(console.state() == Screen::LibraryOptions);
+  };
+  key(Fire); // Boot -> launcher.
+  options();
+  key(Fire); // Empty favorites view.
+  key(Special);
+  CHECK(console.state() == Screen::Launcher);
+  key(Fire);
+  CHECK(console.state() == Screen::Launcher && !console.active());
+  options();
+  key(Fire); // Empty recent view.
+  key(Special);
+  key(Fire);
+  CHECK(!console.active() && empty.recent[0] == 255);
+  options();
+  for (int i = 0; i < 5; ++i) key(Fire); // Recent -> All.
+  key(Special);
+  key(Down);
+  const unsigned chosen = unsigned(console.selected());
+  key(Fire);
+  key(Fire);
+  CHECK(console.state() == Screen::Playing && empty.recent[0] == chosen);
+  key(Pause);
+  for (int i = 0; i < 3; ++i) key(Down);
+  key(Fire);
+  CHECK(console.state() == Screen::Launcher);
+  key(Pause);
+  key(Fire); // Settings.
+  key(Up); // Reset entry wraps.
+  key(Fire);
+  CHECK(console.state() == Screen::Reset);
+  empty.sound = 0;
+  key(Fire);
+  CHECK(console.state() == Screen::ResetConfirm && console.consumeSuppression());
+  key(Fire); // Cancel is the default, including repeated confirm edges.
+  CHECK(console.state() == Screen::Reset && empty.sound == 0);
+  key(Fire);
+  key(Down);
+  key(Fire);
+  CHECK(console.state() == Screen::Settings && empty.sound == 1);
+  empty.best[1] = 123;
+  key(Up);
+  key(Fire);
+  key(Down);
+  key(Fire);
+  key(Special); // Cancel score erasure.
+  CHECK(empty.best[1] == 123);
+  key(Down);
+  key(Fire);
+  key(Down);
+  key(Fire);
+  CHECK(console.state() == Screen::Settings && empty.best[1] == 0 && empty.recent[0] == chosen);
+}
 static void newGameRules() {
   Game &cargo = gameFor(GameId::Cargo);
   cargo.start({});
@@ -736,12 +908,12 @@ static void consoleRules() {
   CHECK(s.favorites & (uint64_t(1) << 1));
   c.update({0, Pause}, 80);
   CHECK(c.state() == Screen::Utilities);
-  // The five utility entries wrap directly to Back to Games; no removed history screen.
+  // Utility entries wrap to Back to Games; Library is available before it.
   c.update({0, Up}, 81);
   c.update({0, Fire}, 82);
   CHECK(c.state() == Screen::Launcher);
   c.update({0, Pause}, 83);
-  for (unsigned i = 0; i < 5; ++i)
+  for (unsigned i = 0; i < 6; ++i)
     c.update({0, Down}, 84 + i);
   c.update({0, Fire}, 100);
   CHECK(c.state() == Screen::Settings);
@@ -1018,6 +1190,48 @@ static void preview() {
   CHECK(soundMenus.takeSound() == Sound::Power);
   soundMenus.update({0, Back}, 3300);
   CHECK(soundMenus.state() == Screen::Settings);
+  Settings librarySettings;
+  librarySettings.favorites = (uint64_t(1) << 50) | (uint64_t(1) << 51);
+  librarySettings.played(51);
+  librarySettings.played(50);
+  Console libraryMenus(librarySettings);
+  libraryMenus.begin({}, 0);
+  uint32_t menuTime = 1200;
+  auto menuKey = [&](Button button) { libraryMenus.update({0, button}, menuTime += 30); };
+  auto capture = [&](unsigned index) {
+    c.clear();
+    libraryMenus.render(c);
+    write(int(GameCount + index));
+    // Every added menu uses the same renderer safely in both framebuffer formats.
+    std::array<uint8_t, W * H + 2> guarded{};
+    guarded.front() = 17;
+    guarded.back() = 19;
+    Canvas reduced;
+    reduced.attach(guarded.data() + 1, false);
+    libraryMenus.render(reduced);
+    CHECK(guarded.front() == 17 && guarded.back() == 19);
+  };
+  menuKey(Fire);
+  menuKey(Pause);
+  for (int i = 0; i < 4; ++i) menuKey(Down);
+  menuKey(Fire);
+  capture(13); // Library options.
+  menuKey(Fire);
+  menuKey(Special);
+  capture(14); // Favorites.
+  menuKey(Pause);
+  for (int i = 0; i < 4; ++i) menuKey(Down);
+  menuKey(Fire);
+  menuKey(Fire);
+  menuKey(Special);
+  capture(15); // Recent, newest first.
+  menuKey(Pause);
+  menuKey(Fire);
+  menuKey(Up);
+  menuKey(Fire);
+  capture(16); // Reset choices.
+  menuKey(Fire);
+  capture(17); // Confirmation defaults to Cancel.
 }
 static void puzzleRules() {
   std::array<uint8_t, 4> line{{1, 1, 1, 1}};
@@ -1160,6 +1374,8 @@ int main() {
   core();
   inputs();
   saves();
+  libraryRules();
+  indexedBitmapRules();
   consoleRules();
   puzzleRules();
   releasePolicy();

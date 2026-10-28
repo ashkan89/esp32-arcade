@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "arcade/Behavior.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -69,11 +70,12 @@ public:
     return 3;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 8);
     for (int yy = 24; yy < H; yy += 12)
       c.rect(87, yy, 2, 6, Grey);
-    c.rect(8, int(player), 4, 36, Cyan);
-    c.rect(164, int(ai), 4, 36, Pink);
-    c.circle(int(x), int(y), 3, White, true);
+    art::sprite(c, art::Sprite::Paddle, 7, int(player), 7, 36);
+    art::sprite(c, art::Sprite::EnemyPaddle, 163, int(ai), 7, 36);
+    art::object(c, art::Sprite::Pinball, int(x), int(y), 7, 7);
   }
 };
 GameEntry describePongCircuit() {

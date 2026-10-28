@@ -82,7 +82,7 @@ protected:
     return level % 4 == 0;
   }
   void scenery(Canvas &c, uint16_t accent) const {
-    visual::stars(c, options.effects ? tick : 0);
+    // Each game supplies its own flash-backed illustrated environment.
     for (const auto &s : sparks.items)
       if (s.active)
         c.rect(int(s.x), int(s.y), 2, 2, Orange);

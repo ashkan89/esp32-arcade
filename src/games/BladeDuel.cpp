@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class BladeDuel final : public CampaignGame {
@@ -92,14 +93,18 @@ public:
     return sparks.count() + 2;
   }
   void render(Canvas &c) const override {
-    c.circle(88, 75, 27, Orange, true);
+    art::scene(c, 42);
+    uint16_t floorColors[16];
+    for (unsigned i = 0; i < 16; ++i)
+      floorColors[i] = visual::shade(art::sceneColors[42][i], 25);
+    c.indexed(0, 130, W, 90, art::scenePixels[42], floorColors, 88, 100,
+              false, false, 0, 70, 88, 30);
+    // Moonlit dojo illustration supplies depth and atmosphere.
     c.rect(0, 190, 176, 30, Navy);
     for (int i = 0; i < 4; ++i)
       c.line(i * 55, 190, i * 55 + 22, 220, Grey);
-    c.rect(int(x) - 7, 151, 14, 39, Cyan);
-    c.circle(int(x), 145, 7, White, true);
-    c.rect(int(enemyX) - 7, 151, 14, 39, bossRound() ? Red : Pink);
-    c.circle(int(enemyX), 145, 7, Orange, true);
+    art::sprite(c, art::Sprite::Samurai, int(x) - 15, 134, 30, 56);
+    art::sprite(c, art::Sprite::EnemySamurai, int(enemyX) - 15, 134, 30, 56, true);
     c.line(int(x) + 6, 160, int(x) + (attack ? 38 : 15), attack ? 158 : 132, White);
     c.line(int(enemyX) - 6, 160, int(enemyX) - (enemyAttack ? 38 : 15), enemyAttack ? 158 : 132,
            Yellow);

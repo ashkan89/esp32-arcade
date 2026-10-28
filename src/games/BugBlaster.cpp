@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class BugBlaster final : public CampaignGame {
@@ -106,16 +107,15 @@ public:
     return bugs.count() + shots.count() + sparks.count() + 121;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 26);
     for (int i = 0; i < 120; ++i)
       if (mushrooms[i]) {
         int xx = i % 10 * 18 + 4, yy = 35 + i / 10 * 15;
-        c.circle(xx + 4, yy + 4, 4, Pink, true);
-        c.rect(xx + 3, yy + 5, 3, 5, White);
+        art::sprite(c, art::Sprite::Mushroom, xx - 1, yy - 1, 12, 13);
       }
     for (const auto &s : bugs.items)
       if (s.active) {
-        c.circle(int(s.x), int(s.y), 5, bossRound() ? Red : Green, true);
-        c.pixel(int(s.x) - 2, int(s.y) - 2, White);
+        art::object(c, bossRound() ? art::Sprite::AlienPink : art::Sprite::Bug, int(s.x), int(s.y), 13, 15);
       }
     if (!grace || tick % 10 < 5)
       ship(c, x, y, Cyan);

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class NeonClaim final : public CampaignGame {
@@ -129,13 +130,14 @@ public:
     return 322;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 29);
     for (int p = 0; p < 320; ++p)
-      c.rect(8 + p % 16 * 10, 31 + p / 16 * 9, 9, 8,
+      if (cells[p]) art::tile(c, 8 + p % 16 * 10, 31 + p / 16 * 9, 9, 8,
              cells[p] == 1   ? uint16_t(0x19ad + level * 32)
              : cells[p] == 2 ? Yellow
                              : Black);
-    c.circle(13 + int(ex * 10), 35 + int(ey * 9), 4, Pink, true);
-    c.rect(10 + player % 16 * 10, 33 + player / 16 * 9, 5, 4, White);
+    art::object(c, art::Sprite::AlienPink, 13 + int(ex * 10), 35 + int(ey * 9), 11, 11);
+    art::sprite(c, art::Sprite::Diamond, 9 + player % 16 * 10, 32 + player / 16 * 9, 8, 7);
     c.text(5, 211, "CLAIM", Grey);
     c.number(42, 211, claimed * 100 / 252, Green);
     c.text(66, 211, "%", Green);

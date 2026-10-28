@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/SnakeRush.h"
 #include "assets/Visuals.h"
 namespace arcade {
@@ -109,24 +110,24 @@ void SnakeRush::update() {
   input.pressed = 0;
 }
 void SnakeRush::render(Canvas &c) const {
+    art::scene(c, 5);
+  art::scene(c, 5, 8, 28, 160, 176, 30);
   c.rect(7, 27, 162, 178, Grey, false);
   for (int y = 0; y < Rows; y++)
     for (int x = 0; x < Cols; x++)
       if (wall({int8_t(x), int8_t(y)}))
         visual::tile(c, 8 + x * 8, 28 + y * 8, 7, 7, Pink);
   int fx = 11 + food.x * 8, fy = 31 + food.y * 8;
-  c.circle(fx, fy, 3, Yellow, true);
-  c.pixel(fx - 1, fy - 1, White);
-  c.pixel(fx + 1, fy - 3, Green);
-  for (unsigned i = 0; i < length; i++)
-    visual::tile(c, 8 + body[i].x * 8, 28 + body[i].y * 8, 7, 7, i == 0 ? Cyan : Green);
-  int hx = 8 + body[0].x * 8, hy = 28 + body[0].y * 8;
-  if (direction % 2 == 0) {
-    c.pixel(hx + (direction == 0 ? 5 : 1), hy + 2, Black);
-    c.pixel(hx + (direction == 0 ? 5 : 1), hy + 4, Black);
-  } else {
-    c.pixel(hx + 2, hy + (direction == 1 ? 5 : 1), Black);
-    c.pixel(hx + 4, hy + (direction == 1 ? 5 : 1), Black);
+  art::object(c, art::Sprite::Apple, fx, fy, 8, 8);
+  for (unsigned i = 0; i < length; i++) {
+    int cx = 12 + body[i].x * 8, cy = 32 + body[i].y * 8;
+    if (i == 0)
+      art::rotated(c, art::Sprite::SnakeHead, cx, cy, 9, (int(direction) - 1) * 1.5707963f);
+    else {
+      bool horizontal = body[i - 1].x != body[i].x;
+      auto id = i + 1 == length ? art::Sprite::SnakeTail : art::Sprite::SnakeBody;
+      art::rotated(c, id, cx, cy, 8, horizontal ? 1.5707963f : 0.f);
+    }
   }
   c.text(8, 211, "D-PAD TO TURN", Grey);
 }

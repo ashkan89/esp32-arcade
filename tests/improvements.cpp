@@ -213,7 +213,7 @@ void verifyImprovements() {
   s.enhanced = 1;
   require(s.record(51, 123, 0, false) && s.record(51, 321, 3, true), "mode records");
   Settings out;
-  require(decode(encode(s), out), "v3 save");
+  require(decode(encode(s), out), "current save");
   require(out.modeBest == s.modeBest && out.music == 0 && out.enhanced == 1, "new save roundtrip");
   auto old = encode(s);
   old[4] = 2;

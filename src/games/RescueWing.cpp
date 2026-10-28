@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class RescueWing final : public CampaignGame {
@@ -141,6 +142,7 @@ public:
     return aliens.count() + shots.count() + hostile.count() + sparks.count() + 6;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 49);
     scenery(c, Cyan);
     c.line(0, 204, 175, 204, Green);
     int dock = int(screenX(44));
@@ -148,27 +150,23 @@ public:
     for (int h : humans)
       if (h >= 0) {
         int xx = int(screenX(float(h)));
-        c.circle(xx, 191, 3, Yellow, true);
-        c.line(xx, 194, xx, 201, Yellow);
+        art::sprite(c, art::Sprite::Hero, xx - 5, 188, 10, 15);
       }
     for (const auto &e : aliens.items)
       if (e.active) {
         int xx = int(screenX(e.x));
-        c.circle(xx, int(e.y), 7, Pink);
-        c.rect(xx - 8, int(e.y) + 3, 16, 3, Red);
+        art::object(c, art::Sprite::AlienPink, xx, int(e.y), 18, 16);
         if (e.fire.cue())
           c.line(xx, int(e.y), xx + int(e.fire.vx * 12), int(e.y + e.fire.vy * 12), Yellow);
       }
     if (!grace || tick % 10 < 5) {
-      c.line(88 + facing * 9, int(y), 88 - facing * 7, int(y) - 6, Cyan);
-      c.line(88 + facing * 9, int(y), 88 - facing * 7, int(y) + 6, Cyan);
+      art::object(c, art::Sprite::Hovercraft, 88, int(y), 22, 16, facing < 0);
       if (carrying >= 0)
         c.circle(88, int(y) + 12, 3, Yellow, true);
     }
     if (hp) {
       int xx = int(screenX(264));
-      c.rect(xx - 24, 72, 48, 28, Red);
-      c.circle(xx, 75, 17, Pink);
+      art::sprite(c, art::Sprite::Boss, xx - 24, 65, 48, 35);
       bossBar(c, hp, maximum);
     }
     drawProjectiles(c, shots, White);

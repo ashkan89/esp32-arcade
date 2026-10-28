@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "assets/AtariPixels.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -385,50 +386,15 @@ class KeystoneKapers final : public TickGame {
     return {h.x - 4, bottom - height, 8, float(height)};
   }
   void drawHazard(Canvas &c, const Hazard &h, int camera) const {
-    int xx = int(h.x) - camera + 8, yy = ground(h.floor);
+    int xx = int(h.x) - camera + 8;
     int halfWidth = h.kind == Biplane ? 8 : 4;
     if (xx + halfWidth <= 8 || xx - halfWidth >= 168)
       return;
-    switch (h.kind) {
-    case Ball:
-      yy -= int(std::abs(std::sin((roundTick + h.floor * 40) * .055f)) * (level >= 6 ? 24 : 9));
-      atari::mask(c, xx - 4, yy - 7,
-                  std::array<uint8_t, 7>{{0x3c, 0x7e, 0xff, 0xff, 0xff, 0x7e, 0x3c}}, 0xcb24);
-      c.rect(xx - 3, yy - 5, 6, 1, 0xec6a);
-      break;
-    case Radio:
-      atari::mask(c, xx - 4, yy - 12,
-                  std::array<uint8_t, 12>{
-                      {0x18, 0x3c, 0x7e, 0x7e, 0xff, 0xff, 0xff, 0xdb, 0xdb, 0xff, 0xff, 0xff}},
-                  0xa325);
-      c.rect(xx - 2, yy - 5, 4, 3, Black);
-      c.pixel(xx + 2, yy - 7, atari::Gold);
-      break;
-    case Cart:
-      atari::mask(c, xx - 4, yy - 12,
-                  std::array<uint8_t, 12>{
-                      {0xc0, 0x40, 0x7f, 0x55, 0x55, 0x55, 0x7f, 0x02, 0x7e, 0x00, 0x42, 0x42}},
-                  0xd6da, h.direction < 0);
-      break;
-    case Biplane:
-      atari::mask(c, xx - 8, yy - 19,
-                  std::array<uint8_t, 7>{{0x3c, 0x18, 0xff, 0x7e, 0xff, 0x18, 0x3c}}, atari::Gold,
-                  h.direction < 0, 2);
-      c.line(xx + (h.direction < 0 ? -8 : 7), yy - 19 + int(roundTick % 3),
-             xx + (h.direction < 0 ? -8 : 7), yy - 13, White);
-      break;
-    case Money:
-      atari::mask(c, xx - 4, yy - 9,
-                  std::array<uint8_t, 9>{{0x18, 0x3c, 0x18, 0x3c, 0x7e, 0xff, 0xff, 0x7e, 0x3c}},
-                  atari::Gold);
-      break;
-    case Suitcase:
-      atari::mask(
-          c, xx - 4, yy - 10,
-          std::array<uint8_t, 10>{{0x3c, 0x24, 0xff, 0x81, 0x81, 0x81, 0x81, 0x81, 0xff, 0xff}},
-          atari::Gold);
-      break;
-    }
+    static constexpr art::Sprite sprites[] = {art::Sprite::Ball, art::Sprite::Radio,
+        art::Sprite::Cart, art::Sprite::Biplane, art::Sprite::Money, art::Sprite::Suitcase};
+    auto bounds = hazardBounds(h);
+    art::sprite(c, sprites[h.kind], int(bounds.x) - camera + 8, int(bounds.y),
+                int(bounds.w), int(bounds.h), h.direction < 0);
   }
 
 public:
@@ -453,14 +419,14 @@ public:
   }
   void render(Canvas &c) const override {
     c.clear(Black);
+    art::scene(c, 50, 8, 33, 160, 132, 75);
     int camera = viewCamera();
-    c.rect(8, 8, 160, 25, atari::Blue);
+    art::scene(c, 54, 8, 8, 160, 25, 55);
     atari::digits(c, 92, 11, points % 1000000, 6, White);
     if (seconds > 600 || roundTick % 30 < 15)
-      atari::digits(c, 60, 17, unsigned(std::max(0, seconds)) / 60, 2, Black);
+      atari::digits(c, 60, 17, unsigned(std::max(0, seconds)) / 60, 2, Yellow);
     for (int i = 0; i < health - 1; ++i)
-      atari::mask(c, 16 + i * 12, 23, std::array<uint8_t, 5>{{0x18, 0x3c, 0x3c, 0x7e, 0x7e}},
-                  Black);
+      art::sprite(c, art::Sprite::Cop, 14 + i * 12, 16, 9, 14);
     c.rect(8, 33, 160, ground(3) - 33, 0x7370);
     for (int i = 0; i < 11; ++i) {
       c.rect(8 + i * 16 - camera % 16, 33, 8, 2, 0xb349);
@@ -470,20 +436,8 @@ public:
     for (int f = 0; f < 3; ++f) {
       int yy = ground(f);
       int ceiling = ground(f + 1) + 4;
-      c.rect(8, ceiling, 160, yy - ceiling, atari::Grass);
-      if (f == 1) {
-        // Blue display windows distinguish the middle storey in the original.
-        for (int col = 0; col < 3; ++col) {
-          c.rect(24 + col * 80 - camera % 80, yy - 17, 42, 9, atari::Blue);
-          c.rect(24 + col * 80 - camera % 80, yy - 18, 42, 1, atari::DarkGrass);
-          c.rect(24 + col * 80 - camera % 80, yy - 8, 42, 1, 0xce59);
-        }
-      } else
-        for (int col = 0; col < 5; ++col) {
-          c.rect(28 + col * 36 - camera % 36, ceiling, 9, yy - ceiling, 0xce59);
-          c.rect(37 + col * 36 - camera % 36, ceiling, 1, yy - ceiling, atari::DarkGrass);
-        }
-      c.rect(8, yy, 160, 4, 0xb525);
+      art::mall(c, 8, ceiling, 160, yy - ceiling);
+      art::platform(c, 8, yy, 160, 4, art::Sprite::WoodPlatform);
       c.rect(8, yy + 3, 160, 1, atari::DarkGrass);
     }
     // Escalators only lead upwards. The roof is deliberately outside the lift route.
@@ -553,7 +507,7 @@ public:
                                 : 33,
                     true);
     }
-    c.rect(8, 169, 160, 32, 0xad55);
+    art::scene(c, 53, 8, 169, 160, 32, 70);
     for (int f = 0; f < 4; ++f) {
       int yy = 197 - f * 7;
       c.rect(40, yy - 4, 96, 4, atari::Grass);
@@ -998,14 +952,20 @@ bool verifyKeystoneKapers() {
     g.jump = 23;
     g.render(canvas);
     int ceiling = f < 3 ? KeystoneKapers::ground(f + 1) + 4 : 33;
-    bool visibleFace = false;
+    // Authored sprite colors replace the former single skin-color mask. Compare
+    // the actual jumping actor with its hidden frame, retaining ceiling checks.
+    auto jumping = pixels;
+    g.grace = 1;
+    g.tick = 4;
+    g.render(canvas);
+    bool visibleActor = false;
     for (int yy = ceiling; yy < KeystoneKapers::ground(f); ++yy)
-      for (int xx = 84; xx < 92; ++xx)
-        visibleFace |= canvas.pixel(xx, yy) == atari::Skin;
-    HOST_CHECK(visibleFace);
+      for (int xx = 83; xx < 94; ++xx)
+        visibleActor |= jumping[yy * W + xx] != pixels[yy * W + xx];
+    HOST_CHECK(visibleActor);
     for (int yy = 0; yy < ceiling; ++yy)
       for (int xx = 0; xx < W; ++xx)
-        HOST_CHECK(pixels[yy * W + xx] == standing[yy * W + xx]);
+        HOST_CHECK(jumping[yy * W + xx] == standing[yy * W + xx]);
   }
   g.start(enhanced);
   g.level = 16;

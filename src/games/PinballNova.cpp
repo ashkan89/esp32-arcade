@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class PinballNova final : public CampaignGame {
@@ -118,16 +119,18 @@ public:
     return sparks.count() + 6;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 48);
+    art::scene(c, 53, 12, 40, 152, 157, 65);
     c.rect(4, 34, 168, 179, Navy, false);
     for (int i = 0; i < 5; ++i) {
-      c.circle(bx(i), by(i), 10, cooldown[i] ? Yellow : i == 1 && hp ? Red : Pink, true);
+      art::object(c, cooldown[i] ? art::Sprite::Amber : art::Sprite::Amethyst, bx(i), by(i), 23, 23);
       c.circle(bx(i), by(i), 5, White);
     }
     c.line(10, 152, 25, 178, Cyan);
     c.line(166, 152, 151, 178, Cyan);
     c.line(24, 190, 78, input.down(Left) ? 181 : 199, Green);
     c.line(152, 190, 98, input.down(Right) ? 181 : 199, Green);
-    c.circle(int(x), int(y), 3, White, true);
+    art::object(c, art::Sprite::Pinball, int(x), int(y), 7, 7);
     if (!served)
       c.centered(145, "A LAUNCH", Yellow);
     if (hp)

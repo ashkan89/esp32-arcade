@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class BarrelClimb final : public CampaignGame {
@@ -99,8 +100,9 @@ public:
     return barrels.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 32);
     for (int f = 0; f < 5; ++f) {
-      c.rect(4, ground(f), 168, 4, Pink);
+      art::platform(c, 4, ground(f), 168, 5, art::Sprite::SteelPlatform);
       if (f < 4) {
         int l = ladder(f);
         c.line(l - 4, ground(f) - 37, l - 4, ground(f), Cyan);
@@ -113,13 +115,11 @@ public:
     c.text(138, ground(4) - 15, hp ? "K" : "G", White);
     for (const auto &b : barrels.items)
       if (b.active) {
-        c.circle(int(b.x), ground(b.floor) - 6, 5, Orange, true);
-        c.line(int(b.x) - 3, ground(b.floor) - 9, int(b.x) + 3, ground(b.floor) - 3, Yellow);
+        art::object(c, art::Sprite::Barrel, int(b.x), ground(b.floor) - 6, 13, 13);
       }
     if (!grace || tick % 10 < 5) {
       int y = ground(floor) - int(jump) - 11;
-      c.rect(int(x) - 4, y, 8, 10, Cyan);
-      c.circle(int(x), y - 2, 3, White, true);
+      art::sprite(c, tick / 8 % 2 ? art::Sprite::Hero : art::Sprite::HeroStep, int(x) - 7, y - 6, 14, 18);
       if (hammer)
         c.rect(int(x) + 5, y - 7, 9, 5, Yellow);
     }

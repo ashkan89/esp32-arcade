@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "arcade/DirtySpan.h"
 #include "assets/AtariPixels.h"
 #include "games/Registration.h"
@@ -569,61 +570,29 @@ class RiverRaid final : public TickGame {
       missile = false;
   }
 
-  static void drawObject(Canvas &c, const Object &o, int yy, unsigned frame) {
+  static void drawObject(Canvas &c, const Object &o, int yy, unsigned frame, unsigned scroll = 0) {
     int xx = int(o.x) + 8;
     bool flip = o.direction < 0;
+    (void)frame;
     switch (o.kind) {
-    case House:
-      atari::mask(c, xx - 8, yy - 8,
-                  std::array<uint8_t, 13>{{0x18, 0x3c, 0x7e, 0xff, 0x7e, 0x7e, 0x7e, 0x7e, 0x66,
-                                           0x66, 0x66, 0x66, 0x7e}},
-                  0xe71c, false, 2);
-      c.rect(xx - 8, yy - 4, 16, 2, Red);
-      break;
+    case House: art::object(c, art::Sprite::Fuel, xx, yy, 16, 16); break;
     case Fuel:
-      c.rect(xx - 5, yy - 12, 10, 24, White);
-      c.rect(xx - 5, yy - 12, 10, 2, Red);
-      c.rect(xx - 5, yy + 10, 10, 2, Red);
-      // Four complete stacked letters, like the cartridge's narrow depot.
-      atari::mask(c, xx - 4, yy - 10, std::array<uint8_t, 5>{{0x70, 0x40, 0x60, 0x40, 0}}, Red);
-      atari::mask(c, xx - 4, yy - 5,
-                  std::array<uint8_t, 15>{{0x50, 0x50, 0x50, 0x70, 0, 0x70, 0x40, 0x60, 0x70, 0,
-                                           0x40, 0x40, 0x40, 0x70, 0}},
-                  atari::RiverWater);
+      art::object(c, art::Sprite::Fuel, xx, yy, 10, 24);
+      c.text(xx - 3, yy - 3, "F", White);
       break;
-    case Tanker:
-      // Deck, cabin, funnel and a low tapered hull distinguish a ship from a jet.
-      atari::mask(c, xx - 8, yy - 1, std::array<uint8_t, 6>{{0xff, 0xff, 0xff, 0x7e, 0x7e, 0x3c}},
-                  0xce6f, flip, 2);
-      c.rect(xx - 4, yy - 5, 8, 4, 0xe71c);
-      c.rect(xx + (flip ? 2 : -4), yy - 8, 2, 4, Red);
-      c.rect(xx + (flip ? -3 : 1), yy - 4, 2, 2, atari::Ink);
-      break;
-    case Helicopter:
-      c.rect(xx - 7, yy - 7, 14, 1, atari::Ink);
-      atari::mask(
-          c, xx - 4, yy - 6,
-          std::array<uint8_t, 10>{{0x10, 0x38, 0x7c, 0xfe, 0xf7, 0x7f, 0x38, 0x28, 0x7c, 0x00}},
-          atari::Ink, flip);
-      c.rect(xx + (flip ? -3 : 1), yy - 3, 2, 2, White);
-      if (frame & 1)
-        c.rect(xx - 5, yy - 8, 10, 1, atari::Ink);
-      break;
-    case EnemyJet:
-      atari::mask(c, xx - 8, yy - 5,
-                  std::array<uint8_t, 11>{
-                      {0x18, 0x18, 0x18, 0x98, 0xfe, 0xff, 0xfe, 0x98, 0x18, 0x18, 0x18}},
-                  0xbdf7, flip, 2);
-      c.rect(xx + (flip ? -5 : 2), yy - 1, 3, 2, atari::Ink);
-      c.pixel(xx + (flip ? -6 : 5), yy + 1, Red);
-      break;
+    case Tanker: art::object(c, art::Sprite::Tanker, xx, yy, 16, 14, flip); break;
+    case Helicopter: art::object(c, art::Sprite::Helicopter, xx, yy, 16, 14, flip); break;
+    case EnemyJet: art::object(c, art::Sprite::EnemyJet, xx, yy, 16, 12, flip); break;
     case Bridge:
-      c.rect(8, yy - 6, 160, 12, atari::Concrete);
+      art::platform(c, 8, yy - 6, 160, 12, art::Sprite::SteelPlatform);
       c.rect(8, yy - 7, 160, 1, atari::Ink);
       c.rect(8, yy + 6, 160, 1, atari::Ink);
       for (int p = 8; p < 168; p += 12)
         c.rect(p, yy, 6, 1, Yellow);
-      c.rect(xx - 16, yy - 7, 32, 14, o.alive ? 0xad45 : atari::RiverWater);
+      if (o.alive)
+        art::sprite(c, art::Sprite::WoodSlab, xx - 16, yy - 7, 32, 14);
+      else
+        art::water(c, xx - 16, yy - 7, 32, 14, scroll);
       if (o.alive) {
         for (int row = -5; row <= 5; row += 3)
           c.rect(xx - 16, yy + row, 32, 1, atari::Gold);
@@ -668,22 +637,18 @@ public:
         pos -= 512;
       float edge, isle;
       profile(s, pos, edge, isle);
-      uint16_t land = s.difficulty & 1 ? atari::RiverGrass : atari::RiverDarkGrass;
-      c.rect(8, yy, 160, 1, land);
-      c.rect(8 + int(edge), yy, 160 - int(edge) * 2, 1, atari::RiverWater);
-      if (isle)
-        c.rect(88 - int(isle), yy, int(isle) * 2, 1, land);
+      art::river(c, yy, int(edge), int(isle), unsigned(travel));
     }
     for (int pass = 0; pass < 2; ++pass) {
       const Section &s = pass ? next : current;
       for (int i = 0; i < 16; ++i) {
         int yy = int(163 - (pass * 512 + objectY(i) - travel));
         if ((s.objects[i].alive || s.objects[i].kind == Bridge) && yy >= 8 && yy <= 192)
-          drawObject(c, s.objects[i], yy, tick / 5);
+          drawObject(c, s.objects[i], yy, tick / 5, unsigned(travel));
       }
     }
     if (!crashTimer || tick % 8 < 4)
-      atari::jet(c, int(x) + 8, 163, bank);
+      art::object(c, art::Sprite::Jet, int(x) + 8, 163, 14, 14);
     if (missile)
       c.rect(int(missileX) + 8, int(missileY), 1, 5, Yellow);
     for (const auto &b : bursts)
@@ -696,7 +661,7 @@ public:
               c.pixel(xx + dx, yy + dy, b.timer > 8 ? Yellow : Orange);
       }
     c.rect(0, 0, W, 20, Black);
-    c.rect(0, 180, W, 40, atari::Concrete);
+    art::scene(c, 53, 0, 180, W, 40, 70);
     if (points >= 1000000)
       c.centered(183, "!!!!!!", Yellow, 2);
     else
@@ -709,7 +674,7 @@ public:
     for (int i = 1; i < 4; ++i)
       c.rect(30 + i * 107 / 4, 200, 1, 2, Black);
     for (int i = 0; i < health - 1; ++i)
-      c.rect(8 + i * 4, 185, 2, 9, Yellow);
+      art::sprite(c, art::Sprite::Jet, 8 + i % 5 * 8, 184 + i / 5 * 8, 7, 7);
     atari::credit(c, 213, Yellow);
     c.text(8, 7, "SECTION", Grey);
     c.number(52, 7, sectionNumber, White);
@@ -909,7 +874,16 @@ bool verifyRiverRaid() {
   canvas.attach(pixels.data());
   g.bursts = {};
   g.render(canvas);
-  HOST_CHECK(canvas.pixel(28, 47) == atari::Concrete && canvas.pixel(88, 47) == atari::RiverWater);
+  auto roadImage = pixels;
+  auto bridgeObject = g.current.objects[15];
+  g.current.objects[15].kind = RiverRaid::House;
+  g.render(canvas);
+  unsigned roadPixels = 0;
+  for (int yy = 47; yy < 59; ++yy)
+    for (int xx = 8; xx < 60; ++xx)
+      roadPixels += pixels[yy * W + xx] != roadImage[yy * W + xx];
+  HOST_CHECK(roadPixels > 50 && roadImage[47 * W + 88] == pixels[47 * W + 88]);
+  g.current.objects[15] = bridgeObject;
   g.start({});
   for (auto &o : g.current.objects)
     o.alive = false;
@@ -1036,7 +1010,15 @@ bool verifyRiverRaid() {
   visibleDepot = {80, RiverRaid::Fuel, 1, true};
   g.travel = 88; // depot center is 171: previously culled while still refuelling
   g.render(canvas);
-  HOST_CHECK(canvas.pixel(83, 175) == White);
+  auto depotImage = pixels;
+  visibleDepot.alive = false;
+  g.render(canvas);
+  bool visibleDepotBand = false;
+  for (int yy = 172; yy < 180; ++yy)
+    for (int xx = 83; xx < 93; ++xx)
+      visibleDepotBand |= pixels[yy * W + xx] != depotImage[yy * W + xx];
+  HOST_CHECK(visibleDepotBand);
+  visibleDepot.alive = true;
   g.travel = 0;
   g.current.bank.fill(64);
   g.current.island.fill(0);

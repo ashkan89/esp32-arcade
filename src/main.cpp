@@ -21,6 +21,73 @@ Screen budgetScreen = Screen::Boot;
 bool ready = false, edgePending = false;
 uint32_t bootAt = 0;
 bool bootConfirmed = false;
+#if defined(ARCADE_ART_SOAK) && ARCADE_ART_SOAK
+void checkArtwork() {
+  audio.stop();
+  uint32_t before = ESP.getFreeHeap();
+  Serial.printf("ART_CHECK BEGIN games=%u heap=%lu\n", unsigned(GameCount), (unsigned long)before);
+  for (unsigned id = 0; id < GameCount; ++id) {
+    Game &g = gameFor(GameId(id));
+    GameOptions options;
+    options.seed = 1000 + id;
+    g.initialize();
+    g.start(options);
+    uint32_t updateMax = 0, drawMax = 0, transferMax = 0;
+    for (unsigned tick = 0; tick < 180; ++tick) {
+      if (readButtons() & Back) {
+        g.cleanup();
+        Serial.println("ART_CHECK ABORTED BY BACK");
+        return;
+      }
+      InputFrame f;
+      f.held = Fire | (tick / 45 % 2 ? Right : Left);
+      f.pressed = tick % 24 == 0 ? Fire : 0;
+      uint32_t at = micros();
+      g.handle(f);
+      g.update();
+      updateMax = std::max(updateMax, elapsed(micros(), at));
+      if (g.gameOver()) g.start(options);
+      if (tick % 3 == 0) {
+        at = micros();
+        display.canvas.clear();
+        g.render(display.canvas);
+        if (!g.ownsHud()) {
+          display.canvas.rect(0, 0, W, Top, Navy);
+          display.canvas.centered(6, registry()[id].title, White);
+        }
+        drawMax = std::max(drawMax, elapsed(micros(), at));
+        at = micros();
+        display.present();
+        transferMax = std::max(transferMax, elapsed(micros(), at));
+      }
+      delay(1); // Keep normal RTOS/watchdog service during the diagnostic.
+    }
+    g.cleanup();
+    uint32_t hash = checksum(static_cast<const uint8_t *>(display.canvas.data()),
+                             W * H * (display.canvas.sixteen() ? 2 : 1));
+    Serial.printf("ART_CHECK game=%u heap=%lu update=%lu draw=%lu transfer=%lu crc=%08lx stack=%u\n",
+                  id, (unsigned long)ESP.getFreeHeap(), (unsigned long)updateMax,
+                  (unsigned long)drawMax, (unsigned long)transferMax, (unsigned long)hash,
+                  unsigned(uxTaskGetStackHighWaterMark(nullptr)));
+  }
+  for (unsigned i = 0; i < 10; ++i) {
+    bool compactOk = display.compact(true);
+    bool small = !display.canvas.sixteen();
+    bool fullOk = display.compact(false);
+    Serial.printf("ART_CHECK FORMAT cycle=%u compact=%u full=%u rgb=%u heap=%lu\n", i,
+                  compactOk && small, fullOk, display.canvas.sixteen() ? 16 : 8,
+                  (unsigned long)ESP.getFreeHeap());
+    if (!compactOk || !small || !fullOk || !display.canvas.sixteen()) {
+      Serial.println("ART_CHECK FORMAT FAILED");
+      return;
+    }
+    delay(1);
+  }
+  Serial.printf("ART_CHECK COMPLETE games=%u before=%lu after=%lu min=%lu\n", unsigned(GameCount),
+                (unsigned long)before, (unsigned long)ESP.getFreeHeap(),
+                (unsigned long)ESP.getMinFreeHeap());
+}
+#endif
 void serviceAudio() {
   auto state = console.state();
   bool frozen = state == Screen::Paused || (state == Screen::Instructions && console.active());
@@ -43,6 +110,11 @@ const char HistoricalUpdaterIdentity[] = "\x53\x4c\x59"
                                          "_ARCADE_N16R8|" ARCADE_VERSION;
 #endif
 } // namespace
+// COM9 measured only 364 bytes of startup/render stack headroom at 8 KiB.
+// Use the pinned Arduino core's weak hook; keep watchdog protection unchanged.
+size_t getArduinoLoopTaskStackSize() {
+  return 12 * 1024;
+}
 // Arduino otherwise accepts a pending image before setup() has checked hardware.
 extern "C" bool verifyRollbackLater() {
   return true;
@@ -68,6 +140,9 @@ void setup() {
     Network::failBoot();
     return;
   }
+#if defined(ARCADE_ART_SOAK) && ARCADE_ART_SOAK
+  checkArtwork();
+#endif
   network.begin();
   GameOptions o;
   // Short startup entropy window; disabled before RF/ADC/I2S use.
@@ -93,6 +168,14 @@ void loop() {
     return;
   }
   network.service(console.state() == Screen::Updates);
+  if (ARCADE_WROOM) {
+    static bool wasCompact = false;
+    bool wanted = console.state() == Screen::Updates || network.busy();
+    if (wanted != wasCompact) {
+      display.compact(wanted);
+      wasCompact = wanted;
+    }
+  }
   uint32_t now = millis(), us = micros();
   diagnostics.maxInputGap = std::max(diagnostics.maxInputGap, elapsed(us, lastPoll));
   lastPoll = us;
@@ -156,7 +239,10 @@ void loop() {
       audio.stop();
       buttons.suppress();
       pendingInput = {};
-      network.request(action);
+      if (display.compact(true))
+        network.request(action);
+      else
+        network.memoryUnavailable();
     }
     diagnostics.updates++;
     diagnostics.updateMax = std::max(diagnostics.updateMax, elapsed(micros(), started));

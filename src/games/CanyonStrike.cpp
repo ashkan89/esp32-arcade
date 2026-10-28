@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class CanyonStrike final : public CampaignGame {
@@ -122,24 +123,18 @@ public:
     return planes.count() + shots.count() + hostile.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
-    for (int yy = 32; yy < 210; yy += 3) {
-      int left = 18 + int(std::sin((yy + tick) * .024f) * 12);
-      c.rect(left, yy, 140 - left, 3, 0x0945);
-      c.rect(left - 8, yy, 8, 3, 0x6284);
-      c.rect(140, yy, 12, 3, 0x6284);
-    }
+    art::scene(c, 37);
+    // Aerial canyon illustration replaces the flat decorative strips.
     for (const auto &e : planes.items)
       if (e.active) {
-        c.rect(int(e.x) - 3, int(e.y) - 8, 6, 16, Pink);
-        c.rect(int(e.x) - 10, int(e.y) - 2, 20, 4, Orange);
+        art::object(c, art::Sprite::EnemyJet, int(e.x), int(e.y), 22, 19);
         if (e.fire.cue())
           c.line(int(e.x), int(e.y), int(e.x + e.fire.vx * 12), int(e.y + e.fire.vy * 12), Yellow);
       }
     if (!grace || tick % 10 < 5)
       ship(c, x, y, Green);
     if (hp) {
-      c.rect(int(bx) - 30, 40, 60, 17, Red);
-      c.rect(int(bx) - 7, 34, 14, 31, Orange);
+      art::sprite(c, art::Sprite::Boss, int(bx) - 30, 34, 60, 31);
       bossBar(c, hp, maximum);
     }
     drawProjectiles(c, shots, Yellow);

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class RiverLeap final : public TickGame {
@@ -109,14 +110,15 @@ public:
     movers.clear();
   }
   void render(Canvas &c) const override {
+    art::scene(c, 12);
     c.rect(0, 49, W, 60, 0x092b);
     c.rect(0, 135, W, 63, 0x18c3);
     for (int i = 0; i < 4; i++)
-      c.rect(i * 44 + 9, 28, 26, 13, homes[i] ? Yellow : Green);
+      art::sprite(c, homes[i] ? art::Sprite::Lily : art::Sprite::GrassPlatform, i * 44 + 9, 28, 26, 13);
     for (const auto &m : movers.items)
       if (m.active)
-        c.rect(int(m.x), 196 - m.row * 20, m.width, 14, m.row >= 5 ? Orange : Red);
-    c.circle(int(x), 203 - row * 20, 5, Green, true);
+        art::sprite(c, m.row >= 5 ? art::Sprite::Log : art::Sprite::EnemyCar, int(m.x), 196 - m.row * 20, m.width, 14);
+    art::object(c, art::Sprite::Frog, int(x), 203 - row * 20, 14, 14);
     c.centered(212, "UP: HOP TOWARD HOMES", White);
   }
 };

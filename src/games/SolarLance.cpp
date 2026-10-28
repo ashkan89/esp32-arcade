@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class SolarLance final : public CampaignGame {
@@ -116,6 +117,7 @@ public:
     return drones.count() + shots.count() + hostile.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 38);
     scenery(c, Cyan);
     for (int i = 0; i < 12; ++i) {
       int xx = (i * 22 - int(tick) % 22);
@@ -124,12 +126,10 @@ public:
     }
     for (const auto &e : drones.items)
       if (e.active) {
-        c.circle(int(e.x), int(e.y), 7, Pink);
-        c.rect(int(e.x) - 3, int(e.y) - 3, 6, 6, Red);
+        art::object(c, art::Sprite::Ufo, int(e.x), int(e.y), 19, 16);
       }
     if (!grace || tick % 10 < 5) {
-      c.line(int(x) - 8, int(y) - 6, int(x) + 10, int(y), Cyan);
-      c.line(int(x) - 8, int(y) + 6, int(x) + 10, int(y), Cyan);
+      art::object(c, art::Sprite::Hovercraft, int(x), int(y), 22, 17);
     }
     if (beam)
       c.rect(int(x) + 10, int(y) - 6, 176 - int(x) - 10, 12, Yellow);

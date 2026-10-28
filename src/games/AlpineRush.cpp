@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class AlpineRush final : public CampaignGame {
@@ -79,16 +80,15 @@ public:
     return obstacles.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
-    c.rect(0, 32, 176, 179, 0xc71c);
+    art::scene(c, 44);
+    // Snow field is illustrated in the background atlas.
     for (int i = 0; i < 20; ++i)
       c.line((i * 31) % 176, 35 + int((i * 23 + tick) % 172), (i * 31) % 176 + 2,
              37 + int((i * 23 + tick) % 172), White);
     for (const auto &e : obstacles.items)
       if (e.active) {
         if (e.kind == 0) {
-          c.line(int(e.x), int(e.y) - 12, int(e.x) - 8, int(e.y) + 3, Green);
-          c.line(int(e.x), int(e.y) - 12, int(e.x) + 8, int(e.y) + 3, Green);
-          c.rect(int(e.x) - 2, int(e.y), 4, 7, Orange);
+          art::object(c, art::Sprite::Tree, int(e.x), int(e.y) - 3, 19, 23);
         } else {
           c.line(int(e.x) - 24, int(e.y) - 13, int(e.x) - 24, int(e.y) + 3, Red);
           c.line(int(e.x) + 24, int(e.y) - 13, int(e.x) + 24, int(e.y) + 3, Red);
@@ -96,10 +96,7 @@ public:
         }
       }
     int yy = 185 - (jump ? int(std::sin(jump * 3.14159f / 45) * 18) : 0);
-    c.circle(int(x), yy - 8, 4, Pink, true);
-    c.rect(int(x) - 3, yy - 4, 6, 9, Cyan);
-    c.line(int(x) - 5, yy + 2, int(x) - 3, yy + 14, Navy);
-    c.line(int(x) + 3, yy + 2, int(x) + 5, yy + 14, Navy);
+    art::object(c, art::Sprite::Skier, int(x), yy, 20, 28);
     c.text(5, 212, "GATES", Grey);
     c.number(42, 212, passed, Green);
     c.text(57, 212, "/6", Grey);

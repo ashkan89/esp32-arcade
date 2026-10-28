@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class IronFront final : public CampaignGame {
@@ -134,23 +135,18 @@ public:
     return foes.count() + shots.count() + hostile.count() + grenades.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
-    for (int i = 0; i < 6; ++i) {
-      c.rect(i * 35 - int(tick / 3) % 35, 110 + i % 2 * 20, 28, 85, 0x2125);
-      c.rect(i * 35 + 6 - int(tick / 3) % 35, 130, 4, 6, Orange);
-    }
-    c.rect(0, 198, 176, 22, Grey);
+    art::scene(c, 41);
+    art::platform(c, 0, 198, W, 22, art::Sprite::SteelPlatform);
     for (const auto &e : foes.items)
       if (e.active) {
-        c.circle(int(e.x), int(e.y) - 12, 4, Orange, true);
-        c.rect(int(e.x) - 4, int(e.y) - 8, 8, 16, Pink);
+        art::sprite(c, art::Sprite::Guard, int(e.x) - 7, int(e.y) - 18, 14, 26);
       }
     if (!grace || tick % 10 < 5) {
-      c.circle(int(x), int(y) - 12, 4, White, true);
-      c.rect(int(x) - 4, int(y) - 8, 8, 15, Green);
+      art::sprite(c, tick / 8 % 2 ? art::Sprite::Hero : art::Sprite::HeroStep, int(x) - 7, int(y) - 18, 14, 25, facing < 0);
       c.rect(int(x) + facing * 5 - 3, int(y) - 6, 9, 3, Yellow);
     }
     if (hp) {
-      c.rect(140, 151, 34, 41, Red);
+      art::sprite(c, art::Sprite::EnemyTank, 138, 151, 36, 41);
       c.rect(137, 190, 38, 8, Navy);
       c.rect(125, 162, 32, 6, Orange);
       bossBar(c, hp, maximum);

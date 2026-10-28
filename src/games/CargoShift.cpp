@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class CargoShift final : public TickGame {
@@ -170,20 +171,21 @@ public:
     return 81;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 23);
     for (int p = 0; p < 80; p++) {
       int x = 16 + p % 8 * 18, y = 25 + p / 8 * 18;
       if (board[p] == 1)
-        c.rect(x, y, 17, 17, Grey);
+        art::sprite(c, art::Sprite::Wall, x, y, 17, 17);
       else {
         if (goal[p])
           c.circle(x + 8, y + 8, 5, Green);
         if (board[p] == 2) {
-          c.rect(x + 1, y + 1, 15, 15, goal[p] ? Green : Orange);
-          c.line(x + 3, y + 3, x + 13, y + 13, Black);
+          art::sprite(c, art::Sprite::Crate, x, y, 17, 17);
+          if (goal[p]) c.rect(x, y, 17, 17, Green, false);
         }
       }
     }
-    c.circle(24 + player % 8 * 18, 33 + player / 8 * 18, 5, Cyan, true);
+    art::object(c, art::Sprite::Hero, 24 + player % 8 * 18, 33 + player / 8 * 18, 15, 17);
     c.text(8, 211, "A RESET  B UNDO", White);
   }
 };

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class TankArena final : public TickGame {
@@ -179,17 +180,18 @@ public:
     shells.clear();
   }
   void render(Canvas &c) const override {
+    art::scene(c, 16);
     if (bossEncounter()) {
       c.text(5, 24, "BOSS", Pink);
       c.rect(35, 24, bossHealth() * 136 / (20 + int(level)), 4, Red);
     }
     for (int i = 0; i < 4; i++) {
       auto r = cover(i);
-      c.rect(int(r.x), int(r.y), 28, 18, Grey);
+      art::sprite(c, art::Sprite::Wall, int(r.x), int(r.y), 28, 18);
     }
     for (const auto &e : enemies.items)
       if (e.active) {
-        c.rect(int(e.x), int(e.y), 12, 12, Red);
+        art::rotated(c, art::Sprite::EnemyTank, int(e.x) + 6, int(e.y) + 6, 13, (e.aim + 2) * 1.5707963f);
         if (e.attackTimer <= 18) {
           static const int dx[] = {0, 15, 0, -15}, dy[] = {-15, 0, 15, 0};
           c.line(int(e.x) + 6, int(e.y) + 6, int(e.x) + 6 + dx[e.aim], int(e.y) + 6 + dy[e.aim],
@@ -199,7 +201,7 @@ public:
           c.rect(int(e.x) - 2, int(e.y) - 2, 16, 16, Pink, false);
       }
     if (!grace || tick % 10 < 5) {
-      c.rect(int(x), int(y), 12, 12, Green);
+      art::rotated(c, art::Sprite::Tank, int(x) + 6, int(y) + 6, 13, direction * 1.5707963f);
       static const int dx[] = {0, 10, 0, -10}, dy[] = {-10, 0, 10, 0};
       c.line(int(x) + 6, int(y) + 6, int(x) + 6 + dx[direction], int(y) + 6 + dy[direction], White);
     }

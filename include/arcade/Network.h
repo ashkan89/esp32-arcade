@@ -38,6 +38,7 @@ public:
   void begin();
   void service(bool menu);
   void request(ConsoleAction action);
+  void memoryUnavailable() { status("LOW MEMORY - RETRY OR BACK"); }
   bool busy() const {
     return working.load();
   }

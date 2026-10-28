@@ -108,9 +108,42 @@ void Input::suppress() {
     k.blocked = k.stable || k.raw;
 }
 bool Settings::valid() const {
+  bool end = false;
+  uint64_t seen = 0;
+  for (auto id : recent) {
+    if (id == 255) {
+      end = true;
+      continue;
+    }
+    if (id >= 64 || end || (seen & (uint64_t(1) << id)))
+      return false;
+    seen |= uint64_t(1) << id;
+  }
   return difficulty < DifficultyCount && sound <= 1 && effects <= 1 && lastGame < 64 &&
          invert <= 1 && layout < 3 && attract <= 1 && music <= 1 && sfx <= 1 && enhanced <= 1 &&
          (fps == 30 || fps == 60);
+}
+bool Settings::played(unsigned game) {
+  if (game >= 64 || recent[0] == game)
+    return false;
+  unsigned at = 0;
+  while (at + 1 < recent.size() && recent[at] != game)
+    ++at;
+  for (; at; --at)
+    recent[at] = recent[at - 1];
+  recent[0] = uint8_t(game);
+  return true;
+}
+void Settings::resetPreferences() {
+  difficulty = sound = effects = attract = music = sfx = 1;
+  invert = layout = enhanced = 0;
+  fps = 30;
+}
+void Settings::clearScores() {
+  best.fill(0);
+  skyLeaders.fill(0);
+  for (auto &mode : modeBest)
+    mode.fill(0);
 }
 bool Settings::record(unsigned g, uint32_t s, unsigned difficulty, bool enhancedMode) {
   if (g >= best.size() || difficulty >= DifficultyCount)
@@ -163,7 +196,7 @@ static uint32_t get(const uint8_t *b, size_t o) {
 SaveBytes encode(const Settings &s) {
   SaveBytes b{};
   put(b, 0, 0x41435244);
-  put(b, 4, 3);
+  put(b, 4, 4);
   b[8] = s.difficulty;
   b[9] = s.sound;
   b[10] = s.effects;
@@ -184,13 +217,14 @@ SaveBytes encode(const Settings &s) {
   for (unsigned mode = 0; mode < 8; ++mode)
     for (unsigned g = 0; g < 64; ++g)
       put(b, 304 + mode * 256 + g * 4, s.modeBest[mode][g]);
+  std::copy(s.recent.begin(), s.recent.end(), b.begin() + 2352);
   put(b, SaveSize - 4, checksum(b.data(), SaveSize - 4));
   return b;
 }
 bool decodeStored(const uint8_t *b, size_t length, Settings &out) {
-  if (!b || (length != SaveSize && length != 304 && length != 72))
+  if (!b || (length != SaveSize && length != PreviousSaveSize && length != 304 && length != 72))
     return false;
-  unsigned version = length == SaveSize ? 3 : length == 304 ? 2 : 1;
+  unsigned version = length == SaveSize ? 4 : length == PreviousSaveSize ? 3 : length == 304 ? 2 : 1;
   if (get(b, 0) != 0x41435244 || get(b, 4) != version ||
       get(b, length - 4) != checksum(b, length - 4))
     return false;
@@ -210,7 +244,7 @@ bool decodeStored(const uint8_t *b, size_t length, Settings &out) {
     s.skyLeaders[i] = get(b, leaders + i * 4);
   if (version >= 2)
     s.favorites = uint64_t(get(b, 292)) | (uint64_t(get(b, 296)) << 32);
-  if (version == 3) {
+  if (version >= 3) {
     s.music = b[300];
     s.sfx = b[301];
     s.enhanced = b[302];
@@ -218,6 +252,8 @@ bool decodeStored(const uint8_t *b, size_t length, Settings &out) {
       for (unsigned g = 0; g < 64; ++g)
         s.modeBest[mode][g] = get(b, 304 + mode * 256 + g * 4);
   }
+  if (version >= 4)
+    std::copy(b + 2352, b + 2360, s.recent.begin());
   if (!s.valid())
     return false;
   for (unsigned i = 1; i < 5; ++i)

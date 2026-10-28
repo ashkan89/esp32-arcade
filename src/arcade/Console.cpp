@@ -3,18 +3,27 @@
 #include "assets/Visuals.h"
 #include <cstdio>
 namespace arcade {
+void Console::rebuildLibrary() {
+  library.rebuild(settings);
+  if (library.size())
+    selection = int(library.at(library.position(unsigned(selection))));
+}
 void Console::transition(Screen s, uint32_t now) {
   screen = s;
   entered = now;
   cursor = 0;
   suppressNeeded = true;
   pending = s == Screen::Launcher || s == Screen::Utilities ? Sound::BackCue : Sound::Select;
+  if (s == Screen::Launcher)
+    rebuildLibrary();
 }
 void Console::begin(GameOptions o, uint32_t now) {
   visualTime = now;
   options = o;
   runSeeds.state = derivedSeed(o.seed, 1);
   selection = settings.lastGame < GameCount ? settings.lastGame : 0;
+  library.filter = LibraryFilter::All;
+  library.sort = LibrarySort::Catalog;
   lastAction = now;
   transition(Screen::Boot, now);
 }
@@ -37,6 +46,7 @@ void Console::start(uint32_t now) {
   current->start(options);
   newRun = true;
   recorded = false;
+  dirty |= settings.played(unsigned(selection));
   if (settings.lastGame != selection) {
     settings.lastGame = uint8_t(selection);
     dirty = true;
@@ -115,19 +125,24 @@ void Console::update(const InputFrame &f, uint32_t now) {
   if (screen == Screen::Launcher) {
     int move = int(f.nav(Down)) - int(f.nav(Up));
     if (f.nav(Right))
-      move = 5;
+      move = 3;
     else if (f.nav(Left))
-      move = -5;
-    if (move) {
-      selection = (selection + move + int(GameCount)) % int(GameCount);
+      move = -3;
+    if (move && library.size()) {
+      int row = int(library.position(unsigned(selection)));
+      row = (row + move) % int(library.size());
+      if (row < 0)
+        row += int(library.size());
+      selection = int(library.at(unsigned(row)));
       pending = Sound::Move;
     }
-    if (f.hit(Special)) {
+    if (f.hit(Special) && library.size()) {
       settings.favorites ^= uint64_t(1) << selection;
       dirty = true;
       pending = Sound::Select;
+      rebuildLibrary();
     }
-    if (ok) {
+    if (ok && library.size()) {
       fromPause = false;
       returnTo = Screen::Launcher;
       transition(Screen::Instructions, now);
@@ -188,15 +203,57 @@ void Console::update(const InputFrame &f, uint32_t now) {
   }
   if (screen == Screen::Utilities) {
     if (nav) {
-      cursor = (cursor + nav + 5) % 5;
+      cursor = (cursor + nav + 6) % 6;
       pending = Sound::Move;
     }
     if (back)
       transition(Screen::Launcher, now);
     else if (ok) {
       const Screen next[] = {Screen::Settings, Screen::Scores, Screen::System,
-                             Screen::Updates, Screen::Launcher};
+                             Screen::Updates, Screen::LibraryOptions, Screen::Launcher};
       transition(next[cursor], now);
+    }
+    return;
+  }
+  if (screen == Screen::LibraryOptions) {
+    if (nav)
+      cursor = (cursor + nav + 3) % 3;
+    if (back)
+      transition(Screen::Launcher, now);
+    else if (ok) {
+      if (cursor == 0)
+        library.filter = LibraryFilter((unsigned(library.filter) + 1) % unsigned(LibraryFilter::Count));
+      else if (cursor == 1)
+        library.sort = LibrarySort((unsigned(library.sort) + 1) % unsigned(LibrarySort::Count));
+      else
+        transition(Screen::Launcher, now);
+      rebuildLibrary();
+    }
+    return;
+  }
+  if (screen == Screen::Reset) {
+    if (nav)
+      cursor = (cursor + nav + 3) % 3;
+    if (back || (ok && cursor == 2))
+      transition(Screen::Settings, now);
+    else if (ok) {
+      resetScores = cursor == 1;
+      transition(Screen::ResetConfirm, now); // Default selection is Cancel.
+    }
+    return;
+  }
+  if (screen == Screen::ResetConfirm) {
+    if (nav)
+      cursor = 1 - cursor;
+    if (back || (ok && cursor == 0))
+      transition(Screen::Reset, now);
+    else if (ok) {
+      if (resetScores)
+        settings.clearScores();
+      else
+        settings.resetPreferences();
+      dirty = true;
+      transition(Screen::Settings, now);
     }
     return;
   }
@@ -219,7 +276,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
   }
   if (screen == Screen::Settings) {
     if (nav) {
-      cursor = (cursor + nav + 13) % 13;
+      cursor = (cursor + nav + 14) % 14;
       pending = Sound::Move;
     }
     if (back) {
@@ -267,6 +324,9 @@ void Console::update(const InputFrame &f, uint32_t now) {
       case 12:
         transition(Screen::SoundPreview, now);
         return;
+      case 13:
+        transition(Screen::Reset, now);
+        return;
       default:
         transition(Screen::Utilities, now);
         return;
@@ -301,7 +361,7 @@ void Console::update(const InputFrame &f, uint32_t now) {
     transition(Screen::Utilities, now);
 }
 void Console::header(Canvas &c, const char *title, uint16_t color) const {
-  c.rect(0, 0, W, 25, visual::Ink);
+  art::scene(c, 53, 0, 0, W, 25, 75);
   c.centered(8, title, color);
   c.line(8, 24, W - 9, 24, visual::Edge);
   c.line(8, 24, 39, 24, color);
@@ -312,8 +372,12 @@ void Console::icon(Canvas &c, int index, int x, int y) const {
 }
 void Console::render(Canvas &c) const {
   const uint32_t frame = visualTime / 33;
-  if (screen != Screen::Playing && screen != Screen::Attract)
-    visual::backdrop(c, frame, settings.effects);
+  if (screen != Screen::Playing && screen != Screen::Attract) {
+    visual::backdrop(c, frame, false);
+    // One localized constellation glint avoids dirtying every SPI band on WROOM.
+    if (settings.effects)
+      c.line(174, 31 + int(frame % 150), 175, 33 + int(frame % 150), Cyan);
+  }
   if (screen == Screen::Boot) {
     visual::alien(c, 76, 31, Green, settings.effects ? frame / 18 : 0, 2);
     c.centered(66, "GAME", White, 3);
@@ -329,29 +393,45 @@ void Console::render(Canvas &c) const {
   }
   if (screen == Screen::Launcher) {
     char title[28];
-    std::snprintf(title, sizeof(title), "ARCADE / %02u GAMES", unsigned(GameCount));
+    std::snprintf(title, sizeof(title), "%s / %02u", filterName(library.filter), library.size());
     header(c, title);
-    int page = selection / 5;
-    for (int row = 0; row < 5; row++) {
-      int id = page * 5 + row;
-      if (id >= int(GameCount))
+    int page = int(library.position(unsigned(selection))) / 3;
+    if (library.size()) {
+      art::scene(c, unsigned(selection), 5, 30, 166, 76, 100);
+      c.rect(7, 32, 46, 10, visual::Ink);
+      art::object(c, art::hero(unsigned(selection)), 33, 62, 43, 43);
+      c.rect(5, 89, 166, 17, visual::Ink);
+      c.centered(95, registry()[selection].title, White);
+      c.text(9, 34, categoryName(category(unsigned(selection))), White);
+      if (settings.favorites & (uint64_t(1) << selection))
+        visual::favorite(c, 161, 37, Yellow);
+    }
+    for (int row = 0; row < 3; row++) {
+      unsigned position = unsigned(page * 3 + row);
+      if (position >= library.size())
         break;
-      int y = 32 + row * 28;
+      int id = int(library.at(position));
+      int y = 114 + row * 24;
       bool active = id == selection;
-      visual::card(c, 4, y - 2, 168, 26, registry()[id].accent, active);
-      icon(c, id, 9, y);
+      visual::card(c, 4, y - 2, 168, 23, registry()[id].accent, active);
+      art::cover(c, unsigned(id), 9, y, 26, 20);
       c.text(40, y + 2, registry()[id].title, active ? White : visual::Muted);
-      c.text(40, y + 13, "BEST", visual::Muted);
-      c.number(70, y + 13,
+      c.text(40, y + 13, categoryName(category(unsigned(id))), visual::Muted);
+      c.number(88, y + 13,
                settings.comparableBest(id, settings.difficulty,
                                        settings.enhanced && id >= int(GameId::Keystone)),
                active ? registry()[id].accent : visual::Muted);
       if (settings.favorites & (uint64_t(1) << id))
         visual::favorite(c, 162, y + 16, Yellow);
     }
-    c.centered(176, registry()[selection].description, registry()[selection].accent);
-    for (int i = 0; i < int((GameCount + 4) / 5); ++i)
-      c.rect(50 + i * 8, 188, i == page ? 6 : 3, 2, i == page ? Cyan : visual::Edge);
+    if (!library.size()) {
+      c.centered(81, "NO GAMES IN THIS VIEW", Yellow);
+      c.centered(105, library.filter == LibraryFilter::Recent ? "PLAY A GAME FIRST" : "B MARKS FAVORITES", White);
+      c.centered(145, "MENU > LIBRARY", Cyan);
+      c.centered(166, "CHOOSE ALL GAMES", visual::Muted);
+    }
+    for (int i = 0; i < int((library.size() + 2) / 3); ++i)
+      c.rect(35 + i * 6, 188, i == page ? 5 : 2, 2, i == page ? Cyan : visual::Edge);
     c.centered(197, "UP/DN PICK L/R PAGE", visual::Muted);
     c.centered(210, "A PLAY B FAV MENU MORE", White);
     return;
@@ -363,14 +443,14 @@ void Console::render(Canvas &c) const {
     c.text(46, 36, "HOW TO PLAY", i.accent);
     char mode[28];
     if (selection == int(GameId::Keystone))
-      std::snprintf(mode, sizeof(mode), "%s / SCORE ATTACK",
+      std::snprintf(mode, sizeof(mode), "%s / SCORE RUN",
                     settings.enhanced ? "ENHANCED" : "CLASSIC");
     else if (selection == int(GameId::Raid))
       std::snprintf(mode, sizeof(mode), "%s / %s", settings.enhanced ? "ENHANCED" : "CLASSIC",
                     difficultyName(settings.difficulty));
     else
       std::snprintf(mode, sizeof(mode), "%s / 12 STAGES", difficultyName(settings.difficulty));
-    c.centered(47, mode, visual::Muted);
+    c.text(46, 47, mode, visual::Muted);
     visual::card(c, 4, 62, 168, 122, i.accent, false);
     for (int row = 0; row < 6; row++) {
       c.rect(10, 71 + row * 18, 2, 7, i.accent);
@@ -435,9 +515,9 @@ void Console::render(Canvas &c) const {
   if (screen == Screen::Utilities) {
     header(c, "SYSTEM MENU");
     const char *rows[] = {"SETTINGS", "HIGH SCORES", "SYSTEM INFO",
-                          "WI-FI / UPDATES", "BACK TO GAMES"};
-    for (int i = 0; i < 5; i++) {
-      int y = 33 + i * 33;
+                          "WI-FI / UPDATES", "LIBRARY", "BACK TO GAMES"};
+    for (int i = 0; i < 6; i++) {
+      int y = 33 + i * 27;
       visual::card(c, 5, y, 166, 24, Cyan, cursor == i);
       visual::thumbnail(c,
                         i == 0   ? 9
@@ -448,6 +528,44 @@ void Console::render(Canvas &c) const {
       c.text(42, y + 8, rows[i], cursor == i ? Cyan : White);
     }
     c.centered(208, "A SELECT  B GAMES", visual::Muted);
+    return;
+  }
+  if (screen == Screen::LibraryOptions) {
+    header(c, "GAME LIBRARY");
+    const char *rows[] = {filterName(library.filter),
+                          library.filter == LibraryFilter::Recent ? "NEWEST FIRST" : sortName(library.sort),
+                          "BROWSE GAMES"};
+    c.text(15, 42, "FILTER", visual::Muted);
+    c.text(15, 103, "SORT", visual::Muted);
+    const int positions[] = {54, 115, 167};
+    for (int i = 0; i < 3; ++i) {
+      visual::card(c, 9, positions[i], 158, 26, Cyan, cursor == i);
+      c.text(18, positions[i] + 9, rows[i], cursor == i ? Cyan : White);
+    }
+    c.centered(208, "A CHANGE  B BROWSE", visual::Muted);
+    return;
+  }
+  if (screen == Screen::Reset || screen == Screen::ResetConfirm) {
+    bool confirmReset = screen == Screen::ResetConfirm;
+    header(c, confirmReset ? "CONFIRM RESET" : "RESET", Yellow);
+    if (confirmReset) {
+      c.centered(45, resetScores ? "ERASE ALL HIGH SCORES?" : "RESTORE DEFAULT SETTINGS?", White);
+      c.centered(67, "FAVORITES / RECENT KEPT", visual::Muted);
+      c.centered(86, resetScores ? "SETTINGS KEPT" : "HIGH SCORES KEPT", visual::Muted);
+      const char *rows[] = {"CANCEL", "CONFIRM RESET"};
+      for (int i = 0; i < 2; ++i) {
+        visual::card(c, 9, 113 + i * 35, 158, 28, Yellow, cursor == i);
+        c.text(19, 123 + i * 35, rows[i], cursor == i ? Yellow : White);
+      }
+    } else {
+      const char *rows[] = {"DEFAULT SETTINGS", "CLEAR HIGH SCORES", "BACK"};
+      for (int i = 0; i < 3; ++i) {
+        visual::card(c, 9, 53 + i * 39, 158, 28, Yellow, cursor == i);
+        c.text(19, 63 + i * 39, rows[i], cursor == i ? Yellow : White);
+      }
+      c.centered(183, "CONFIRMATION REQUIRED", visual::Muted);
+    }
+    c.centered(208, "A SELECT  B CANCEL", visual::Muted);
     return;
   }
   if (screen == Screen::Updates) {
@@ -462,7 +580,7 @@ void Console::render(Canvas &c) const {
   }
   if (screen == Screen::Settings) {
     header(c, "SETTINGS");
-    char rows[13][28];
+    char rows[14][28];
     std::snprintf(rows[0], 28, "SOUND: %s", settings.sound ? "ON" : "OFF");
     std::snprintf(rows[1], 28, "DIFFICULTY: %s", difficultyName(settings.difficulty));
     std::snprintf(rows[2], 28, "EFFECTS: %s", settings.effects ? "ON" : "REDUCED");
@@ -476,7 +594,8 @@ void Console::render(Canvas &c) const {
     std::snprintf(rows[10], 28, "SFX: %s", settings.sfx ? "ON" : "OFF");
     std::snprintf(rows[11], 28, "ATARI: %s", settings.enhanced ? "ENHANCED" : "CLASSIC");
     std::snprintf(rows[12], 28, "SOUND PREVIEW");
-    int first = clamp(cursor - 4, 0, 4);
+    std::snprintf(rows[13], 28, "RESET SETTINGS / SCORES");
+    int first = clamp(cursor - 4, 0, 5);
     for (int row = 0; row < 9; ++row) {
       int i = first + row;
       visual::card(c, 5, 31 + row * 18, 166, 16, Cyan, cursor == i);
@@ -533,7 +652,7 @@ void Console::render(Canvas &c) const {
     header(c, "SYSTEM INFORMATION");
     visual::card(c, 2, 29, 172, 64, Cyan, false);
     visual::card(c, 2, 98, 172, 100, Cyan, false);
-    c.text(6, 35, "CLASSIC ESP32-WROVER", White);
+    c.text(6, 35, "CLASSIC ESP32", White);
     c.text(6, 51, "ILI9225 176 X 220", White);
     c.text(6, 67, "SPI 20 MHZ / 8 BUTTONS", Grey);
     c.text(6, 83, "A/B OTA + BOOT ROLLBACK", Green);

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class BurgerWorks final : public CampaignGame {
@@ -140,8 +141,9 @@ public:
     return chefs.count() + sparks.count() + 7;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 34);
     for (int f = 0; f < 5; ++f)
-      c.rect(5, ground(f), 166, 3, Grey);
+      art::platform(c, 5, ground(f), 166, 5, art::Sprite::SteelPlatform);
     for (int l : {15, 160}) {
       c.line(l - 3, 39, l - 3, 199, Cyan);
       c.line(l + 3, 39, l + 3, 199, Cyan);
@@ -152,17 +154,14 @@ public:
       const auto &t = trays[i];
       if (!t.done)
         for (int b = 0; b < 4; ++b)
-          c.rect(30 + i % 2 * 65 + b * 12, ground(t.floor) + t.fall - 6, 11, 5,
-                 (t.mask & (1 << b)) ? Green
-                 : i / 2 == 0        ? Orange
-                 : i / 2 == 1        ? Yellow
-                                     : Pink);
+          art::sprite(c, (t.mask & (1 << b)) ? art::Sprite::Lettuce : i / 2 == 0 ? art::Sprite::Bun
+                          : i / 2 == 1 ? art::Sprite::Cheese : art::Sprite::Patty,
+                      30 + i % 2 * 65 + b * 12, ground(t.floor) + t.fall - 6, 11, 6);
     }
     for (const auto &e : chefs.items)
       if (e.active)
-        c.circle(e.x, ground(e.floor) - 7, 5, e.stun ? Grey : e.hp > 1 ? Red : Pink, true);
-    c.rect(x - 4, ground(floor) - 12, 8, 11, White);
-    c.rect(x - 5, ground(floor) - 15, 10, 3, Cyan);
+        art::object(c, art::Sprite::Sausage, e.x, ground(e.floor) - 8, 14, 18);
+    art::sprite(c, art::Sprite::Chef, x - 8, ground(floor) - 19, 16, 19);
     c.text(5, 211, "B PEPPER", Grey);
     c.number(65, 211, pepper, Yellow);
     if (bossRound()) {

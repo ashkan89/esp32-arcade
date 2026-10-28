@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class TunnelDigger final : public CampaignGame {
@@ -121,14 +122,14 @@ public:
     return 144 + enemies.count() + sparks.count();
   }
   void render(Canvas &c) const override {
+    art::scene(c, 31);
     for (int p = 0; p < 143; ++p)
-      c.rect(8 + p % 11 * 14, 35 + p / 11 * 13, 13, 12,
+      art::tile(c, 8 + p % 11 * 14, 35 + p / 11 * 13, 13, 12,
              dug[p] ? Black : uint16_t(0x6204 + (p / 33) * 0x1000));
     for (const auto &e : enemies.items)
       if (e.active)
-        c.circle(15 + e.p % 11 * 14, 41 + e.p / 11 * 13, 4 + e.inflate / 12, e.hp > 1 ? Red : Pink,
-                 true);
-    c.circle(15 + player % 11 * 14, 41 + player / 11 * 13, 5, Cyan, true);
+        art::object(c, art::Sprite::Bug, 15 + e.p % 11 * 14, 41 + e.p / 11 * 13, 11 + e.inflate / 6, 11 + e.inflate / 6);
+    art::object(c, art::Sprite::Hero, 15 + player % 11 * 14, 41 + player / 11 * 13, 12, 13);
     if (input.down(Fire)) {
       int dx = direction == 1    ? 1
                : direction == -1 ? -1
@@ -140,7 +141,7 @@ public:
              41 + player / 11 * 13 + dy * 39, White);
     }
     if (rockY >= 0)
-      c.circle(15 + rockX * 14, rockY, 6, Grey, true);
+      art::object(c, art::Sprite::Rock, 15 + rockX * 14, rockY, 14, 14);
     c.text(8, 211, "ROCKS", Grey);
     c.number(50, 211, rock, Yellow);
     if (bossRound())

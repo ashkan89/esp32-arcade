@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class BubbleQuest final : public CampaignGame {
@@ -139,22 +140,22 @@ public:
     return foes.count() + bubbles.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 35);
     for (int r = 0; r < 5; ++r) {
       int left = r && r % 2 == 0 ? 40 : 0, right = r % 2 ? 135 : 176;
-      c.rect(left, 204 - r * 42, right - left, 4, Cyan);
+      art::platform(c, left, 204 - r * 42, right - left, 6);
     }
     for (const auto &e : foes.items)
       if (e.active) {
-        c.circle(int(e.x), int(e.y), 5, e.hp > 1 ? Red : Orange, true);
+        art::object(c, art::Sprite::Bug, int(e.x), int(e.y), 13, 13);
         if (e.trap)
           c.circle(int(e.x), int(e.y), 10, Pink);
       }
     for (const auto &p : bubbles.items)
       if (p.active)
-        c.circle(int(p.x), int(p.y), 5, Pink);
+        art::object(c, art::Sprite::Bubble, int(p.x), int(p.y), 11, 11);
     if (!grace || tick % 10 < 5) {
-      c.circle(int(x), int(y), 7, Green, true);
-      c.pixel(int(x) + facing * 3, int(y) - 3, White);
+      art::object(c, art::Sprite::Dragon, int(x), int(y), 18, 18, facing < 0);
     }
     if (bossRound())
       bossBar(c, bossHealth(), 5);

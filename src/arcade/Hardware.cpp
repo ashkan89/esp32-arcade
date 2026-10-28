@@ -19,9 +19,14 @@ bool Display::begin() {
     return false;
   }
   bool sixteen = !ARCADE_WROOM;
-  if (ARCADE_WROOM)
-    memory = heap_caps_malloc(W * H, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  else if (psramFound())
+  if (ARCADE_WROOM) {
+    constexpr uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+    if (heap_caps_get_free_size(caps) >= W * H * 2 + 128 * 1024)
+      memory = heap_caps_malloc(W * H * 2, caps);
+    sixteen = memory != nullptr;
+    if (!memory)
+      memory = heap_caps_malloc(W * H, caps);
+  } else if (psramFound())
     memory = heap_caps_malloc(W * H * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   // This SPI path is synchronous, not DMA. Internal staging also keeps future DMA conversion safe.
   strip =
@@ -67,6 +72,28 @@ bool Display::begin() {
   Serial.printf("Tile transfer=%lu us; runtime pacing checks sustained load\n",
                 (unsigned long)tileUs);
   invalidate();
+  return true;
+}
+bool Display::compact(bool enabled) {
+  if (!ARCADE_WROOM || !memory || canvas.sixteen() != enabled)
+    return true;
+  constexpr uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+  size_t bytes = W * H * (enabled ? 1 : 2);
+  // Keep the old framebuffer valid if growth fails. Changes occur only at
+  // network screen edges or explicit diagnostics, never in game frame loops.
+  if (!enabled && heap_caps_get_free_size(caps) + W * H < bytes + 128 * 1024)
+    return false;
+  void *replacement = heap_caps_realloc(memory, bytes, caps);
+  if (!replacement) {
+    Serial.println("Display memory transition deferred; current framebuffer retained");
+    return false;
+  }
+  memory = replacement;
+  canvas.attach(memory, !enabled);
+  canvas.clear();
+  invalidate();
+  Serial.printf("Display mode RGB%u internalHeap=%lu\n", enabled ? 8 : 16,
+                (unsigned long)heap_caps_get_free_size(caps));
   return true;
 }
 void Display::error(const char *message) {
@@ -172,7 +199,7 @@ void Storage::begin() {
   }
   SaveBytes bytes{};
   size_t len = prefs.isKey("state") ? prefs.getBytesLength("state") : 0;
-  if ((len == SaveSize || len == 304 || len == 72) &&
+  if ((len == SaveSize || len == PreviousSaveSize || len == 304 || len == 72) &&
       prefs.getBytes("state", bytes.data(), len) == len &&
       decodeStored(bytes.data(), len, settings)) {
     Serial.println("Settings and records loaded");
@@ -191,7 +218,7 @@ void Storage::begin() {
     nvs_close(historicalHandle);
   if (historicalExists && previous.begin(historicalNamespace, true)) {
     len = previous.isKey("state") ? previous.getBytesLength("state") : 0;
-    bool migrated = (len == SaveSize || len == 304 || len == 72) &&
+    bool migrated = (len == SaveSize || len == PreviousSaveSize || len == 304 || len == 72) &&
                     previous.getBytes("state", bytes.data(), len) == len &&
                     decodeStored(bytes.data(), len, settings);
     previous.end();

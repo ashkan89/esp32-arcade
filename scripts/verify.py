@@ -26,8 +26,15 @@ with (out / "firmware-builds.log").open("w", encoding="utf-8") as log:
     if process.wait():
         sys.exit(process.returncode)
 subprocess.run([sys.executable, "scripts/test_host.py"], cwd=root, check=True)
+subprocess.run([sys.executable, "scripts/catalog_report.py"], cwd=root, check=True)
+subprocess.run([sys.executable, "scripts/audit_art.py"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/preview.py"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/preview.py", "--menus"], cwd=root, check=True)
+subprocess.run([sys.executable, "scripts/preview.py", "--atari"], cwd=root, check=True)
+subprocess.run([sys.executable, "scripts/preview.py", "--atari-states"], cwd=root, check=True)
+for interval in ["0:16", "16:32", "32:48", "48:52"]:
+    subprocess.run([sys.executable, "scripts/preview.py", "--games", interval], cwd=root, check=True)
+    subprocess.run([sys.executable, "scripts/preview.py", "--games", interval, "--rgb332"], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/package_release.py"], cwd=root, check=True)
 for name in ["wroom-4mb", "wroom-16mb"]:
     subprocess.run([sys.executable, "scripts/package_release.py", "--env", name], cwd=root, check=True)

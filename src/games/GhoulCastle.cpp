@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class GhoulCastle final : public CampaignGame {
@@ -142,25 +143,24 @@ public:
     return ghouls.count() + spears.count() + hostile.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
-    c.circle(40, 65, 19, Grey, true);
+    art::scene(c, 40);
+    // Moonlit castle artwork supplies the distant scenery.
     for (int i = 0; i < 5; ++i) {
       c.rect(i * 40 + 5, 143, 18, 57, Navy);
       c.rect(i * 40 + 3, 139, 22, 5, Grey);
     }
-    c.rect(0, 200, 58, 20, 0x4208);
-    c.rect(89, 200, 87, 20, 0x4208);
+    art::platform(c, 0, 200, 58, 20);
+    art::platform(c, 89, 200, 87, 20);
     c.rect(158, 170, 16, 30, ghouls.count() || hp ? Red : Green, false);
     for (const auto &e : ghouls.items)
       if (e.active) {
-        c.circle(int(e.x), int(e.y) - 6, 5, Green, true);
-        c.rect(int(e.x) - 5, int(e.y), 10, 10, Pink);
+        art::object(c, art::Sprite::Zombie, int(e.x), int(e.y), 15, 22);
       }
     if (!grace || tick % 10 < 5) {
-      c.circle(int(x), int(y) - 8, 4, White, true);
-      c.rect(int(x) - 4, int(y) - 3, 8, 12, armor ? Cyan : Orange);
+      art::object(c, tick / 8 % 2 ? art::Sprite::Hero : art::Sprite::HeroStep, int(x), int(y), 15, 22);
     }
     if (hp) {
-      c.circle(int(bx), int(by), 17, Red, true);
+      art::object(c, art::Sprite::Demon, int(bx), int(by), 38, 38);
       c.line(int(bx) - 26, int(by) - 15, int(bx), int(by) + 4, Pink);
       c.line(int(bx) + 26, int(by) - 15, int(bx), int(by) + 4, Pink);
       bossBar(c, hp, maximum);

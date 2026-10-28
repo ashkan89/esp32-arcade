@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class LunarLander final : public TickGame {
@@ -65,11 +66,12 @@ public:
     return 2;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 14);
     for (int i = 0; i < 24; i++)
       c.pixel(i * 47 % W, 28 + i * 29 % 140, Grey);
     c.line(0, 200, W - 1, 200, Grey);
     c.rect(pad, 199, 44, 4, Green);
-    c.rect(int(x) - 4, int(y) - 5, 8, 9, White);
+    art::object(c, art::Sprite::Lander, int(x), int(y), 15, 15);
     c.line(int(x) - 7, int(y) + 6, int(x) - 3, int(y) + 2, White);
     c.line(int(x) + 7, int(y) + 6, int(x) + 3, int(y) + 2, White);
     if (input.down(Fire) && fuel > 0 && !wait)

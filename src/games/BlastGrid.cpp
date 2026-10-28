@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class BlastGrid final : public TickGame {
@@ -145,20 +146,21 @@ public:
     return 104;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 15);
     for (int p = 0; p < 99; p++) {
       int x = 7 + p % 9 * 18, y = 23 + p / 9 * 17;
       if (wall[p])
-        c.rect(x, y, 16, 15, wall[p] == 2 ? Grey : Orange);
+        art::sprite(c, wall[p] == 2 ? art::Sprite::Wall : art::Sprite::Crate, x, y, 16, 15);
       if (flame[p])
-        c.rect(x, y, 16, 15, Yellow);
+        art::sprite(c, art::Sprite::Explosion, x, y, 16, 15);
     }
     if (bomb >= 0)
-      c.circle(15 + bomb % 9 * 18, 30 + bomb / 9 * 17, 5, tick % 12 < 6 ? Red : White, true);
+      art::object(c, art::Sprite::Bomb, 15 + bomb % 9 * 18, 30 + bomb / 9 * 17, 13, 13);
     for (auto bot : bots)
       if (bot >= 0)
-        c.circle(15 + bot % 9 * 18, 30 + bot / 9 * 17, 5, Red, true);
+        art::object(c, art::Sprite::Robot, 15 + bot % 9 * 18, 30 + bot / 9 * 17, 13, 13);
     if (!grace || tick % 10 < 5)
-      c.circle(15 + player % 9 * 18, 30 + player / 9 * 17, 5, Cyan, true);
+      art::object(c, art::Sprite::Hero, 15 + player % 9 * 18, 30 + player / 9 * 17, 13, 15);
     c.centered(211, "A BOMB - ESCAPE THE BLAST", White);
     if (bossEncounter()) {
       c.text(5, 24, "BOSS", Pink);

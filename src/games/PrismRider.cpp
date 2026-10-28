@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class PrismRider final : public CampaignGame {
@@ -106,6 +107,7 @@ public:
     return foes.count() + bolts.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 28);
     for (int l = 0; l < 12; ++l) {
       c.line(px(l, 0), py(l, 0), px(l, 1), py(l, 1), Navy);
       c.line(px(l, 1), py(l, 1), px((l + 1) % 12, 1), py((l + 1) % 12, 1), Cyan);
@@ -115,13 +117,13 @@ public:
         if (e.cue)
           c.line(px(e.lane, e.depth), py(e.lane, e.depth), px((e.lane + 1) % 12, e.depth),
                  py((e.lane + 1) % 12, e.depth), Yellow);
-        c.circle(px(e.lane, e.depth), py(e.lane, e.depth), 4, e.hp > 1 ? Pink : Green, true);
+        art::object(c, art::Sprite::AlienPink, px(e.lane, e.depth), py(e.lane, e.depth), 12, 12);
       }
     for (const auto &p : bolts.items)
       if (p.active)
         c.circle(px(int(p.x), p.y), py(int(p.x), p.y), 2, Yellow, true);
     if (!grace || tick % 10 < 5)
-      c.circle(px(lane, 1), py(lane, 1), 6, White);
+      art::object(c, art::Sprite::Jet, px(lane, 1), py(lane, 1), 17, 17);
     if (hp) {
       c.circle(px(bossLane, 0), py(bossLane, 0), 7, Red, true);
       bossBar(c, hp, maximum);

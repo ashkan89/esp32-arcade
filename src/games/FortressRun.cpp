@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class FortressRun final : public CampaignGame {
@@ -154,26 +155,24 @@ public:
     return guards.count() + shots.count() + hostile.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
-    c.rect(0, 35, 176, 175, 0x1143);
-    c.rect(0, 82, 52, 17, Grey);
-    c.rect(124, 82, 52, 17, Grey);
-    c.rect(55, 147, 66, 12, Grey);
+    art::scene(c, 39);
+    // Illustrated fortress floor remains visible behind cover.
+    art::platform(c, 0, 82, 52, 17, art::Sprite::SteelPlatform);
+    art::platform(c, 124, 82, 52, 17, art::Sprite::SteelPlatform);
+    art::platform(c, 55, 147, 66, 12, art::Sprite::SteelPlatform);
     c.rect(70, 35, 36, 5, guards.count() || hp ? Red : Green);
     for (const auto &e : guards.items)
       if (e.active) {
-        c.circle(int(e.x), int(e.y) - 3, 4, Pink, true);
-        c.rect(int(e.x) - 4, int(e.y), 8, 7, Orange);
+        art::object(c, art::Sprite::Guard, int(e.x), int(e.y), 13, 17);
         if (e.fire.cue())
           c.line(int(e.x), int(e.y), int(e.x + e.fire.vx * 12), int(e.y + e.fire.vy * 12), Yellow);
       }
     if (!grace || tick % 10 < 5) {
-      c.circle(int(x), int(y) - 4, 4, White, true);
-      c.rect(int(x) - 4, int(y), 8, 7, Green);
+      art::object(c, tick / 8 % 2 ? art::Sprite::Hero : art::Sprite::HeroStep, int(x), int(y), 13, 17);
       c.line(int(x), int(y), int(x) + dx * 12, int(y) + dy * 12, Yellow);
     }
     if (hp) {
-      c.rect(64, 38, 48, 23, Red);
-      c.rect(81, 48, 14, 18, Orange);
+      art::sprite(c, art::Sprite::Boss, 64, 38, 48, 28);
       bossBar(c, hp, maximum);
     }
     drawProjectiles(c, shots, Yellow);

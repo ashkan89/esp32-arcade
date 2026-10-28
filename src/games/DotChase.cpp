@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "arcade/Behavior.h"
 #include "games/Campaign.h"
 namespace arcade {
@@ -125,19 +126,18 @@ public:
     return 226;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 30);
     for (int p = 0; p < 221; ++p) {
       int x = 3 + p % 13 * 13, y = 35 + p / 13 * 10;
       if (cells[p] == 1)
-        c.rect(x, y, 12, 9, Navy);
+        art::tile(c, x, y, 12, 9, 0x339d);
       else if (cells[p] >= 2)
         c.circle(x + 6, y + 4, cells[p] == 3 ? 3 : 1, Yellow, true);
     }
-    c.circle(9 + player % 13 * 13, 39 + player / 13 * 10, 4, Yellow, true);
+    art::object(c, art::Sprite::MazeHero, 9 + player % 13 * 13, 39 + player / 13 * 10, 10, 10);
     for (int i = 0; i < 4; ++i) {
       int x = 9 + ghosts[i] % 13 * 13, y = 39 + ghosts[i] / 13 * 10;
-      c.circle(x, y, 4, power ? Cyan : i == 0 && hp ? Red : Pink, true);
-      c.pixel(x - 2, y - 1, White);
-      c.pixel(x + 2, y - 1, White);
+      art::object(c, power ? art::Sprite::GhostBlue : art::Sprite(unsigned(art::Sprite::GhostRed) + i), x, y, 10, 10);
     }
     if (hp)
       bossBar(c, hp, maximum);

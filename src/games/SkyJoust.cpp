@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class SkyJoust final : public CampaignGame {
@@ -99,19 +100,21 @@ public:
     return riders.count() + sparks.count() + 1;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 33);
     scenery(c, Yellow);
     c.rect(0, 210, 176, 10, Red);
     for (int i = 0; i < 3; ++i)
-      c.rect(i * 60 + 5, 163 - i % 2 * 35, 42, 5, Navy);
+      art::platform(c, i * 60 + 5, 163 - i % 2 * 35, 42, 7);
     for (const auto &e : riders.items)
       if (e.active) {
-        c.circle(int(e.x), int(e.y), 6, e.hp > 1 ? Red : Pink, true);
+        art::object(c, art::Sprite::Bird, int(e.x), int(e.y), 19, 17, true);
+        art::object(c, art::Sprite::EnemySamurai, int(e.x), int(e.y) - 9, 8, 10, true);
         c.line(int(e.x) - 10, int(e.y) + 3, int(e.x) + 10, int(e.y) + 3, White);
       }
     if (!grace || tick % 10 < 5) {
-      c.circle(int(x), int(y), 6, Yellow, true);
+      art::object(c, art::Sprite::Bird, int(x), int(y), 20, 20);
       c.line(int(x) - 12, int(y) + (tick % 12 < 6 ? -3 : 4), int(x) + 12, int(y) + 3, Cyan);
-      c.circle(int(x), int(y) - 8, 3, White, true);
+      art::object(c, art::Sprite::Samurai, int(x), int(y) - 9, 8, 10);
     }
     if (bossRound())
       bossBar(c, bossHealth(), 5);

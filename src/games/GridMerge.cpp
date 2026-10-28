@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/PuzzleRules.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -89,13 +90,16 @@ public:
     return 16;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 18);
     for (int y = 0; y < 4; y++)
       for (int x = 0; x < 4; x++) {
         int p = y * 4 + x, xx = 6 + x * 42, yy = 42 + y * 39;
         uint8_t v = cells[p];
-        c.rect(xx, yy, 39, 36, v ? uint16_t(0x2104 + v * 0x0840) : Navy);
+        static constexpr uint16_t colors[] = {0x52af, 0xef9b, 0xef17, 0xfcae, 0xfc09,
+          0xf9a7, 0xf8e5, 0xff0a, 0xeea4, 0xd604, 0xbd45, 0xa4a6};
+        art::tile(c, xx, yy, 39, 36, colors[std::min(11, int(v))]);
         if (v)
-          c.number(xx + 3, yy + 14, uint32_t(1) << v, White);
+          c.number(xx + 3, yy + 14, uint32_t(1) << v, v <= 2 ? Black : White);
       }
     c.text(8, 205, "GOAL TILE", Grey);
     c.number(74, 205, uint32_t(1) << goalExponent(), Yellow);

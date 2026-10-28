@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "assets/Visuals.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -131,6 +132,8 @@ public:
     return 204;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 9);
+    art::scene(c, 53, 8, 28, 100, 180, 50);
     static const uint16_t colors[] = {Black, Cyan, Yellow, Pink, Green, Red, Orange, White};
     c.rect(7, 27, 102, 182, Grey, false);
     for (int y = 0; y < 20; y++)

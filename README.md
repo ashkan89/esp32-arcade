@@ -5,24 +5,33 @@ favorites, saved scores, difficulty settings, and pause/restart menus.
 Wi-Fi setup runs on demand; firmware updates come from
 [ashkan89/esp32-arcade releases](https://github.com/ashkan89/esp32-arcade/releases).
 WROOM builds support 4 MB or 16 MB flash without PSRAM, with all 52 games and firmware updates.
-They use an RGB332 framebuffer; WROVER uses PSRAM for RGB565 rendering.
+WROOM uses one internal RGB565 framebuffer when memory permits, with an RGB332 fallback;
+network menus use RGB332 to preserve Wi-Fi/TLS memory. WROVER uses PSRAM for RGB565 rendering.
+
+**3.7.0 renews all 52 games with bitmap artwork:** 52 illustrated environments, four UI
+materials and 104 sprites for characters, vehicles, enemies, terrain, puzzle pieces and props.
+The launcher uses large illustrated feature cards and a three-row library. Menus use textured
+panels and a constellation backdrop. See [graphics coverage for every game](docs/GRAPHICS_COVERAGE.md),
+[asset provenance](assets/art/PROVENANCE.md) and [current build/device results](docs/MODERN_GRAPHICS.md).
 
 ![Actual C++ game and menu renderer](artifacts/console-preview.png)
 
-The space-themed interface uses illustrated game thumbnails, accent selection cards,
+The space-themed interface uses illustrated game previews, accent selection cards,
 favorite stars, page indicators, and consistent menus for controls, settings, scores,
-pause, and results. Original procedural pixel artwork adds shaded spacecraft, animated
+pause, and results. Original bitmap artwork adds shaded spacecraft, animated
 aliens, meteor craters, detailed cars, beveled puzzle tiles, and a snake with directional eyes.
-Planets, parallax stars, and shooting stars animate behind menus; gameplay backgrounds
-use dim stars to preserve target visibility. **Settings → Effects → Reduced** freezes
-the new decorative motion and disables projectile trails. These assets allocate no heap
+An illustrated constellation and a localized glint decorate menus; game-specific environments
+stay darker than interactive objects. **Settings → Effects → Reduced** freezes
+decorative motion and disables projectile trails. These assets allocate no heap
 memory and work with both RGB565 and the RGB332 framebuffer fallback.
 
 ![Menu and settings preview](artifacts/menu-preview.png)
 
 Generate previews from the real C++ renderer with `python scripts/test_host.py`,
 then `python scripts/preview.py` and `python scripts/preview.py --menus`.
-Physical display legibility and frame timing still require device verification.
+All 52 games passed automated update/render/SPI exercises on COM9. Physical display
+legibility, button feel and listening still require manual acceptance; measurements are
+recorded in [the graphics report](docs/MODERN_GRAPHICS.md).
 
 ## Build and first upload
 
@@ -36,7 +45,8 @@ pio run -e release -t upload --upload-port YOUR_PORT
 pio device monitor --port YOUR_PORT --baud 115200
 ```
 
-Rewire to [the new pin map](docs/HARDWARE.md) before running this firmware. The first upload
+Use the repository's existing [pin map](docs/HARDWARE.md). This change does not require rewiring.
+Older hardware revisions used different B/Menu/Back pins; verify the fitted revision before any upload. The first upload
 must use USB/serial so the rollback-enabled bootloader and A/B partition table are installed.
 Select `release`/`debug` for WROVER N16R8, `wroom-4mb` for WROOM with 4 MB flash,
 or `wroom-16mb` for WROOM with 16 MB flash. Upload using that same environment.
@@ -56,6 +66,13 @@ See [WROOM memory analysis and acceptance checks](docs/WROOM.md).
 | Back | System menu / back | Pause menu with exit option |
 
 Each game has its own controls screen. Scores and favorites save when outside gameplay.
+**Menu → Library** filters All Games, Favorites, Recent, Combat, Action, Puzzle or Atari.
+Select catalog order, title A–Z or mode-specific best score; Recent always shows newest first.
+The eight most recently launched games survive reboot. Empty views explain how to return to All Games.
+**Settings → Reset Settings / Scores** offers separate, confirmed resets. Cancel is selected first;
+both actions preserve favorites, recent games and Wi-Fi credentials. Default Settings also preserves scores.
+Save format v4 reads v1–v3 records without changing their IDs or mode scores. Older firmware cannot
+read v4 saves; see [current audit and migration limits](docs/REDESIGN_CHECKPOINT.md).
 Choose **Easy, Medium, Hard, or Nightmare** in **Menu → Settings → Difficulty**.
 Medium is the previous Normal setting. All tiers now apply more pressure; Nightmare adds
 faster hazards, shorter attack/recovery windows and fewer lives where the game uses lives.
@@ -70,6 +87,9 @@ by difficulty and Atari mode. In High Scores, **B** toggles the preserved all-ti
 The [52-game audit](docs/GAMEPLAY_AUDIT.md), [audio guide and track map](docs/AUDIO_GUIDE.md),
 [research notes](docs/RESEARCH_NOTES.md), and [build/test results](docs/BUILD_AND_TEST.md)
 document these gameplay and audio changes and the physical checks still pending.
+The [numbered inventory and verification matrix](docs/GAME_INVENTORY.md) contains every
+current game's exact on-device instructions. The [October 28 audit](docs/REDESIGN_CHECKPOINT.md)
+records this revision's hardware evidence, baseline, migration and acceptance limits.
 Attract mode starts after 20 seconds idle and never records scores.
 Frame history and its menu entry have been removed. Settings and records skip unchanged saves,
 batch edits for two quiet seconds, and limit write attempts to once per minute outside gameplay
@@ -148,8 +168,8 @@ For the next firmware release, increase `VERSION`, commit, create the matching `
 and push it. The GitHub workflow builds all four environments, runs host tests, and publishes the
 application binary, manifest, initial-flash image and checksums.
 
-An earlier firmware boot was verified on a physical ESP32 via COM5: 16 MB flash, 8 MB PSRAM
-and successful boot-health confirmation, with no serial errors during a 35-second capture.
-The frame-history removal and write limits still require physical-board verification.
+The 3.7.0 artwork diagnostic passed all 52 games and ten framebuffer format transitions
+on the 4 MB ESP32 connected to COM9, followed by successful boot-health confirmation.
+See [current installation status and measurements](docs/MODERN_GRAPHICS.md).
 Buttons, sound, Wi-Fi provisioning and power-loss/rollback still need the
 [hardware acceptance checks](docs/HARDWARE_CHECKLIST.md).

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class BubbleBurst final : public TickGame {
@@ -156,12 +157,13 @@ public:
     return 109;
   }
   void render(Canvas &c) const override {
-    static const uint16_t colors[] = {Black, Red, Green, Cyan, Yellow};
+    art::scene(c, 17);
+    static constexpr uint16_t colors[] = {Black, Red, Green, Cyan, Yellow};
     for (int p = 0; p < 108; p++)
       if (grid[p])
-        c.circle(18 + p % 9 * 17, 34 + p / 9 * 14, 7, colors[grid[p]], true);
+        art::tinted(c, art::Sprite::Bubble, 11 + p % 9 * 17, 27 + p / 9 * 14, 15, 15, colors[grid[p]]);
     c.line(88, 200, 88 + int(std::cos(aim) * 26), 200 + int(std::sin(aim) * 26), White);
-    c.circle(flying ? int(bx) : 88, flying ? int(by) : 200, 6, colors[color], true);
+    art::tinted(c, art::Sprite::Bubble, (flying ? int(bx) : 88) - 6, (flying ? int(by) : 200) - 6, 13, 13, colors[color]);
     c.text(5, 211, "MISSES", Grey);
     c.number(47, 211, misses, Yellow);
   }

@@ -24,6 +24,8 @@ public:
   uint32_t fullFrameUs = 0, tileUs = 0, lastTransferUs = 0;
   uint8_t maxFps = 60;
   bool begin();
+  // WROOM uses full color when memory permits, shrinking before Wi-Fi/TLS work.
+  bool compact(bool enabled);
   void invalidate() {
     invalid = true;
   }

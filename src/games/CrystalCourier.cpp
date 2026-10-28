@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class CrystalCourier final : public CampaignGame {
@@ -84,6 +85,7 @@ public:
     return 85;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 46);
     for (int p = 0; p < 81; ++p) {
       int x = xx(p), y = yy(p);
       uint16_t color = (p % 9 + p / 9) % 2 ? Navy : 0x2188;
@@ -92,16 +94,12 @@ public:
       c.line(x + 8, y, x, y + 7, color);
       c.line(x, y + 7, x - 8, y, color);
       if (tiles[p]) {
-        c.line(x, y - 3, x + 3, y, Cyan);
-        c.line(x + 3, y, x, y + 3, Cyan);
-        c.line(x, y + 3, x - 3, y, Cyan);
-        c.line(x - 3, y, x, y - 3, Cyan);
+        art::object(c, art::Sprite::Diamond, x, y, 9, 9);
       }
     }
     for (int i = 0; i < 3; ++i)
-      c.circle(xx(hunters[i]), yy(hunters[i]) - 5, i == 0 && hp ? 6 : 4, i == 0 && hp ? Red : Pink,
-               true);
-    c.circle(xx(player), yy(player) - 5, 5, power ? Yellow : White, true);
+      art::object(c, art::Sprite::Zombie, xx(hunters[i]), yy(hunters[i]) - 5, 12, 15);
+    art::object(c, power ? art::Sprite::Cop : art::Sprite::Hero, xx(player), yy(player) - 5, 13, 16);
     if (hp)
       bossBar(c, hp, maximum);
     c.centered(207, power ? "CRYSTAL ARMOR ACTIVE" : "A: TEMPORARY ARMOR", Grey);

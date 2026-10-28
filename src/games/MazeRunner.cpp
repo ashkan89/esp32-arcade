@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class MazeRunner final : public TickGame {
@@ -115,18 +116,20 @@ public:
     return size_t(left + 4);
   }
   void render(Canvas &c) const override {
+    art::scene(c, 11);
+    art::scene(c, 11, 3, 27, 170, 171, 25);
     for (int y = 0; y < 19; y++)
       for (int x = 0; x < 17; x++) {
         int p = y * 17 + x;
         if (maze[p])
-          c.rect(3 + x * 10, 27 + y * 9, 9, 8, 0x2114);
+          art::sprite(c, art::Sprite::Wall, 3 + x * 10, 27 + y * 9, 9, 8);
         else if (gems[p])
           c.pixel(7 + x * 10, 31 + y * 9, Yellow);
       }
     for (auto e : enemies)
-      c.circle(7 + e % 17 * 10, 31 + e / 17 * 9, 3, Red, true);
+      art::object(c, art::Sprite::AlienPink, 7 + e % 17 * 10, 31 + e / 17 * 9, 8, 8);
     if (!grace || tick % 10 < 5)
-      c.circle(7 + player % 17 * 10, 31 + player / 17 * 9, 3, Green, true);
+      art::object(c, art::Sprite::Hero, 7 + player % 17 * 10, 31 + player / 17 * 9, 8, 9);
     c.centered(208, "COLLECT EVERY GOLD DOT", White);
   }
 };

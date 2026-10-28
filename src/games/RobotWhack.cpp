@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class RobotWhack final : public TickGame {
@@ -84,13 +85,12 @@ public:
     return 9;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 20);
     for (int i = 0; i < 9; i++) {
       int x = 34 + i % 3 * 54, y = 64 + i / 3 * 53;
       c.circle(x, y, 21, Grey);
       if (life[i]) {
-        c.rect(x - 12, y - 12, 24, 22, decoy[i] ? Green : Red);
-        c.rect(x - 7, y - 5, 4, 4, Black);
-        c.rect(x + 3, y - 5, 4, 4, Black);
+        art::sprite(c, decoy[i] ? art::Sprite::FriendRobot : art::Sprite::Robot, x - 14, y - 14, 28, 28);
         c.rect(x - 12, y + 15, life[i] * 24 / 95, 2, Yellow);
       }
       if (i == cursor)

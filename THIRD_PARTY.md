@@ -19,6 +19,12 @@ project. No original license was supplied; their ownership/rights are preserved.
 procedural art, menus, font, scripts, tests and documentation use `LICENSE-new-code.txt`.
 No downloaded commercial game graphics or audio recordings are included.
 
+The 3.7.0 bitmap overhaul uses four newly generated PNG atlases, retained in `assets/art/`,
+with source hashes, inspected crop boundaries and conversion provenance. See
+[`assets/art/PROVENANCE.md`](assets/art/PROVENANCE.md). `scripts/pack_art.py` uses Pillow
+12.3.0 (HPND license) for build-time conversion; firmware contains packed indexed data and
+does not depend on Pillow or an image decoder at runtime.
+
 Keystone Kapers and River Raid are native recreations with newly authored pixel masks.
 Activision's manuals and the annotated River Raid disassembly were consulted for rules
 and feedback-generator behavior. No cartridge ROM or disassembly is shipped. Their names

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/PuzzleRules.h"
 #include "games/Registration.h"
 namespace arcade {
@@ -117,13 +118,16 @@ public:
     return 64;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 24);
     static const uint16_t colors[] = {Black, Red, Green, Cyan, Yellow, Pink};
     for (int p = 0; p < 64; p++) {
       int x = 9 + p % 8 * 20, y = 32 + p / 8 * 20;
       uint16_t color = colors[cells[p]];
       if (wait && (clearing & (uint64_t(1) << p)) && tick % 8 < 4)
         color = White;
-      c.rect(x + 2, y + 2, 14, 14, color);
+      if (cells[p])
+        art::object(c, art::Sprite(unsigned(art::Sprite::Diamond) + (cells[p] - 1) % 5), x + 9, y + 9, 19, 19);
+      if (color == White) c.rect(x + 2, y + 2, 14, 14, White, false);
       if (p == chosen)
         c.rect(x, y, 18, 18, White, false);
       if (p == cursor)

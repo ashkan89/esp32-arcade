@@ -5,14 +5,15 @@ entry are now removed from all targets. Cargo Shift's separate in-RAM undo histo
 
 ## Application persistence
 
-- Settings, favorites, last game and records share the existing 2,356-byte `skyarcade/state` NVS
+- Settings, favorites, last game, eight recent launches and records share the 2,364-byte `skyarcade/state` NVS
   blob. Changes wait for two quiet seconds and a screen outside gameplay/attract. Each write
   attempt starts a 60-second cooldown, including failures. New edits replace the pending RAM
   state. The next eligible attempt saves the newest state, and failures stay pending.
 - A RAM snapshot of loaded/successfully saved bytes suppresses duplicate dirty notifications
   and changes reverted before saving. Default settings are used without writing a state blob
-  on boot. Existing v1/v2 or historical-namespace data is still migrated once when safe; its
-  original data remains available for firmware rollback.
+  on boot. Existing v1/v2/v3 or historical-namespace data is migrated once when safe.
+  Historical namespaces are not deleted. An older decoder cannot read a v4 state blob;
+  see REDESIGN_CHECKPOINT.md for downgrade limits.
 - Wi-Fi setup stores one JSON string at `arcade-net/config`. Submitting identical saved JSON
   skips writing. Changed configurations save immediately on explicit submission, with attempts
   limited to once per minute across setup sessions. A request during the cooldown receives
@@ -35,7 +36,7 @@ write flash. An already-valid OTA image returns from confirmation without changi
 Release discovery rejects versions that are not newer before permitting installation.
 
 NVS already provides flash wear levelling; fewer application writes reduce pressure on it.
-The existing NVS partition, keys and serialized save format remain compatible. No lifetime
+The existing NVS partition and keys remain unchanged; the v4 reader accepts historical formats. No lifetime
 guarantee is implied without the flash chip's endurance specification and actual write workload.
 See [Espressif's NVS documentation](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/storage/nvs_flash.html).
 
@@ -48,7 +49,7 @@ retained initialization symbol is absent from the constructor table.
 
 Host tests count writer calls for no-change boot, unsafe screens, debounce, duplicate marks,
 reverted edits, cooldown, failed retries, newest-state saves, migration and millisecond rollover.
-Utility-menu tests check wrapping through the remaining five entries. Build all four environments
+Utility-menu tests check wrapping through six entries, including Library. Build all four environments
 with `pio run -e release -e debug -e wroom-4mb -e wroom-16mb` and run
 `python scripts/test_host.py`. Physical reboot, provisioning, power-loss and flash endurance
 tests remain required; host tests cannot measure physical erase counts.

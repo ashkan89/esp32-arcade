@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Campaign.h"
 namespace arcade {
 class CityShield final : public CampaignGame {
@@ -138,10 +139,10 @@ public:
     return missiles.count() + rockets.count() + blasts.count() + sparks.count() + 6;
   }
   void render(Canvas &c) const override {
+    art::scene(c, 27);
     for (int i = 0; i < 6; ++i)
       if (cities[i]) {
-        c.rect(7 + i * 29, 198, 17, 13, Cyan);
-        c.rect(10 + i * 29, 190, 7, 8, Green);
+        art::sprite(c, art::Sprite::City, 7 + i * 29, 190, 18, 21);
       }
     c.line(0, 212, 175, 212, Grey);
     c.line(int(x) - 5, int(y), int(x) + 5, int(y), White);
@@ -155,7 +156,7 @@ public:
                  b.age % 4 ? Orange : Yellow);
     drawProjectiles(c, rockets, Green);
     if (hp) {
-      c.rect(int(bx) - 16, 37, 32, 16, Pink);
+      art::sprite(c, art::Sprite::Boss, int(bx) - 16, 37, 32, 20);
       bossBar(c, hp, maximum);
     }
     scenery(c, Cyan);

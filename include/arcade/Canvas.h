@@ -34,5 +34,10 @@ public:
   void centered(int y, const char *s, uint16_t color = White, int scale = 1);
   void number(int x, int y, uint32_t value, uint16_t color = White);
   void bitmap(int x, int y, const uint16_t *data, int w, int h);
+  // Packed 4-bit flash artwork; clipped nearest-neighbor scaling, no decoding buffer.
+  void indexed(int x, int y, int w, int h, const uint8_t *data,
+               const uint16_t *palette, int sourceW, int sourceH,
+               bool transparent = true, bool flip = false,
+               int cropX = 0, int cropY = 0, int cropW = 0, int cropH = 0);
 };
 } // namespace arcade

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/ShooterBase.h"
 #include "assets/Sprites.h"
 #include "assets/Visuals.h"
@@ -482,54 +483,32 @@ void Shooter::update() {
 }
 void Shooter::render(Canvas &c) const {
   int sx = shake ? int(tick % 3) - 1 : 0;
-  if (mode == ShooterMode::Sky) {
-    for (int y = Top; y < H; y++) {
-      int center = 88 + int(std::sin((y + tick) * 0.018f) * 25);
-      c.rect(center - 27, y, 54, 1, 0x092b);
-    }
-    for (int i = 0; i < 9; i++) {
-      int y = Top + int((i * 27 + tick) % 200);
-      c.rect(8 + (i % 2) * 145, y, 8, 7, 0x1263);
-    }
-  } else {
-    // Distant planet and restrained parallax stay darker than every gameplay object.
-    c.circle(145, 132, 21, 0x0845, true);
-    c.circle(151, 127, 17, 0x0002, true);
-    visual::stars(c, options.effects ? tick : 0);
-  }
+  art::scene(c, mode == ShooterMode::Sky ? 1 : mode == ShooterMode::Star ? 2 : mode == ShooterMode::Meteor ? 3 : 0);
   if (mode == ShooterMode::Invaders)
     for (unsigned s = 0; s < 3; s++)
       for (int y = 0; y < 12; y++)
         for (int x = 0; x < 20; x++)
-          if (barriers[s][y * 20 + x])
-            c.pixel(22 + int(s) * 52 + x, y + 168, barriers[s][y * 20 + x] > 1 ? 0x041f : 0x0210);
+          if (barriers[s][y * 20 + x]) {
+            unsigned source = unsigned(y * 2 * 24 + x + 2);
+            uint8_t packed = art::spritePixels[unsigned(art::Sprite::Block)][source / 2];
+            uint16_t color = art::spriteColors[unsigned(art::Sprite::Block)][source & 1 ? packed & 15 : packed >> 4];
+            if (!color) color = Grey;
+            c.pixel(22 + int(s) * 52 + x, y + 168,
+                    barriers[s][y * 20 + x] > 1 ? color : visual::shade(color, 55));
+          }
   for (auto &e : enemies.items)
     if (e.active) {
       int x = int(e.x) + sx, y = int(e.y);
       if (e.kind == 4) {
-        c.rect(x, y, 72, 26, Pink);
-        c.rect(x + 2, y + 2, 68, 22, visual::shade(Pink, 45));
-        c.line(x + 8, y + 2, x + 63, y + 2, White);
-        for (int k = 0; k < 6; ++k)
-          c.rect(x + 6 + k * 11, y + 22, 5, 3, options.effects && tick % 12 < 6 ? Orange : Yellow);
-        c.rect(x + 8, y + 6, 12, 6, Black);
-        c.rect(x + 52, y + 6, 12, 6, Black);
-        c.rect(x + 20, y + 19, 32, 3, Black);
+        art::sprite(c, art::Sprite::Boss, x, y, 72, 26);
         c.rect(30, Top + 1, 116, 3, Grey);
         c.rect(30, Top + 1, clamp(e.hp * 116 / (40 + std::min(200, int(level) * 5)), 0, 116), 3,
                Red);
       } else if (mode == ShooterMode::Meteor) {
         int r = 5 + e.size * 5;
-        c.circle(x, y, r, 0x526b, true);
-        c.circle(x - 1, y - 1, std::max(1, r - 2), Grey, true);
-        c.circle(x - r / 3, y - r / 3, std::max(1, r / 3), 0x526b, true);
-        c.circle(x + r / 3, y + r / 3, std::max(1, r / 4), 0x632c, true);
-        c.pixel(x - r / 2, y - r / 2, White);
+        art::object(c, art::Sprite::Rock, x, y, r * 2, r * 2);
       } else if (mode == ShooterMode::Sky) {
-        for (int j = 0; j < 10; ++j)
-          c.rect(x + 6 - j / 2, y + j, 2 + j, 1, j < 5 ? Orange : visual::shade(Orange, 60));
-        c.rect(x + 6, y + 3, 2, 3, White);
-        c.line(x + 1, y + 8, x + 12, y + 8, Yellow);
+        art::sprite(c, art::Sprite::EnemyJet, x, y, 14, 12);
       } else
         visual::alien(c, x + 1, y,
                       e.kind == 0   ? Green
@@ -540,7 +519,7 @@ void Shooter::render(Canvas &c) const {
         c.line(x + 2, y + 12, x + 11, y + 12, Yellow);
     }
   if (ufoActive) {
-    c.bitmap(int(ufoX), 24, ufoSprite, 24, 10);
+    art::sprite(c, art::Sprite::Ufo, int(ufoX), 24, 24, 10);
     c.line(int(ufoX) + 5, 28, int(ufoX) + 18, 28, Cyan);
     for (int k = 0; k < 4; ++k)
       c.pixel(int(ufoX) + 4 + k * 5, 32, (tick / 8 + k) % 2 ? Pink : White);

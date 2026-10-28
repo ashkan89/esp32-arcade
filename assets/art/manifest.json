@@ -1,0 +1,71 @@
+{
+  "environment-atlas.png": {
+    "sha256": "a30da2f534781194b7c227205d963756693ca62a0118025e94f514d1c8fb8873",
+    "frames": 56,
+    "packed_bytes": 248192,
+    "logical_size": [
+      88,
+      100
+    ],
+    "source_row_bounds": [
+      0,
+      157,
+      313,
+      470,
+      627,
+      784,
+      940,
+      1254
+    ]
+  },
+  "sprite-atlas.png": {
+    "sha256": "f602e5033d28ced6ad5571a3c8b68c797975e4113d780ba256372d38a45c05f6",
+    "frames": 64,
+    "packed_bytes": 20480,
+    "logical_size": [
+      24,
+      24
+    ],
+    "source_row_bounds": [
+      0,
+      157,
+      314,
+      470,
+      627,
+      784,
+      940,
+      1097,
+      1254
+    ]
+  },
+  "supplement-atlas.png": {
+    "sha256": "91e408798e3fd8e78900c17ca3b135b01f7ad61ae90493d3be23d677874121c8",
+    "frames": 32,
+    "packed_bytes": 10240,
+    "logical_size": [
+      24,
+      24
+    ],
+    "source_row_bounds": [
+      0,
+      256,
+      512,
+      768,
+      1024
+    ]
+  },
+  "finishing-atlas.png": {
+    "sha256": "aa984b723ad2cd34b3791750a4dc66b706e11a32ede9177454c2aa64105dc6d3",
+    "frames": 8,
+    "packed_bytes": 2560,
+    "logical_size": [
+      24,
+      24
+    ],
+    "source_row_bounds": [
+      0,
+      512,
+      1024
+    ]
+  }
+}

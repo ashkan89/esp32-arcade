@@ -1,5 +1,7 @@
 # Keystone Kapers and River Raid — Atari 2600 research and implementation
 
+**October 28, 2026 / 3.7.0:** the requested modern graphic renewal replaces the earlier actor masks and flat surfaces with newly generated bitmap art. Both Classic and Enhanced use the modern art; those switches select rules, not cartridge graphics. The rules research below remains applicable, while earlier sprite/palette descriptions are historical. See [MODERN_GRAPHICS.md](MODERN_GRAPHICS.md) for current assets and device evidence.
+
 Research checked on 2026-10-11. Target: the existing ESP32-WROVER arcade,
 176×220 ILI9225 display, 60 Hz simulation, eight-button controls.
 The two new games use stable catalog slots 50 and 51; earlier scores and favorites survive.
@@ -201,7 +203,7 @@ numeric movement rate or audio waveform. Gameplay video retrieval failed;
 no frame timing or original-audio listening comparison is claimed.
 
 Both modes now run at 1.00 world pixel per 60 Hz tick (60 pixels/second), down
-from 1.45 (87 pixels/second), a 31% reduction. The thief slows from 0.53�0.71 to 0.38�0.50 pixels/tick, keeping
+from 1.45 (87 pixels/second), a 31% reduction. The thief slows from 0.53–0.71 to 0.38–0.50 pixels/tick, keeping
 the chase viable within fifty seconds and the officer faster at every tier. Grounded travel advances an eight-pose leg/arm cycle,
 four world pixels per pose; each planted foot produces one short tap, at eight
 then twenty-four pixels of the thirty-two-pixel stride. Stopping, a blocked

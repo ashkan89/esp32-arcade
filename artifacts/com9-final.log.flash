@@ -1,0 +1,56 @@
+esptool.py v4.5.1
+Serial port COM9
+Connecting....
+Chip is ESP32-D0WD-V3 (revision v3.1)
+Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
+Crystal is 40MHz
+MAC: d4:e9:f4:8b:84:08
+Uploading stub...
+Running stub...
+Stub running...
+Configuring flash size...
+Flash will be erased from 0x00010000 to 0x00190fff...
+Compressed 1575168 bytes to 1058054...
+Writing at 0x00010000... (1 %)
+Writing at 0x000174c2... (3 %)
+Writing at 0x0001d145... (4 %)
+Writing at 0x00021f8b... (6 %)
+Writing at 0x000269e7... (7 %)
+Writing at 0x0002b4d4... (9 %)
+Writing at 0x0002fe35... (10 %)
+Writing at 0x00034d14... (12 %)
+Writing at 0x00039cf1... (13 %)
+Writing at 0x0003e863... (15 %)
+Writing at 0x00043a18... (16 %)
+Writing at 0x00048a94... (18 %)
+Writing at 0x0004dbd5... (20 %)
+Writing at 0x00052e78... (21 %)
+Writing at 0x00059ba6... (23 %)
+Writing at 0x00067b84... (24 %)
+Writing at 0x0006c681... (26 %)
+Writing at 0x000718cd... (27 %)
+Writing at 0x000772a3... (29 %)
+Traceback (most recent call last):
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\__init__.py", line 1032, in _main
+    main()
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\__init__.py", line 832, in main
+    operation_func(esp, args)
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\cmds.py", line 586, in write_flash
+    esp.flash_defl_block(block, seq, timeout=timeout)
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\loader.py", line 131, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\loader.py", line 1030, in flash_defl_block
+    self.check_command(
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\loader.py", line 435, in check_command
+    val, data = self.command(op, data, chk, timeout=timeout)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\loader.py", line 404, in command
+    p = self.read()
+        ^^^^^^^^^^^
+  File "C:\Users\ashka\.platformio\packages\tool-esptoolpy\esptool\loader.py", line 337, in read
+    return next(self._slip_reader)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+StopIteration
+
+A fatal error occurred: The chip stopped responding.

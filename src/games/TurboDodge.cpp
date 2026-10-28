@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/TurboDodge.h"
 #include "assets/Visuals.h"
 namespace arcade {
@@ -81,7 +82,8 @@ void TurboDodge::update() {
   input.pressed = 0;
 }
 void TurboDodge::render(Canvas &c) const {
-  c.rect(17, Top, 142, H - Top, 0x1082);
+    art::scene(c, 6);
+  art::scene(c, 53, 17, Top, 142, H - Top, 60);
   c.line(17, Top, 17, H - 1, White);
   c.line(158, Top, 158, H - 1, White);
   for (int y = Top; y < H; y += 8) {
@@ -97,9 +99,7 @@ void TurboDodge::render(Canvas &c) const {
     if (o.active) {
       int x = 29 + o.lane * 52;
       if (o.coin) {
-        c.circle(x + 7, int(o.y) + 8, 5, Yellow, true);
-        c.circle(x + 7, int(o.y) + 8, 3, Orange);
-        c.line(x + 6, int(o.y) + 5, x + 6, int(o.y) + 9, White);
+        art::object(c, art::Sprite::Coin, x + 7, int(o.y) + 8, 12, 12);
       } else
         visual::car(c, x, int(o.y), Red, 18);
     }

@@ -1,3 +1,4 @@
+#include "assets/Art.h"
 #include "games/Registration.h"
 namespace arcade {
 class OrbitGuard final : public TickGame {
@@ -118,20 +119,20 @@ public:
     bolts.clear();
   }
   void render(Canvas &c) const override {
+    art::scene(c, 13);
     if (bossHP) {
       int xx = 88 + int(std::cos(bossAngle) * 80), yy = 119 + int(std::sin(bossAngle) * 80);
       c.circle(xx, yy, 9, Pink, true);
       c.text(5, 24, "BOSS", Pink);
       c.rect(35, 24, bossHP * 136 / bossMaximum, 4, Red);
     }
-    c.circle(88, 119, 13, Cyan, true);
+    art::object(c, art::Sprite::Planet, 88, 119, 28, 26);
     c.circle(88, 119, 24, Grey);
     int x = 88 + int(std::cos(angle) * 24), y = 119 + int(std::sin(angle) * 24);
-    c.circle(x, y, 4, Yellow, true);
+    art::object(c, art::Sprite::Jet, x, y, 11, 11);
     for (const auto &r : rocks.items)
       if (r.active)
-        c.circle(88 + int(std::cos(r.angle) * r.radius), 119 + int(std::sin(r.angle) * r.radius), 5,
-                 Red, true);
+        art::object(c, art::Sprite::Rock, 88 + int(std::cos(r.angle) * r.radius), 119 + int(std::sin(r.angle) * r.radius), 12, 12);
     for (const auto &b : bolts.items)
       if (b.active)
         c.circle(88 + int(std::cos(b.angle) * b.radius), 119 + int(std::sin(b.angle) * b.radius), 2,
