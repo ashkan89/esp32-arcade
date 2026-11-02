@@ -4,11 +4,12 @@
 namespace arcade {
 inline bool retryableUpdateHttp(int status) {
   return status == 408 || status == 425 || status == 500 || status == 502 ||
-         status == 503 || status == 504;
+         status == 503 || status == 504 || status == 618;
 }
 inline const char *updateHttpFailure(int status, int rateRemaining = -1) {
   if (status == 429 || (status == 403 && rateRemaining == 0))
     return "GITHUB RATE LIMIT / RETRY LATER";
+  if (status == 618) return "RELEASE LINK EXPIRED / RETRY";
   if (status == 404) return "CHECK REPOSITORY / NO RELEASE";
   if (status == 401) return "GITHUB HTTP 401 / AUTH REQUIRED";
   if (status == 403) return "GITHUB HTTP 403 / ACCESS DENIED";
@@ -17,6 +18,16 @@ inline const char *updateHttpFailure(int status, int rateRemaining = -1) {
 }
 inline const char *noUpdateMessage(bool upToDate) {
   return upToDate ? "NO NEWER FIRMWARE TO INSTALL" : "CHECK FOR A NEW RELEASE FIRST";
+}
+inline bool canonicalGithubDownload(const char *url) {
+  static constexpr char root[] = "https://github.com/";
+  return url && std::strncmp(url,root,sizeof(root)-1) == 0 &&
+         std::strstr(url+sizeof(root)-1,"/releases/download/");
+}
+inline bool githubAssetApiDownload(const char *url) {
+  static constexpr char root[] = "https://api.github.com/repos/";
+  return url && std::strncmp(url,root,sizeof(root)-1) == 0 &&
+         std::strstr(url+sizeof(root)-1,"/releases/assets/");
 }
 struct Version {
   uint16_t major = 0, minor = 0, patch = 0;

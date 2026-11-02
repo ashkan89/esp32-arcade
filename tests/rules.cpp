@@ -1265,6 +1265,16 @@ static void puzzleRules() {
 }
 static void releasePolicy() {
   CHECK(retryableUpdateHttp(503) && retryableUpdateHttp(408));
+  CHECK(retryableUpdateHttp(618));
+  CHECK(std::strstr(updateHttpFailure(618), "EXPIRED"));
+  CHECK(canonicalGithubDownload("https://github.com/owner/repo/releases/download/v1.0.0/app.bin"));
+  CHECK(!canonicalGithubDownload("https://release-assets.githubusercontent.com/file?jwt=signed"));
+  CHECK(!canonicalGithubDownload("https://github.com.evil/owner/repo/releases/download/v1/app.bin"));
+  CHECK(!canonicalGithubDownload("https://api.github.com/repos/owner/repo/releases/latest"));
+  CHECK(githubAssetApiDownload("https://api.github.com/repos/owner/repo/releases/assets/12345"));
+  CHECK(!githubAssetApiDownload("https://release-assets.githubusercontent.com/file?jwt=signed"));
+  CHECK(!githubAssetApiDownload("https://api.github.com.evil/repos/owner/repo/releases/assets/12345"));
+  CHECK(!githubAssetApiDownload("https://api.github.com/repos/owner/repo/releases/latest"));
   CHECK(!retryableUpdateHttp(403) && !retryableUpdateHttp(404) && !retryableUpdateHttp(429));
   CHECK(std::strstr(updateHttpFailure(403,0), "RATE LIMIT"));
   CHECK(std::strstr(updateHttpFailure(403,50), "ACCESS DENIED"));
@@ -1327,7 +1337,7 @@ static void httpJson() {
   auto clock = []() -> uint32_t { return 0; };
   std::string body = "{\"tag_name\":\"v2.0.1\",\"draft\":false,\"prerelease\":false,\"body\":\"";
   body += std::string(90000, 'x');
-  body += "\",\"assets\":[{\"name\":\"arcade-esp32-wroom-n4.bin\",\"size\":123456,\"browser_"
+  body += "\",\"assets\":[{\"name\":\"arcade-esp32-wroom-n4.bin\",\"size\":123456,\"url\":\"https://api.github.com/repos/a/b/releases/assets/123\",\"browser_"
           "download_url\":\"https://github.com/a/b/releases/download/v2.0.1/a.bin\"}]}\n";
   DynamicJsonDocument doc(16384);
   Transport input{body};
@@ -1340,6 +1350,7 @@ static void httpJson() {
   input.body.assign(input.body.size(), '!');
   CHECK(std::strcmp(doc["tag_name"], "v2.0.1") == 0);
   CHECK(std::strcmp(doc["assets"][0]["name"], "arcade-esp32-wroom-n4.bin") == 0);
+  CHECK(std::strcmp(doc["assets"][0]["url"], "https://api.github.com/repos/a/b/releases/assets/123") == 0);
   for (const char *bad : {"{\"tag_name\":", "{} garbage", "{}{}"}) {
     Transport t{bad};
     HttpJsonReader<Transport> r(t, 4096, clock);

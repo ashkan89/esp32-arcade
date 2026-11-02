@@ -67,6 +67,7 @@ bool readReleaseJson(Document &out, Reader &reader, const char **errorText = nul
   filter["assets"][0]["name"] = true;
   filter["assets"][0]["browser_download_url"] = true;
   filter["assets"][0]["size"] = true;
+  filter["assets"][0]["url"] = true;
   auto error = deserializeJson(out, reader, DeserializationOption::Filter(filter));
   if (errorText) *errorText = error.c_str();
   return !error;

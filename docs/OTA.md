@@ -5,6 +5,14 @@ Only public repositories and newer stable `major.minor.patch` releases are accep
 uses GitHub's `/repos/{owner}/{repo}/releases/latest` REST endpoint. Draft/prerelease releases,
 equal/older versions, missing assets, wrong boards and oversized images are rejected.
 
+Version 4.1.2 fixes expired release-download redirects (HTTP 618). Asset bytes are fetched
+through GitHub's REST asset URL using `Accept: application/octet-stream`, with fresh request
+nonces and no-cache headers. Transient failures receive one bounded retry, which starts at
+the original asset endpoint and obtains a new redirect. Signed CDN URLs remain unchanged.
+DNS, TLS, HTTP/rate-limit and JSON failures now have distinct messages. Choosing Install
+after an up-to-date check reports **NO NEWER FIRMWARE TO INSTALL** without reconnecting.
+See [the hotfix verification report](OTA_HOTFIX_4.1.2.md).
+
 Required release assets:
 
 Each target has its own assets and identity; all may share one release:

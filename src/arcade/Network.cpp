@@ -150,8 +150,11 @@ public:
         failure = "NOT ENOUGH MEMORY FOR HTTPS";
         return false;
       }
-      esp_http_client_set_header(client, "Accept", "application/vnd.github+json");
+      bool asset = host != "api.github.com" || githubAssetApiDownload(url.c_str());
+      esp_http_client_set_header(client, "Accept", asset ? "application/octet-stream" : "application/vnd.github+json");
       esp_http_client_set_header(client, "X-GitHub-Api-Version", "2022-11-28");
+      esp_http_client_set_header(client, "Cache-Control", "no-cache");
+      esp_http_client_set_header(client, "Pragma", "no-cache");
       uint32_t started = millis();
       esp_err_t opened = esp_http_client_open(client, 0);
       if (opened != ESP_OK) {
@@ -186,7 +189,18 @@ public:
   }
   bool open(const String &url) {
     for (unsigned attempt = 0; attempt < 2; ++attempt) {
-      if (openOnce(url)) return true;
+      String fresh = url;
+      // GitHub's canonical download may be cached longer than the signed CDN
+      // redirect lives. Refresh the canonical URL, never the signed target URL.
+      if (canonicalGithubDownload(url.c_str()) || githubAssetApiDownload(url.c_str())) {
+        char nonce[40];
+        std::snprintf(nonce,sizeof(nonce),"%lu-%08lx-%u",
+          (unsigned long)std::time(nullptr),(unsigned long)esp_random(),attempt);
+        fresh += url.indexOf('?') < 0 ? "?" : "&";
+        fresh += "_arcade_nonce=";
+        fresh += nonce;
+      }
+      if (openOnce(fresh)) return true;
       Serial.printf("[https] %s (attempt %u/2)\n", failure, attempt+1);
       if (!retryable || attempt == 1) break;
       close();
@@ -439,11 +453,18 @@ bool Network::check(bool verifyDownloadOnly) {
   upToDate = false;
   status("CHECKING GITHUB RELEASE");
   String prefix = "https://github.com/" + repository + "/releases/download/";
+  String apiPrefix = "https://api.github.com/repos/" + repository + "/releases/assets/";
   String manifestUrl, binaryUrl, tag;
   uint32_t binarySize = 0;
   {
     Request request;
-    if (!request.open("https://api.github.com/repos/" + repository + "/releases/latest")) {
+    const char *releasePath = "/releases/latest";
+#if defined(ARCADE_UPDATE_CHECK_DIAGNOSTIC) && ARCADE_UPDATE_CHECK_DIAGNOSTIC
+    // Regression probe: this archived release returned an expired CDN redirect.
+    // The diagnostic only reads and hashes its firmware, never writes or boots it.
+    if (verifyDownloadOnly) releasePath = "/releases/tags/v4.0.1";
+#endif
+    if (!request.open("https://api.github.com/repos/" + repository + releasePath)) {
       status(request.error());
       return false;
     }
@@ -477,6 +498,11 @@ bool Network::check(bool verifyDownloadOnly) {
       String url = asset["browser_download_url"] | "";
       if (!url.startsWith(prefix))
         continue;
+      // The REST asset endpoint issues a fresh binary redirect and supports
+      // public downloads without a token. Keep the browser URL as a fallback.
+      String apiUrl = asset["url"] | "";
+      if (apiUrl.startsWith(apiPrefix) && githubAssetApiDownload(apiUrl.c_str()))
+        url = apiUrl;
       if (std::strcmp(name, ARCADE_MANIFEST) == 0)
         manifestUrl = url;
       if (std::strcmp(name, Binary) == 0) {

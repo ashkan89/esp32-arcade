@@ -86,6 +86,7 @@ port.rts = True; time.sleep(.1); port.rts = False
 deadline = time.monotonic() + (180 if args.network_check else 90 if args.diagnostic else 28)
 output = bytearray()
 pending = bytearray()
+networkDone = False
 with args.log.open('wb') as log:
     while time.monotonic() < deadline:
         chunk = port.read(port.in_waiting or 1)
@@ -95,7 +96,9 @@ with args.log.open('wb') as log:
         while b'\n' in pending:
             line, _, pending = pending.partition(b'\n')
             print(line.decode('ascii', errors='replace').encode('ascii', errors='replace').decode('ascii'), flush=True)
-        if b'Boot health checks passed; firmware confirmed' in output and (not args.network_check or b'[network] Done:' in output):
+            if line.startswith(b'[network] Done:'):
+                networkDone = True
+        if b'Boot health checks passed; firmware confirmed' in output and (not args.network_check or networkDone):
             break
 port.close()
 text = output.decode('ascii', errors='replace')
