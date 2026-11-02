@@ -106,6 +106,8 @@ public:
   virtual bool ownsHud() const {
     return false;
   }
+  // Expensive emulation may drop overdue ticks to keep input/UI service responsive.
+  virtual unsigned maxCatchUpSteps() const { return 4; }
   uint32_t score() const {
     return points;
   }

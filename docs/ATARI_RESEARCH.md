@@ -1,5 +1,8 @@
 # Keystone Kapers and River Raid — Atari 2600 research and implementation
 
+**Superseded by 4.0.2:** the two reconstructions described here have been removed.
+See [the replacement source port and cartridge runtime](ATARI_SOURCE_PORTS.md).
+
 **October 28, 2026 / 3.7.0:** the requested modern graphic renewal replaces the earlier actor masks and flat surfaces with newly generated bitmap art. Both Classic and Enhanced use the modern art; those switches select rules, not cartridge graphics. The rules research below remains applicable, while earlier sprite/palette descriptions are historical. See [MODERN_GRAPHICS.md](MODERN_GRAPHICS.md) for current assets and device evidence.
 
 Research checked on 2026-10-11. Target: the existing ESP32-WROVER arcade,

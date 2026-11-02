@@ -1,7 +1,6 @@
 #pragma once
 #include "arcade/Canvas.h"
 #include "assets/Art.h"
-#include "assets/AtariPixels.h"
 namespace arcade {
 namespace visual {
 constexpr uint16_t Ink = 0x0844, Panel = 0x10a7, Edge = 0x21cc, Muted = 0x9d36;

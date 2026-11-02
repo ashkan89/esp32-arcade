@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 root = Path(__file__).resolve().parents[1]
+subprocess.run([sys.executable, str(root / 'scripts/import_atari_sources.py')], cwd=root, check=True)
 out = root / "test-results"
 out.mkdir(exist_ok=True)
 sources = [root / "tests/rules.cpp", root / "tests/improvements.cpp", *sorted((root / "src/games").glob("*.cpp")),

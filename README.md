@@ -1,6 +1,6 @@
 # Game Arcade — ESP32-WROVER and ESP32-WROOM
 
-52 native arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
+52 arcade games on a 176×220 ILI9225 display, with eight buttons, passive-buzzer audio,
 favorites, saved scores, difficulty settings, and pause/restart menus.
 Wi-Fi setup runs on demand; firmware updates come from
 [ashkan89/esp32-arcade releases](https://github.com/ashkan89/esp32-arcade/releases).
@@ -79,8 +79,8 @@ faster hazards, shorter attack/recovery windows and fewer lives where the game u
 Puzzles instead tighten mine density, move/undo budgets, board generation or deadlines.
 Difficulty takes effect when starting or restarting a run; existing scores and favorites remain saved.
 Settings also provide independent **Music** and **SFX** switches and a **Sound Preview** for all
-52 game tracks plus the menu theme. Atari games default to **Classic**; select **Enhanced**
-for committed thief reactions, timed floor navigation and validated river routes. New personal bests are separated
+52 game tracks plus the menu theme. **Atari Records** selects the preserved Classic/Enhanced
+record bucket; both now use the same source-based implementation. New personal bests are separated
 by difficulty and Atari mode. In High Scores, **B** toggles the preserved all-time mixed records;
 **Menu/Back** returns.
 
@@ -125,17 +125,17 @@ objectives. Read the [complete game guide](docs/GAMES.md) for stage objectives a
 schedules, and [web research](docs/GAME_REFERENCES.md) for the 25 classic inspirations.
 The additions use original code and procedural artwork, with their own titles and rules.
 
-**Keystone Kapers** and **River Raid** are now available as separate native recreations
-in slots 50 and 51. They use Atari-style pixel graphics and their own HUDs, and continue
-as score attacks beyond twelve rounds. Keystone includes the mall, lift, upward escalators,
-security map and timed chase. River Raid includes fuel, ships, helicopters, jets, bridges,
-checkpoint retries and 48 difficulty states. These are reconstructed ports, with known
-differences from the cartridges; see [research, controls and fidelity limits](docs/ATARI_RESEARCH.md).
+**4.0.2 replaces Keystone Kapers and River Raid** in slots 50 and 51.
+Keystone executes the supplied local 4 KB cartridge in a small Atari runtime.
+River Raid is a native C++ port based on [athaless/RiverRaid](https://github.com/athaless/RiverRaid),
+using its sprite maps, terrain tables and gameplay mechanisms. Both own their HUDs and
+continue as score attacks. Read [source provenance, build inputs and fidelity limits](docs/ATARI_SOURCE_PORTS.md).
+The local Keystone ROM is required for builds and remains outside version control.
 
 ![Native Atari game previews](artifacts/atari-preview.png)
 
-[View twelve gameplay and graphics review scenes](artifacts/atari-states.png),
-including lift travel, jump/duck poses, rooftop pursuit, river islands and bridge destruction.
+[View replacement-game renderer captures](artifacts/atari-states.png),
+including cartridge movement/jumping and source-port banks, islands and bridges.
 
 ## Wi-Fi and firmware updates
 

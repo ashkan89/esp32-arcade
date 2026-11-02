@@ -443,11 +443,9 @@ void Console::render(Canvas &c) const {
     c.text(46, 36, "HOW TO PLAY", i.accent);
     char mode[28];
     if (selection == int(GameId::Keystone))
-      std::snprintf(mode, sizeof(mode), "%s / SCORE RUN",
-                    settings.enhanced ? "ENHANCED" : "CLASSIC");
+      std::snprintf(mode, sizeof(mode), "CARTRIDGE / SCORE RUN");
     else if (selection == int(GameId::Raid))
-      std::snprintf(mode, sizeof(mode), "%s / %s", settings.enhanced ? "ENHANCED" : "CLASSIC",
-                    difficultyName(settings.difficulty));
+      std::snprintf(mode, sizeof(mode), "SOURCE PORT / SCORE RUN");
     else
       std::snprintf(mode, sizeof(mode), "%s / 12 STAGES", difficultyName(settings.difficulty));
     c.text(46, 47, mode, visual::Muted);
@@ -592,7 +590,7 @@ void Console::render(Canvas &c) const {
     std::snprintf(rows[8], 28, "BACK");
     std::snprintf(rows[9], 28, "MUSIC: %s", settings.music ? "ON" : "OFF");
     std::snprintf(rows[10], 28, "SFX: %s", settings.sfx ? "ON" : "OFF");
-    std::snprintf(rows[11], 28, "ATARI: %s", settings.enhanced ? "ENHANCED" : "CLASSIC");
+    std::snprintf(rows[11], 28, "ATARI RECORDS: %s", settings.enhanced ? "ENH" : "CLASSIC");
     std::snprintf(rows[12], 28, "SOUND PREVIEW");
     std::snprintf(rows[13], 28, "RESET SETTINGS / SCORES");
     int first = clamp(cursor - 4, 0, 5);

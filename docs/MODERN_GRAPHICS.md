@@ -1,5 +1,8 @@
 # Modern artwork release 3.7.0
 
+This is the historical 3.7.0 report. Version 4.0.2 replaces the two Atari games;
+see [current source provenance and device evidence](ATARI_SOURCE_PORTS.md).
+
 This revision renews the visual presentation of all 52 games with bitmap artwork and
 redesigns the launcher around illustrated feature cards. It supersedes the procedural-art
 presentation described in the older release notes. Per-game changes are enumerated in

@@ -25,11 +25,13 @@ with source hashes, inspected crop boundaries and conversion provenance. See
 12.3.0 (HPND license) for build-time conversion; firmware contains packed indexed data and
 does not depend on Pillow or an image decoder at runtime.
 
-Keystone Kapers and River Raid are native recreations with newly authored pixel masks.
-Activision's manuals and the annotated River Raid disassembly were consulted for rules
-and feedback-generator behavior. No cartridge ROM or disassembly is shipped. Their names
-refer to the original games; these additions are not represented as licensed commercial
-ports. See `docs/ATARI_RESEARCH.md` for sources and remaining fidelity differences.
+River Raid now imports terrain, palette and sprite data from athaless/RiverRaid,
+commit d6dcebe7e62e41d0a0566cb57694edd34406b7d8 (no upstream license file).
+Keystone Kapers executes the user's local ROM, which is ignored along with its generated
+header and analysis. Local firmware embeds that cartridge; it is not automatically a
+redistributable release. The 6502 core in `include/third_party/m6502.h` is by Andre
+Weissflog, under its retained zlib/libpng license. Its pinned revision and hash, source
+provenance and compatibility limits are in `docs/ATARI_SOURCE_PORTS.md`.
 
 The 25 v3 additions use original names, native rules and procedural graphics. Classic title
 references and researched sources are in `docs/GAME_REFERENCES.md`; they do not confer rights

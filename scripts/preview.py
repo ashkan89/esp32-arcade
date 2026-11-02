@@ -19,7 +19,8 @@ if args.games:
     assert 0 <= begin < end <= 52
     panels = [p for p in panels if begin < int(p.stem.split('_')[1]) <= end]
 if args.atari_states:
-    panels = sorted((root / "test-results").glob("atari_*.ppm"))
+    panels = sorted([*(root / "test-results").glob("atari_keystone_rom_*.ppm"),
+                     *(root / "test-results").glob("atari_river_source_*.ppm")])
 if args.menus:
     game_count = len(re.findall(r"^ARCADE_GAME\(", (root / "include/games/Catalog.def").read_text(), re.M))
     panels = [p for p in panels if int(p.stem.split("_")[1]) == 0 or int(p.stem.split("_")[1]) > game_count]

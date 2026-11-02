@@ -26,7 +26,13 @@ void checkArtwork() {
   audio.stop();
   uint32_t before = ESP.getFreeHeap();
   Serial.printf("ART_CHECK BEGIN games=%u heap=%lu\n", unsigned(GameCount), (unsigned long)before);
-  for (unsigned id = 0; id < GameCount; ++id) {
+  for (unsigned id =
+#if defined(ARCADE_ATARI_SOAK) && ARCADE_ATARI_SOAK
+       50;
+#else
+       0;
+#endif
+       id < GameCount; ++id) {
     Game &g = gameFor(GameId(id));
     GameOptions options;
     options.seed = 1000 + id;
@@ -167,6 +173,15 @@ void loop() {
     delay(100);
     return;
   }
+#if defined(ARCADE_UPDATE_CHECK_DIAGNOSTIC) && ARCADE_UPDATE_CHECK_DIAGNOSTIC
+  static bool checked = false;
+  if (bootConfirmed && !checked) {
+    checked = true;
+    Serial.println("UPDATE_DIAGNOSTIC automatic check only");
+    if (display.compact(true)) network.request(ConsoleAction::CheckUpdate);
+    else Serial.println("UPDATE_DIAGNOSTIC framebuffer compact failed");
+  }
+#endif
   network.service(console.state() == Screen::Updates);
   if (ARCADE_WROOM) {
     static bool wasCompact = false;
@@ -195,6 +210,13 @@ void loop() {
   uint32_t workAt = us;
   bool renderDue = framePacer.advance(us);
   unsigned steps = clockStep.advance(us);
+  if (console.active() && (console.state() == Screen::Playing || console.state() == Screen::Attract)) {
+    unsigned limit = std::max(1u, console.active()->maxCatchUpSteps());
+    if (steps > limit) {
+      clockStep.dropped += (steps-limit) * StepClock::StepUs;
+      steps = limit;
+    }
+  }
   for (unsigned i = 0; i < steps; i++) {
     uint32_t started = micros();
     Screen before = console.state();
