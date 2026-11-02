@@ -77,6 +77,9 @@ bool trustedUrl(const String &url) {
 class Request {
   esp_http_client_handle_t client = nullptr;
   String location;
+  const char *failure = "HTTPS REQUEST FAILED / RETRY";
+  int rateRemaining = -1;
+  bool retryable = false;
   static esp_err_t event(esp_http_client_event_t *evt) {
     if (evt->event_id == HTTP_EVENT_DISCONNECTED && evt->data) {
       int tlsCode = 0, flags = 0;
@@ -89,6 +92,9 @@ class Request {
     if (evt->event_id == HTTP_EVENT_ON_HEADER && evt->header_key &&
         strcasecmp(evt->header_key, "Location") == 0)
       static_cast<Request *>(evt->user_data)->location = evt->header_value;
+    if (evt->event_id == HTTP_EVENT_ON_HEADER && evt->header_key &&
+        strcasecmp(evt->header_key, "X-RateLimit-Remaining") == 0)
+      static_cast<Request *>(evt->user_data)->rateRemaining = atoi(evt->header_value);
     return ESP_OK;
   }
 
@@ -104,17 +110,24 @@ public:
       client = nullptr;
     }
   }
-  bool open(String url) {
+  const char *error() const { return failure; }
+  bool openOnce(String url) {
     for (int redirects = 0; redirects < 5; redirects++) {
       close();
       location = "";
-      if (!trustedUrl(url))
+      rateRemaining = -1;
+      retryable = false;
+      if (!trustedUrl(url)) {
+        failure = "HTTPS URL / HOST REJECTED";
         return false;
+      }
       int hostEnd = url.indexOf('/', 8);
       String host = hostEnd < 0 ? url.substring(8) : url.substring(8, hostEnd);
       IPAddress address;
       if (!WiFi.hostByName(host.c_str(), address)) {
         Serial.printf("[https] DNS failed: %s\n", host.c_str());
+        failure = "GITHUB DNS FAILED / CHECK NETWORK";
+        retryable = true;
         return false;
       }
       Serial.printf("[https] Connecting %s (%s); internal heap=%u largest=%u\n", host.c_str(),
@@ -133,8 +146,10 @@ public:
       config.buffer_size_tx = 4096;
       config.user_agent = "GameArcade/" ARCADE_VERSION;
       client = esp_http_client_init(&config);
-      if (!client)
+      if (!client) {
+        failure = "NOT ENOUGH MEMORY FOR HTTPS";
         return false;
+      }
       esp_http_client_set_header(client, "Accept", "application/vnd.github+json");
       esp_http_client_set_header(client, "X-GitHub-Api-Version", "2022-11-28");
       uint32_t started = millis();
@@ -142,11 +157,16 @@ public:
       if (opened != ESP_OK) {
         Serial.printf("[https] Open failed: %s errno=%d after %lu ms\n", esp_err_to_name(opened),
                       esp_http_client_get_errno(client), (unsigned long)elapsed(millis(), started));
+        failure = "HTTPS CONNECTION FAILED / RETRY";
+        retryable = true;
         return false;
       }
       length = esp_http_client_fetch_headers(client);
-      if (length < 0)
+      if (length < 0) {
+        failure = "HTTPS RESPONSE FAILED / RETRY";
+        retryable = true;
         return false;
+      }
       int code = esp_http_client_get_status_code(client);
       Serial.printf("[https] HTTP %d after %lu ms\n", code,
                     (unsigned long)elapsed(millis(), started));
@@ -157,7 +177,20 @@ public:
         url = location;
         continue;
       }
+      failure = updateHttpFailure(code, rateRemaining);
+      retryable = retryableUpdateHttp(code);
       return false;
+    }
+    failure = "TOO MANY HTTPS REDIRECTS";
+    return false;
+  }
+  bool open(const String &url) {
+    for (unsigned attempt = 0; attempt < 2; ++attempt) {
+      if (openOnce(url)) return true;
+      Serial.printf("[https] %s (attempt %u/2)\n", failure, attempt+1);
+      if (!retryable || attempt == 1) break;
+      close();
+      vTaskDelay(pdMS_TO_TICKS(500));
     }
     return false;
   }
@@ -168,12 +201,28 @@ public:
     return esp_http_client_is_complete_data_received(client);
   }
   bool json(Json &out, size_t limit, bool release = false) {
-    if (length > int64_t(limit)) return false;
+    if (length > int64_t(limit)) {
+      failure = "HTTPS RESPONSE TOO LARGE";
+      return false;
+    }
     // Stream parsing copies strings into the document instead of retaining
     // pointers into a mutable response buffer that is about to be freed.
     HttpJsonReader<Request> reader(*this, limit, []() -> uint32_t { return millis(); });
-    bool ok = release ? readReleaseJson(out, reader) : !deserializeJson(out, reader);
-    return ok && reader.finish(length);
+    const char *detail = "OK";
+    bool ok;
+    if (release) ok = readReleaseJson(out, reader, &detail);
+    else {
+      auto error = deserializeJson(out, reader);
+      detail = error.c_str();
+      ok = !error;
+    }
+    if (!ok || !reader.finish(length)) {
+      Serial.printf("[https] JSON failure=%s bytes=%u length=%lld overflow=%u\n", detail,
+                    unsigned(reader.bytesRead()), (long long)length, unsigned(out.overflowed()));
+      failure = out.overflowed() ? "NOT ENOUGH MEMORY FOR RELEASE JSON" : "INVALID / INCOMPLETE HTTPS JSON";
+      return false;
+    }
+    return true;
   }
 };
 String escaped(String value) {
@@ -308,6 +357,7 @@ void Network::setupPortal() {
       password = pass;
       repository = repo;
       found = false;
+      upToDate = false;
       savePending = true;
       savedAt = millis();
       Serial.println("[network] Setup settings saved");
@@ -384,8 +434,9 @@ bool Network::connect() {
   Serial.printf("[https] Clock epoch=%lld\n", static_cast<long long>(std::time(nullptr)));
   return true;
 }
-bool Network::check() {
+bool Network::check(bool verifyDownloadOnly) {
   found = false;
+  upToDate = false;
   status("CHECKING GITHUB RELEASE");
   String prefix = "https://github.com/" + repository + "/releases/download/";
   String manifestUrl, binaryUrl, tag;
@@ -393,14 +444,14 @@ bool Network::check() {
   {
     Request request;
     if (!request.open("https://api.github.com/repos/" + repository + "/releases/latest")) {
-      status("GITHUB CHECK FAILED / NO RELEASE");
+      status(request.error());
       return false;
     }
     // Allocate metadata after the TLS handshake's temporary allocations have
     // been released, preserving internal heap margin on no-PSRAM targets.
     Json release(16384);
     if (!request.json(release, 131072, true)) {
-      status("GITHUB CHECK FAILED / NO RELEASE");
+      status(request.error());
       return false;
     }
     request.close();
@@ -409,9 +460,17 @@ bool Network::check() {
       return false;
     }
     tag = release["tag_name"] | "";
+    Version candidate;
+    if (!parseVersion(tag.c_str(), candidate)) {
+      status("RELEASE VERSION IS INVALID");
+      return false;
+    }
     if (!newerVersion(tag.c_str(), ARCADE_VERSION)) {
-      status("CURRENT FIRMWARE IS UP TO DATE");
-      return true;
+      upToDate = true;
+      if (!verifyDownloadOnly) {
+        status("CURRENT FIRMWARE IS UP TO DATE");
+        return true;
+      }
     }
     for (JsonObject asset : release["assets"].as<JsonArray>()) {
       const char *name = asset["name"] | "";
@@ -432,12 +491,12 @@ bool Network::check() {
   }
   Request request;
   if (!request.open(manifestUrl)) {
-    status("RELEASE MANIFEST DOWNLOAD FAILED");
+    status(request.error());
     return false;
   }
   Json manifest(2048);
   if (!request.json(manifest, 4096)) {
-    status("RELEASE MANIFEST DOWNLOAD FAILED");
+    status(request.error());
     return false;
   }
   request.close();
@@ -449,7 +508,8 @@ bool Network::check() {
   const esp_partition_t *slot = esp_ota_get_next_update_partition(nullptr);
   if ((manifest["schema"] | 0) != 1 || std::strcmp(board, Board) || std::strcmp(file, Binary) ||
       !parseVersion(version, a) || !parseVersion(tag.c_str(), b) || a.major != b.major ||
-      a.minor != b.minor || a.patch != b.patch || !newerVersion(version, ARCADE_VERSION) || !slot ||
+      a.minor != b.minor || a.patch != b.patch ||
+      (!verifyDownloadOnly && !newerVersion(version, ARCADE_VERSION)) || !slot ||
       size < 512 || size > slot->size || size != binarySize ||
       !parseSha256(manifest["sha256"] | "", expectedHash)) {
     status("RELEASE BOARD / HASH / SIZE INVALID");
@@ -458,13 +518,17 @@ bool Network::check() {
   firmwareUrl = binaryUrl;
   releaseVersion = version;
   expectedSize = size;
+  if (verifyDownloadOnly) {
+    status("VERIFYING LATEST DOWNLOAD / READ ONLY");
+    return install(true);
+  }
   found = true;
   status("NEW RELEASE READY / CHOOSE INSTALL");
   return true;
 }
-bool Network::install() {
-  if (!found) {
-    status("CHECK FOR A NEW RELEASE FIRST");
+bool Network::install(bool verifyDownloadOnly) {
+  if (!found && !verifyDownloadOnly) {
+    status(noUpdateMessage(upToDate.load()));
     return false;
   }
   const esp_partition_t *slot = esp_ota_get_next_update_partition(nullptr);
@@ -481,10 +545,10 @@ bool Network::install() {
   Request request;
   if (!request.open(firmwareUrl) ||
       (request.length > 0 && uint64_t(request.length) != expectedSize)) {
-    status("FIRMWARE DOWNLOAD FAILED");
+    status(request.error());
     return false;
   }
-  status("DOWNLOADING TO INACTIVE SLOT");
+  status(verifyDownloadOnly ? "VERIFYING DOWNLOAD / NO FLASH WRITE" : "DOWNLOADING TO INACTIVE SLOT");
   esp_ota_handle_t handle = 0;
   mbedtls_sha256_context hash;
   mbedtls_sha256_init(&hash);
@@ -495,7 +559,7 @@ bool Network::install() {
   uint32_t received = 0, start = millis();
   int matched = 0;
   String identity = ARCADE_IDENTITY + releaseVersion;
-  if (ok)
+  if (ok && !verifyDownloadOnly)
     ok = esp_ota_begin(slot, expectedSize, &handle) == ESP_OK;
   while (ok && received < expectedSize) {
     int n = request.read(buffer, int(std::min(4096u, expectedSize - received)));
@@ -535,7 +599,7 @@ bool Network::install() {
         matched = buffer[i] == uint8_t(identity[0]) ? 1 : 0;
     }
     if (mbedtls_sha256_update_ret(&hash, buffer, n) != 0 ||
-        esp_ota_write(handle, buffer, n) != ESP_OK) {
+        (!verifyDownloadOnly && esp_ota_write(handle, buffer, n) != ESP_OK)) {
       ok = false;
       break;
     }
@@ -557,8 +621,12 @@ bool Network::install() {
   if (!ok) {
     if (handle)
       esp_ota_abort(handle);
-    status("UPDATE REJECTED / CURRENT SLOT SAFE");
+    status(verifyDownloadOnly ? "DOWNLOAD VERIFICATION FAILED / NO WRITE" : "UPDATE REJECTED / CURRENT SLOT SAFE");
     return false;
+  }
+  if (verifyDownloadOnly) {
+    status("DOWNLOAD VERIFIED / NO FLASH WRITE");
+    return true;
   }
   status("VALIDATING FIRMWARE IMAGE");
   if (esp_ota_end(handle) != ESP_OK || esp_ota_set_boot_partition(slot) != ESP_OK) {
@@ -595,9 +663,13 @@ void Network::work() {
                 heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                 heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
   if (connect()) {
-    if (job == ConsoleAction::CheckUpdate)
+    if (job == ConsoleAction::CheckUpdate) {
+#if defined(ARCADE_UPDATE_CHECK_DIAGNOSTIC) && ARCADE_UPDATE_CHECK_DIAGNOSTIC
+      check(true); // Exercise metadata and binary validation without opening an OTA handle.
+#else
       check();
-    else
+#endif
+    } else
       install();
   }
   WiFi.disconnect(false);
@@ -626,6 +698,10 @@ void Network::request(ConsoleAction action) {
   }
   if (portal) {
     status("FINISH OR CLOSE WI-FI SETUP FIRST");
+    return;
+  }
+  if (action == ConsoleAction::InstallUpdate && !found) {
+    status(noUpdateMessage(upToDate.load()));
     return;
   }
   job = action;

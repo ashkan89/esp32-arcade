@@ -17,8 +17,17 @@ public:
       : transport(t), limit(max), clock(now), started(now()) {}
   int read() {
     if (position == available) {
-      if (uint32_t(clock() - started) > 45000 || received >= limit) {
+      if (uint32_t(clock() - started) > 45000) {
         failed = true;
+        return -1;
+      }
+      if (received >= limit) {
+        // Exactly-at-limit bodies are valid. For chunked responses the final
+        // framing may need one more read, but any additional payload is rejected.
+        if (!transport.complete()) {
+          int extra = transport.read(buffer, 1);
+          failed = extra != 0 || !transport.complete();
+        }
         return -1;
       }
       available = transport.read(buffer, int(std::min(sizeof(buffer), limit - received)));
@@ -47,9 +56,10 @@ public:
     return !failed && transport.complete() &&
            (length <= 0 || uint64_t(length) == received);
   }
+  size_t bytesRead() const { return received; }
 };
 template <class Document, class Reader>
-bool readReleaseJson(Document &out, Reader &reader) {
+bool readReleaseJson(Document &out, Reader &reader, const char **errorText = nullptr) {
   StaticJsonDocument<512> filter;
   filter["draft"] = true;
   filter["prerelease"] = true;
@@ -57,6 +67,8 @@ bool readReleaseJson(Document &out, Reader &reader) {
   filter["assets"][0]["name"] = true;
   filter["assets"][0]["browser_download_url"] = true;
   filter["assets"][0]["size"] = true;
-  return !deserializeJson(out, reader, DeserializationOption::Filter(filter));
+  auto error = deserializeJson(out, reader, DeserializationOption::Filter(filter));
+  if (errorText) *errorText = error.c_str();
+  return !error;
 }
 } // namespace arcade

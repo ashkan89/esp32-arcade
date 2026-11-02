@@ -1264,6 +1264,13 @@ static void puzzleRules() {
   CHECK(registry().size() == GameCount);
 }
 static void releasePolicy() {
+  CHECK(retryableUpdateHttp(503) && retryableUpdateHttp(408));
+  CHECK(!retryableUpdateHttp(403) && !retryableUpdateHttp(404) && !retryableUpdateHttp(429));
+  CHECK(std::strstr(updateHttpFailure(403,0), "RATE LIMIT"));
+  CHECK(std::strstr(updateHttpFailure(403,50), "ACCESS DENIED"));
+  CHECK(std::strstr(updateHttpFailure(404), "REPOSITORY"));
+  CHECK(std::strcmp(noUpdateMessage(true), "NO NEWER FIRMWARE TO INSTALL") == 0);
+  CHECK(std::strcmp(noUpdateMessage(false), "CHECK FOR A NEW RELEASE FIRST") == 0);
   Version v;
   CHECK(parseVersion("v2.10.65535", v));
   CHECK(v.minor == 10);
@@ -1342,6 +1349,24 @@ static void httpJson() {
   HttpJsonReader<Transport> r1(truncated, 4096, clock);
   CHECK(readReleaseJson(doc, r1));
   CHECK(!r1.finish(2));
+  Transport exact{"{}"};
+  HttpJsonReader<Transport> exactReader(exact, 2, clock);
+  CHECK(readReleaseJson(doc, exactReader) && exactReader.finish(2));
+  Transport beyond{"{} "};
+  HttpJsonReader<Transport> beyondReader(beyond, 2, clock);
+  CHECK(readReleaseJson(doc, beyondReader) && !beyondReader.finish(-1));
+  struct ChunkedExact : Transport {
+    bool endSeen = false;
+    ChunkedExact() : Transport{"{}"} {}
+    int read(void *out, int count) {
+      int n = Transport::read(out,count);
+      if (!n) endSeen = true;
+      return n;
+    }
+    bool complete() const { return endSeen && Transport::complete(); }
+  } chunked;
+  HttpJsonReader<ChunkedExact> chunkedReader(chunked,2,clock);
+  CHECK(readReleaseJson(doc,chunkedReader) && chunkedReader.finish(-1));
   Transport wrongSize{"{}"};
   HttpJsonReader<Transport> r2(wrongSize, 4096, clock);
   CHECK(readReleaseJson(doc, r2));

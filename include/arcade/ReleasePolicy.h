@@ -2,6 +2,22 @@
 #include <cstdint>
 #include <cstring>
 namespace arcade {
+inline bool retryableUpdateHttp(int status) {
+  return status == 408 || status == 425 || status == 500 || status == 502 ||
+         status == 503 || status == 504;
+}
+inline const char *updateHttpFailure(int status, int rateRemaining = -1) {
+  if (status == 429 || (status == 403 && rateRemaining == 0))
+    return "GITHUB RATE LIMIT / RETRY LATER";
+  if (status == 404) return "CHECK REPOSITORY / NO RELEASE";
+  if (status == 401) return "GITHUB HTTP 401 / AUTH REQUIRED";
+  if (status == 403) return "GITHUB HTTP 403 / ACCESS DENIED";
+  if (status == 408 || status == 504) return "GITHUB TIMED OUT / RETRY";
+  return "GITHUB SERVER ERROR / RETRY";
+}
+inline const char *noUpdateMessage(bool upToDate) {
+  return upToDate ? "NO NEWER FIRMWARE TO INSTALL" : "CHECK FOR A NEW RELEASE FIRST";
+}
 struct Version {
   uint16_t major = 0, minor = 0, patch = 0;
 };

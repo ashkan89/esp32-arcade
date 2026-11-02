@@ -18,7 +18,6 @@ __pycache__/
 *.tmp
 *.bak
 include/generated/
-roms/
 *~
 
 # Operating system metadata
